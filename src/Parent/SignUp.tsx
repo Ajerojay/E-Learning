@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { FcGoogle } from "react-icons/fc";
 import { FaFacebook } from "react-icons/fa";
@@ -7,6 +8,7 @@ import "./Signup.css";
 import bear from "../img/bear.jpg";
 
 export default function ParentSignup() {
+  const navigate = useNavigate();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -34,6 +36,8 @@ export default function ParentSignup() {
     }
 
     alert("Account created successfully!");
+
+    navigate("/");
   };
 
   return (
