@@ -1,10 +1,48 @@
-import React from "react";
+import React, { useState } from "react";
+import { IoEyeOutline, IoEyeOffOutline } from "react-icons/io5";
 import "./ParentLogin.css";
+import { useNavigate } from "react-router-dom";
+import bear from "../../images/learnease logo-no bg.png";
 
-import bear from "../img/bear.jpg"; 
-
+const TEMP_USERNAME = "parent";
+const TEMP_PASSWORD = "parent123";
 
 export default function ParentLogin() {
+  const navigate = useNavigate();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    const user = username.trim();
+    const pass = password.trim();
+
+    if (!user || !pass) {
+      setError("Please enter both username and password.");
+      return;
+    }
+
+    const wrongUser = user !== TEMP_USERNAME;
+    const wrongPass = pass !== TEMP_PASSWORD;
+
+    if (wrongUser && wrongPass) {
+      setError("Invalid username and password.");
+      return;
+    } else if (wrongUser) {
+      setError("Invalid username.");
+      return;
+    } else if (wrongPass) {
+      setError("Invalid password.");
+      return;
+    }
+
+    setError(null);
+    navigate("/parent-dashboard");
+  };
+
   return (
     <div className="le-page">
       {/* LEFT SIDE */}
@@ -25,20 +63,50 @@ export default function ParentLogin() {
           <h1 className="le-title">WELCOME PARENT!</h1>
           <p className="le-subtitle">Learning made fun and easy!</p>
 
-          <form className="le-form" onSubmit={(e) => e.preventDefault()}>
+          <form className="le-form" onSubmit={handleLogin}>
             <label className="le-row">
               <span className="le-label">Username:</span>
-              <input className="le-input" type="text" placeholder="" />
+              <input
+                className="le-input"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="off"
+                placeholder="Username"
+              />
             </label>
 
             <label className="le-row">
               <span className="le-label">Password:</span>
-              <input className="le-input" type="password" placeholder="" />
+              <div className="le-inputWrap">
+                <input
+                  className="le-input"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="off"
+                  placeholder="Password"
+                />
+                <button
+                  type="button"
+                  className="le-showPwd"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <IoEyeOffOutline size={22} /> : <IoEyeOutline size={22} />}
+                </button>
+              </div>
             </label>
 
             <button className="le-btn" type="submit">
               LOGIN
             </button>
+
+            {error && (
+              <p className="le-error" role="alert">
+                {error}
+              </p>
+            )}
 
             <div className="le-links">
               <span className="le-linkText">
