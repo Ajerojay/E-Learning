@@ -1,12 +1,12 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import "./ParentLogin.css";
-
-import bear from "../img/bear.jpg"; 
-
+import bear from "../img/bear.jpg";
 
 export default function ParentLogin() {
   return (
     <div className="le-page">
+
       {/* LEFT SIDE */}
       <aside className="le-left">
         <div className="le-bearWrap">
@@ -22,34 +22,45 @@ export default function ParentLogin() {
       {/* RIGHT SIDE */}
       <main className="le-right">
         <div className="le-card">
+
           <h1 className="le-title">WELCOME PARENT!</h1>
           <p className="le-subtitle">Learning made fun and easy!</p>
 
-          <form className="le-form" onSubmit={(e) => e.preventDefault()}>
+          <form className="le-form">
+
             <label className="le-row">
               <span className="le-label">Username:</span>
-              <input className="le-input" type="text" placeholder="" />
+              <input className="le-input" type="text" placeholder=" " />
             </label>
 
             <label className="le-row">
               <span className="le-label">Password:</span>
-              <input className="le-input" type="password" placeholder="" />
+              <input className="le-input" type="password" placeholder=" " />
             </label>
 
-            <button className="le-btn" type="submit">
-              LOGIN
-            </button>
+            <button className="le-btn">LOGIN</button>
 
+            {/* LINKS */}
             <div className="le-links">
+
               <span className="le-linkText">
-                New Parent? <a className="le-linkBlue" href="#">Create Account</a>
+                New Parent?{" "}
+                <Link to="/signup" className="le-linkBlue">
+                  Create Account
+                </Link>
               </span>
 
-              <a className="le-linkRed" href="#">Forgot Password?</a>
+              <Link to="#" className="le-linkRed">
+                Forgot Password?
+              </Link>
+
             </div>
+
           </form>
+
         </div>
       </main>
+
     </div>
   );
 }

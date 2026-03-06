@@ -1,51 +1,41 @@
-/* Page layout */
+/* ===== PAGE ===== */
 .le-page{
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 40px;
-  padding: 30px;
-  background: white;
-  box-sizing: border-box;
-  font-family: Arial, Helvetica, sans-serif;
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:60px;
+  background:white;
+  font-family:Arial, Helvetica, sans-serif;
+  padding:30px;
 }
 
-/* Left side */
+/* ===== LEFT SIDE ===== */
 .le-left{
-  width: 360px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 18px;
+  width:320px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  gap:15px;
 }
 
-.le-bearWrap{
-  width: 220px;
-  height: 220px;
-  border-radius: 16px;
-  display: grid;
-  place-items: center;
-}
-
+/* bear */
 .le-bear{
-  width: 350px;
-  height: auto;
-  object-fit: contain;
-  position: relative;
-  bottom: 100px;
-  left: -70px;
+  width:250px;
+  height:auto;
 }
 
-.le-brandText {
-  display: flex;             
-  flex-direction: column;     
-  align-items: center;        
-  text-align: center;         
-  font-weight: 800;
-  letter-spacing: 2px;
+/* logo text */
+.le-brandText{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  font-weight:800;
+  letter-spacing:2px;
 
-  background: linear-gradient(
+  background:linear-gradient(
     90deg,
     #a18cd1,
     #fbc2eb,
@@ -53,48 +43,48 @@
     #8fd3f4
   );
 
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
 
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.15);
+  text-shadow:1px 1px 2px rgba(0,0,0,0.15);
 }
 
 .le-brandTop{
-  font-size: 40px;
+  font-size:38px;
 }
 
 .le-brandBottom{
-  font-size: 34px;
+  font-size:32px;
 }
 
-/* Right side card */
+/* ===== RIGHT SIDE ===== */
 .le-right{
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display:flex;
+  justify-content:center;
+  align-items:center;
 }
 
+/* ===== CARD ===== */
 .le-card{
-  width: 600px;
-  height: 500px;
-  max-width:  90vw;
-  background: #FCEDD8;
-  border-radius: 12px;
-  padding: 46px 55px 40px;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.18);
-  border: 1px solid rgba(0,0,0,0.05);
-  box-sizing: border-box;
+  width:600px;
+  background:#FCEDD8;
+  border-radius:14px;
+  padding:40px 60px;
+  box-shadow:0 6px 18px rgba(0,0,0,0.18);
 }
 
+/* ===== TITLE ===== */
 .le-title{
-  margin: 0 0 35px;
-  text-align: center;
-  font-size: 35px;
-  letter-spacing: 4px;
-  font-weight: 800;
-  color: #111;
-  font-family: 'Lexend Peta', sans-serif;
+  text-align:center;
+  font-size:34px;
+  letter-spacing:4px;
+  font-weight:800;
+  margin-bottom:10px;
+  font-family:'Lexend Peta', sans-serif;
+  color: black;
 }
+
+/* subtitle */
 .le-subtitle{
   margin: 12px 0 35px;
   text-align: center;
@@ -108,109 +98,115 @@
   text-shadow: none; /* important */
 }
 
-/* Form */
+/* ===== FORM ===== */
 .le-form{
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
+  display:flex;
+  flex-direction:column;
+  gap:22px;
 }
 
+/* row */
 .le-row{
-  display: grid;
-  grid-template-columns: 130px 1fr;
-  align-items: center;
-  gap: 16px;
+  display:flex;
+  align-items:center;
+  gap:20px;
 }
 
+/* label */
 .le-label{
-  font-weight: 800;
+  width:160px;
+  font-size:20px;
+  font-weight:600;
   color: #111;
-  font-size: 21px;
-  font-family: 'Libre Bodoni', serif;
-
 }
 
 .le-input{
-  height: 36px;
-  border-radius: 6px;
-  border: 1px solid #d9d9d9;
-  padding: 0 12px;
-  outline: none;
-  background: #fff;
-  box-sizing: border-box;
-  color: #111;           /* ✅ add this */
-  caret-color: #111; 
+  flex:1;
+  padding:12px;
+  border-radius:8px;
+  border:1px solid #bbb;
+  background:#e0e0e0;
+  font-size:16px;
+  color: #111;
 }
 
+/* focus */
 .le-input:focus{
-  border-color: #bca8ff;
-  box-shadow: 0 0 0 3px rgba(188,168,255,0.35);
+  border-color:#bca8ff;
+  box-shadow:0 0 0 3px rgba(188,168,255,0.35);
 }
 
+/* ===== LOGIN BUTTON ===== */
 .le-btn{
-  margin: 10px auto 0;
-  width: 260px;
-  height: 44px;
-  border: none;
-  color: black;
-  font-family: 'Lexend', sans-serif;
-  border-radius: 10px;
-  background: #c9edab;
-  font-weight: 900;
-  letter-spacing: 1px;
-  cursor: pointer;
-  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.12);
+  margin:20px auto 0;
+  width:220px;
+  height:42px;
+  border:none;
+  border-radius:10px;
+  background:#c9edab;
+  font-weight:900;
+  letter-spacing:1px;
+  cursor:pointer;
+  font-family:'Lexend', sans-serif;
+  box-shadow:inset 0 -2px 0 rgba(0,0,0,0.12);
 }
 
 .le-btn:active{
-  transform: translateY(1px);
+  transform:translateY(1px);
 }
 
-/* Links row */
+/* ===== LINKS ===== */
 .le-links{
-  margin-top: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-  font-family: 'Lekton', sans-serif;
+  margin-top:35px;
+  display:flex;
+  justify-content:space-between;
+  font-size:13px;
 }
 
 .le-linkText{
-  color: #111;
-  font-weight: 600;
+  color:#111;
+  font-weight:600;
 }
 
 .le-linkBlue{
-  color: #2a5bd7;
-  text-decoration: none;
-  font-weight: 700;
+  color:#2a5bd7;
+  text-decoration:none;
+  font-weight:700;
 }
 
 .le-linkBlue:hover{
-  text-decoration: underline;
+  text-decoration:underline;
 }
 
 .le-linkRed{
-  color: #ff2d2d;
-  text-decoration: none;
-  font-weight: 700;
+  color:#ff2d2d;
+  text-decoration:none;
+  font-weight:700;
 }
 
 .le-linkRed:hover{
-  text-decoration: underline;
+  text-decoration:underline;
 }
 
-/* Responsive */
-@media (max-width: 900px){
+/* ===== RESPONSIVE ===== */
+@media (max-width:900px){
+
   .le-page{
-    flex-direction: column;
-    gap: 18px;
+    flex-direction:column;
+    gap:25px;
   }
+
   .le-left{
-    width: auto;
+    width:auto;
   }
+
   .le-row{
-    grid-template-columns: 110px 1fr;
+    flex-direction:column;
+    align-items:flex-start;
   }
+
+  .le-input{
+    width:100%;
+  }
+
 }
