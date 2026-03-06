@@ -2,22 +2,28 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./App.css";
 import ParentLogin from "./Parent/ParentLogin";
 import ParentDashboard from "./Parent/ParentDashboard";
+import ParentSignup from "./Parent/SignUp";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* show ParentLogin on home */}
+
+        {/* Login Page */}
         <Route path="/" element={<ParentLogin />} />
 
-        {/* Parent Dashboard */}
+        {/* Signup Page */}
+        <Route path="/signup" element={<ParentSignup />} />
+
+        {/* Dashboard */}
         <Route path="/parent-dashboard" element={<ParentDashboard />} />
 
-        {/* optional: keep /Parent working too */}
+        {/* optional */}
         <Route path="/Parent" element={<ParentLogin />} />
 
-        {/* optional: redirect unknown routes to home */}
+        {/* redirect unknown routes */}
         <Route path="*" element={<Navigate to="/" replace />} />
+
       </Routes>
     </BrowserRouter>
   );

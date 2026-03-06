@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { FcGoogle } from "react-icons/fc";
 import { FaFacebook } from "react-icons/fa";
@@ -7,6 +7,35 @@ import "./Signup.css";
 import bear from "../img/bear.jpg";
 
 export default function ParentSignup() {
+
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    setError("");
+
+    if (!username || !password || !confirmPassword) {
+      setError("Please fill in all fields.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    alert("Account created successfully!");
+  };
+
   return (
     <div className="le-page">
 
@@ -27,43 +56,69 @@ export default function ParentSignup() {
           <h1 className="le-title1">WELCOME PARENT!</h1>
           <p className="le-subtitle1">Learning made fun and easy!</p>
 
-          <form className="le-form1">
+          <form className="le-form1" onSubmit={handleSubmit}>
 
             <label className="le-row1">
               <span className="le-label1">Username:</span>
-              <input className="le-input" type="text" placeholder=" " />
+              <input
+                className="le-input"
+                type="text"
+                placeholder="Enter your username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
             </label>
 
             <label className="le-row1">
               <span className="le-label1">Password:</span>
-              <input className="le-input" type="password" placeholder=" " />
+              <input
+                className="le-input"
+                type="password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </label>
 
             <label className="le-row1">
               <span className="le-label1">Confirm Password:</span>
-              <input className="le-input" type="password" placeholder=" " />
+              <input
+                className="le-input"
+                type="password"
+                placeholder="Confirm your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
             </label>
 
-            <button className="le-btn1">CREATE ACCOUNT</button>
+            <button className="le-btn1" type="submit">
+              CREATE ACCOUNT
+            </button>
+
+            {/* ERROR MESSAGE */}
+            {error && <p className="le-error">{error}</p>}
 
             <div className="le-socialLogin">
 
-              <button className="le-googleBtn">
-                <FcGoogle className="le-icon"/> Sign in with Google
+              <button type="button" className="le-googleBtn">
+                <FcGoogle className="le-icon" /> Sign in with Google
               </button>
 
-              <button className="le-facebookBtn">
-                <FaFacebook className="le-icon"/> Sign in with Facebook
+              <button type="button" className="le-facebookBtn">
+                <FaFacebook className="le-icon" /> Sign in with Facebook
               </button>
 
             </div>
 
             <div className="le-linksSignup">
               Already have an account?{" "}
-              <Link to="/ParentLogin" className="le-linkBlue">Login here</Link>
+              <Link to="/ParentLogin" className="le-linkBlue">
+                Login here
+              </Link>
             </div>
 
           </form>
+
         </div>
       </main>
 

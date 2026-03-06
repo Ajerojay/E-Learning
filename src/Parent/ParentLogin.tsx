@@ -91,7 +91,6 @@ export default function ParentLogin() {
                   type="button"
                   className="le-showPwd"
                   onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <IoEyeOffOutline size={22} /> : <IoEyeOutline size={22} />}
                 </button>
@@ -110,7 +109,7 @@ export default function ParentLogin() {
 
             <div className="le-links">
               <span className="le-linkText">
-                New Parent? <a className="le-linkBlue" href="#">Create Account</a>
+                New Parent? <a className="le-linkBlue" href="/signup">Create Account</a>
               </span>
 
               <a className="le-linkRed" href="#">Forgot Password?</a>
