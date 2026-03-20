@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import bear from "../../images/learnease logo-no bg.png";
 
 const TEMP_USERNAME = "parent";
-const TEMP_PASSWORD = "parent123";
+const TEMP_PASSWORD = "Parent123!";
 
 export default function ParentLogin() {
   const navigate = useNavigate();
