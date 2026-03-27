@@ -13,37 +13,16 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-
-        {/* Login Page */}
         <Route path="/" element={<ParentLogin />} />
-
-        {/* Signup Page */}
         <Route path="/signup" element={<ParentSignup />} />
-
-        {/* Dashboard */}
         <Route path="/parent-dashboard" element={<ParentDashboard />} />
-
-        {/* Admin Dashboard */}
         <Route path="/admin" element={<AdminPage />} />
-
-        {/* Admin Student Management */}
         <Route path="/admin/students" element={<AdminStudents />} />
-
-        {/* Student Access */}
         <Route path="/student-access" element={<StudentAccess />} />
-
-        {/* Student Page */}
         <Route path="/student" element={<StudentPage />} />
-        
-        {/* Lesson Page */}
         <Route path="/lesson/:category" element={<LessonPage />} />
-
-        {/* optional */}
         <Route path="/Parent" element={<ParentLogin />} />
-
-        {/* redirect unknown routes */}
         <Route path="*" element={<Navigate to="/" replace />} />
-
       </Routes>
     </BrowserRouter>
   );
