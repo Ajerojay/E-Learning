@@ -132,6 +132,15 @@ export default function LessonPage() {
         </div>
 
         {!loading && lessonTitle && <p className="video-title">{lessonTitle}</p>}
+
+        {!loading && category === "colors" && lessonVideoUrl && (
+          <button
+            className="start-quest-btn"
+            onClick={() => navigate("/quest/colors")}
+          >
+            Start Colors Activity
+          </button>
+        )}
       </div>
     </div>
   );

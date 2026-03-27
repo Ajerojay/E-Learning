@@ -1,0 +1,519 @@
+@import url("https://fonts.googleapis.com/css2?family=Inder&display=swap");
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #fbe7c6;
+  font-family: "Inder", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+.pp-wrapper {
+  display: flex;
+  min-height: 100vh;
+  font-family: inherit;
+  background: url("../../images/parent-bg.png") center/cover no-repeat fixed;
+  position: relative;
+  overflow: hidden;
+}
+
+.pp-sidebar {
+  width: 260px;
+  background: rgba(255, 228, 174, 0.92);
+  border-right: 2px solid #e0c18a;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 18px 14px;
+  gap: 18px;
+  z-index: 2;
+  transition: width 180ms ease;
+}
+
+.pp-sidebar[data-collapsed="true"] {
+  width: 86px;
+  padding-inline: 10px;
+}
+
+.pp-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+  align-items: stretch;
+  flex: 1;
+  padding-top: 8px;
+}
+
+.pp-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 150ms ease, transform 150ms ease;
+  color: #2d2a35;
+}
+
+.pp-nav-item:hover {
+  background: rgba(255, 255, 255, 0.32);
+  transform: translateY(-1px);
+}
+
+.pp-nav-item.pp-active {
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.pp-nav-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  font-size: 30px;
+  color: #2d2a35;
+}
+
+.pp-nav-img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+
+.pp-nav-label {
+  font-size: 18px;
+  letter-spacing: 0.5px;
+}
+
+.pp-logout {
+  margin-top: auto;
+  padding-top: 14px;
+}
+
+.pp-sidebar[data-collapsed="true"] .pp-nav-item {
+  justify-content: center;
+  padding-inline: 8px;
+}
+
+.pp-sidebar[data-collapsed="true"] .pp-nav-label {
+  display: none;
+}
+
+.pp-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+  padding: 24px 40px 40px;
+}
+
+.pp-top-header {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.pp-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #ffffff;
+  padding: 10px 44px;
+  border-radius: 18px;
+  border: 2px solid #d7cfd6;
+  box-shadow: 0 4px 0 #c4b7c2;
+  font-size: 22px;
+  color: #3e3b4a;
+}
+
+.pp-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.pp-brand-text {
+  font-weight: 700;
+}
+
+.pp-bell-icon {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  background: #ffd27f;
+  box-shadow: 0 4px 0 #e0a94f;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.pp-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-top: 10px;
+}
+
+.pp-heading-card {
+  background: rgba(173, 216, 255, 0.9);
+  border-radius: 18px;
+  border: 2px solid #6ea7de;
+  box-shadow: 0 4px 0 #5f8db6;
+  padding: 20px 28px;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.pp-heading-card h1 {
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.pp-summary-row {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 26px;
+  margin-bottom: 28px;
+  align-items: center;
+}
+
+.pp-child-card {
+  background: rgba(194, 251, 241, 0.85);
+  border: 2px solid #7ab8af;
+  border-radius: 18px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  box-shadow: 0 4px 0 #82aaa3;
+}
+
+.pp-avatar {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #d8c8ff;
+  font-size: 48px;
+}
+
+.pp-child-card h2 {
+  font-size: 34px;
+  margin-bottom: 6px;
+}
+
+.pp-grade {
+  font-size: 28px;
+  color: #7d63ff;
+  font-weight: 700;
+}
+
+.pp-overall-card {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.pp-circle {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: conic-gradient(#c4e4c1 0 0%, #f2efe8 0% 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.pp-circle::before {
+  content: "";
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: #f5efe4;
+  position: absolute;
+}
+
+.pp-circle span {
+  position: relative;
+  z-index: 1;
+  font-size: 36px;
+  color: #5d5d5d;
+  font-weight: 700;
+}
+
+.pp-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 34px;
+}
+
+.pp-subject-card {
+  background: rgba(220, 198, 236, 0.72);
+  border: 2px solid #8f6cb8;
+  border-radius: 12px;
+  padding: 18px 20px 22px;
+  box-shadow: 0 4px 0 rgba(121, 87, 160, 0.5);
+}
+
+.pp-subject-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.pp-subject-icon {
+  font-size: 28px;
+}
+
+.pp-subject-header h3 {
+  font-size: 22px;
+}
+
+.pp-bar {
+  width: 100%;
+  height: 22px;
+  background: #232560;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.pp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2945ff, #3a3aff);
+  border-radius: inherit;
+}
+
+.pp-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.pp-percent {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.pp-status {
+  font-size: 18px;
+}
+
+.pp-recommended-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.pp-recommended-title h2 {
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.pp-recommended-title h2 span {
+  color: #9d8cf0;
+}
+
+.pp-recommended-sub {
+  font-size: 18px;
+  margin-bottom: 20px;
+}
+
+.pp-recommend-card {
+  position: relative;
+  padding: 26px 22px 24px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+
+.pp-recommend-card.blue {
+  background: #b9dff1;
+  border: 2px solid #4ea4dc;
+}
+
+.pp-tag {
+  display: inline-block;
+  background: #348ef2;
+  color: white;
+  padding: 10px 18px;
+  border-radius: 14px;
+  font-weight: 800;
+  margin-bottom: 16px;
+  font-size: 18px;
+}
+
+.pp-recommend-card h3 {
+  font-size: 22px;
+  margin-bottom: 12px;
+}
+
+.pp-recommend-card p {
+  font-size: 18px;
+  margin-bottom: 16px;
+}
+
+.pp-child-did {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2f4c66;
+  background: rgba(255, 255, 255, 0.4);
+  padding: 12px 14px;
+  border-radius: 10px;
+}
+
+.pp-recommend-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.pp-recommend-box {
+  background: rgba(77, 159, 244, 0.6);
+  padding: 20px;
+  border-radius: 10px;
+}
+
+.pp-mini-title {
+  font-size: 16px !important;
+  font-weight: 700;
+  margin-bottom: 10px !important;
+}
+
+.pp-recommend-box strong {
+  display: block;
+  font-size: 22px;
+  margin-bottom: 8px;
+}
+
+.pp-recommend-box button {
+  margin-top: 10px;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  background: #397eff;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.pp-recommend-box button:disabled {
+  background: #9bb7e8;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+@media (max-width: 768px) {
+  .pp-wrapper {
+    flex-direction: column;
+  }
+
+  .pp-sidebar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-around;
+    width: 100%;
+    height: 70px;
+    border-right: none;
+    border-bottom: 2px solid #e0c18a;
+    padding: 8px 10px;
+  }
+
+  .pp-nav {
+    flex-direction: row;
+    gap: 10px;
+    width: 100%;
+    justify-content: space-around;
+    padding-top: 0;
+  }
+
+  .pp-nav-item {
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    padding: 6px;
+  }
+
+  .pp-nav-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 20px;
+  }
+
+  .pp-nav-img {
+    width: 24px;
+    height: 24px;
+  }
+
+  .pp-nav-label {
+    font-size: 11px;
+  }
+
+  .pp-logout {
+    margin-top: 0;
+  }
+
+  .pp-main {
+    padding: 14px 16px 20px;
+  }
+
+  .pp-brand {
+    font-size: 16px;
+    padding: 8px 20px;
+  }
+
+  .pp-logo {
+    width: 32px;
+    height: 32px;
+  }
+
+  .pp-bell-icon {
+    width: 34px;
+    height: 34px;
+    font-size: 18px;
+  }
+
+  .pp-summary-row,
+  .pp-grid,
+  .pp-recommend-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .pp-heading-card h1 {
+    font-size: 24px;
+  }
+
+  .pp-child-card h2 {
+    font-size: 24px;
+  }
+
+  .pp-grade {
+    font-size: 20px;
+  }
+
+  .pp-status,
+  .pp-percent,
+  .pp-recommend-card p,
+  .pp-recommended-sub {
+    font-size: 15px;
+  }
+}

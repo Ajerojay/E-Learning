@@ -8,6 +8,10 @@ import AdminStudents from "./Admin/AdminStudents";
 import StudentAccess from "./Student/StudentAccess";
 import StudentPage from "./Student/StudentPage";
 import LessonPage from "./Student/LessonPage";
+import ParentProgress from "./Parent/ParentProgress";
+import ColorsQuestPage from "./Student/ColorsQuestPage";
+
+
 
 function App() {
   return (
@@ -23,6 +27,8 @@ function App() {
         <Route path="/lesson/:category" element={<LessonPage />} />
         <Route path="/Parent" element={<ParentLogin />} />
         <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/parent-progress" element={<ParentProgress />} />
+        <Route path="/quest/colors" element={<ColorsQuestPage />} />
       </Routes>
     </BrowserRouter>
   );

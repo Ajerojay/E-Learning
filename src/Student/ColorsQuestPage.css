@@ -1,0 +1,233 @@
+.cq-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #dff5c7 0%, #d6efbe 100%);
+  position: relative;
+  overflow: hidden;
+  padding: 28px 24px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.cq-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 25%, rgba(255,255,255,0.5) 0 60px, transparent 61px),
+    radial-gradient(circle at 80% 20%, rgba(255,255,255,0.45) 0 80px, transparent 81px),
+    radial-gradient(circle at 50% 75%, rgba(255,255,255,0.2) 0 120px, transparent 121px);
+  pointer-events: none;
+}
+
+.cq-back-btn {
+  position: absolute;
+  left: 22px;
+  top: 22px;
+  z-index: 2;
+  border: none;
+  border-radius: 999px;
+  background: #fff3ea;
+  color: #7a5d52;
+  padding: 14px 20px;
+  font-size: 18px;
+  font-weight: 700;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+}
+
+.cq-title {
+  margin-top: 6px;
+  margin-bottom: 24px;
+  font-size: 64px;
+  line-height: 1;
+  color: #b07d73;
+  font-weight: 900;
+  z-index: 1;
+}
+
+.cq-bear {
+  position: absolute;
+  right: 80px;
+  top: 170px;
+  font-size: 150px;
+  z-index: 1;
+  filter: drop-shadow(0 8px 12px rgba(0,0,0,0.12));
+}
+
+.cq-items-area {
+  width: 100%;
+  max-width: 1100px;
+  min-height: 220px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 28px;
+  flex-wrap: wrap;
+  z-index: 2;
+  margin-bottom: 26px;
+}
+
+.cq-item {
+  border: none;
+  border-radius: 20px;
+  width: 130px;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 10px 18px rgba(0,0,0,0.12);
+  font-weight: 700;
+  transition: transform 0.2s ease;
+}
+
+.cq-item:hover {
+  transform: scale(1.04);
+}
+
+.cq-item-red {
+  background: #ffd7d7;
+}
+
+.cq-item-blue {
+  background: #d8e8ff;
+}
+
+.cq-item-yellow {
+  background: #fff0b9;
+}
+
+.cq-item-emoji {
+  font-size: 42px;
+}
+
+.cq-item-label {
+  font-size: 18px;
+  color: #5b4d48;
+}
+
+.cq-baskets-row {
+  width: 100%;
+  max-width: 1200px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+  z-index: 2;
+}
+
+.cq-basket {
+  min-height: 250px;
+  border-radius: 50px 50px 38px 38px;
+  padding: 18px;
+  box-shadow: inset 0 0 0 6px rgba(139, 92, 65, 0.25), 0 10px 18px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  transition: transform 0.2s ease, outline 0.2s ease;
+}
+
+.cq-basket-over {
+  transform: translateY(-4px);
+  outline: 5px solid rgba(255,255,255,0.5);
+}
+
+.cq-basket-red {
+  background: #e9a3a0;
+}
+
+.cq-basket-blue {
+  background: #cfe0f7;
+}
+
+.cq-basket-yellow {
+  background: #f2dfaf;
+}
+
+.cq-basket-title {
+  text-align: center;
+  font-weight: 800;
+  font-size: 24px;
+  color: #6b5449;
+  margin-bottom: 16px;
+}
+
+.cq-basket-inner {
+  flex: 1;
+  border-radius: 28px;
+  background: rgba(255,255,255,0.18);
+  padding: 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.cq-basket-item {
+  font-size: 42px;
+}
+
+.cq-panel {
+  margin-top: 28px;
+  z-index: 2;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.75);
+  padding: 18px 24px;
+  border-radius: 20px;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.1);
+}
+
+.cq-message {
+  font-size: 22px;
+  font-weight: 700;
+  color: #6d5650;
+  margin-bottom: 10px;
+}
+
+.cq-score {
+  font-size: 18px;
+  color: #4e4e4e;
+}
+
+.cq-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.cq-action-btn {
+  border: none;
+  border-radius: 12px;
+  padding: 12px 18px;
+  background: #6aa7ff;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cq-action-btn.success {
+  background: #63b96c;
+}
+
+@media (max-width: 900px) {
+  .cq-title {
+    font-size: 42px;
+    margin-top: 42px;
+  }
+
+  .cq-bear {
+    display: none;
+  }
+
+  .cq-baskets-row {
+    grid-template-columns: 1fr;
+  }
+
+  .cq-item {
+    width: 110px;
+    min-height: 100px;
+  }
+}

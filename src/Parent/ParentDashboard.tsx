@@ -55,7 +55,7 @@ export default function ParentDashboard() {
             <span className="pd-nav-label">YOUR CHILD</span>
           </button>
 
-          <button type="button" className="pd-nav-item" title="Progress">
+          <button type="button" className="pd-nav-item" title="Progress" onClick={() => navigate("/parent-progress")}> 
             <span className="pd-nav-icon" aria-hidden="true">
               {getSidebarIconSrc("progress") ? (
                 <img className="pd-nav-img" src={getSidebarIconSrc("progress")} alt="" />
