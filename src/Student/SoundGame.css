@@ -1,0 +1,230 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Poppins", sans-serif;
+  background: linear-gradient(135deg, #d0f0ff, #fce4ec);
+}
+.game-container {
+  text-align: center;
+  font-family: "Poppins", sans-serif;
+  padding: 40px;
+}
+.sound-area p {
+  font-size: 20px;
+  margin-top: 130px;
+}
+
+/* BIG PLAY BUTTON */
+.sound-btn {
+  font-size: 24px;
+  padding: 15px 30px;
+  border-radius: 15px;
+  background: #4caf50;
+  color: white;
+  border: none;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  cursor: pointer;
+  margin-top: 20px;
+  transition: 0.2s;
+}
+
+.sound-btn:hover {
+  transform: scale(1.1);
+}
+
+/* CHOICES */
+.choices {
+  margin-top: 30px;
+}
+
+.choice-btn {
+  font-size: 60px;
+  margin: 15px;
+  padding: 20px;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  background: #f2f2f2;
+  transition: 0.2s;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);    
+}
+
+.choice-btn:hover {
+  transform: scale(1.2);
+  background: #ffe082;
+}
+
+/* POPUP CENTER SCREEN */
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  font-weight: bold;
+  color: white;
+  z-index: 999;
+  animation: fadeIn 0.3s ease;
+}
+/* SOUND AREA LAYOUT */
+.sound-area {
+  position: relative;
+  margin-top: 40px;
+}
+
+/* BIG SOUND CIRCLE */
+.sound-circle {
+  width: 120px;
+  height: 120px;
+  background: #e3f2fd;
+  border-radius: 50%;
+  margin: 0 auto;
+  font-size: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+  transition: 0.2s;
+}
+
+.sound-circle:hover {
+  transform: scale(1.1);
+  background: #bbdefb;
+}
+
+/* LION POSITION (NAKATURO SA SOUND) */
+.lion-guide {
+  position: absolute;
+  left: 57%;
+  top: -15px;
+  width: 220px;
+}
+
+/* INSTRUCTION TEXT */
+.instruction {
+  margin-top: 15px;
+  font-size: 18px;
+  color: #444;
+}
+.drop-box {
+  display: inline-block;
+  width: 60px;
+  height: 60px;
+  margin-left: 10px;
+  border: 2px dashed #999;
+  border-radius: 10px;
+  text-align: center;
+  line-height: 60px;
+  font-size: 30px;
+  background: #fff;
+}
+
+.choice-btn2 {
+  display: inline-flex;   /* 🔥 instead of block */
+  justify-content: center;
+  align-items: center;
+
+  width: 70px;            /* 🔥 fixed size */
+  height: 70px;
+
+  font-size: 30px;
+  margin: 10px;
+
+  border-radius: 12px;
+  background: white;
+  border: 2px solid #ddd;
+
+  cursor: grab;
+}
+.choice-btn2:active {
+  cursor: grabbing;
+  transform: scale(0.95);
+}
+.pattern-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+}
+
+.pattern h2 {
+  font-size: 30px;
+  margin-bottom: 30px;
+}
+
+.pattern-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.lion-think {
+  position: absolute;
+  right: 380px;   /* adjust mo */
+  top: 220px;   /* adjust mo */
+
+  width: 220px;
+}
+.pattern-box {
+  font-size: 70px;   /* 🔥 from default → bigger */
+  gap: 20px;
+}
+.drop-box {
+  width: 90px;
+  height: 90px;
+  font-size: 50px;
+
+  line-height: 90px;
+  border: 2px dashed #999;
+  border-radius: 12px;
+}
+.choice-btn2 {
+  width: 90px;
+  height: 90px;
+
+  font-size: 50px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 16px;
+  background: #eee;
+  margin: 10px;
+}
+.choices {
+  display: flex;
+  justify-content: center;
+  gap: 25px;
+  margin-top: 50px;
+  margin-bottom: 10px;
+}
+
+/* MOBILE FIX */
+@media (max-width: 768px) {
+  .lion-guide {
+    position: static;
+    margin-top: 10px;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* STATS */
+.stats {
+  margin-top: 30px;
+  font-size: 20px;
+}
+
+/* PATTERN */
+.pattern-box {
+  margin: 30px 0;
+}

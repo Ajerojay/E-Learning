@@ -10,7 +10,8 @@ import StudentPage from "./Student/StudentPage";
 import LessonPage from "./Student/LessonPage";
 import ParentProgress from "./Parent/ParentProgress";
 import ColorsQuestPage from "./Student/ColorsQuestPage";
-
+import Level1Sound from "./Student/Level1Sound";
+import Level2Pattern from "./Student/Level2Pattern";
 
 
 function App() {
@@ -29,9 +30,11 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
         <Route path="/parent-progress" element={<ParentProgress />} />
         <Route path="/quest/colors" element={<ColorsQuestPage />} />
+        <Route path="/student/sound" element={<Level1Sound />} />
+        <Route path="/student/pattern" element={<Level2Pattern />} />
       </Routes>
     </BrowserRouter>
-  );
+  );  
 }
 
 export default App;
