@@ -3,7 +3,12 @@ import "./ParentProgress.css";
 import { useNavigate } from "react-router-dom";
 import logo from "../../images/learnease logo-no bg.png";
 import { supabase } from "../lib/supabase";
-import { getOrCreateActiveChildId, SUBJECT_KEYS, type SubjectKey } from "../lib/childProgress";
+import {
+  getFirstName,
+  getOrCreateActiveChildId,
+  SUBJECT_KEYS,
+  type SubjectKey,
+} from "../lib/childProgress";
 
 type CategoryProgressRow = {
   category_code: SubjectKey;
@@ -128,6 +133,7 @@ export default function ParentProgress() {
   );
 
   const hasRealColorsData = colorsData.attempts > 0;
+  const childFirstName = getFirstName(childName);
 
   const getColorsRecommendation = () => {
     const score = colorsData.score || 0;
@@ -140,7 +146,7 @@ export default function ParentProgress() {
         status: "Current Status: None as of now",
         intro: "No Colors activity data has been recorded yet.",
         childDid:
-          "Once Sofia starts and completes an activity, this section will show personalized recommendations.",
+          `Once ${childFirstName} starts and completes an activity, this section will show personalized recommendations.`,
         onlineTitle: "SCREEN TIME",
         onlineAction: "No activity yet",
         onlineDesc:
@@ -160,7 +166,7 @@ export default function ParentProgress() {
         title: "COLORS SUPPORT",
         status: `Current Status: Not Finished (${score}%)`,
         intro:
-          "Sofia has not finished the Colors activity yet. She may still be learning how to sort objects correctly.",
+          `${childFirstName} has not finished the Colors activity yet. She may still be learning how to sort objects correctly.`,
         childDid: `She started "${activityTitle}" but did not finish it yet.`,
         onlineTitle: "SCREEN TIME (5m)",
         onlineAction: "Replay Colors Game",
@@ -180,7 +186,7 @@ export default function ParentProgress() {
         title: "COLORS REVIEW",
         status: `Current Status: Needs Video Review (${score}%)`,
         intro:
-          "Sofia completed the activity, but she needed many attempts. Rewatching the lesson may help reinforce color recognition.",
+          `${childFirstName} completed the activity, but she needed many attempts. Rewatching the lesson may help reinforce color recognition.`,
         childDid: `She completed "${activityTitle}" with ${attempts} attempts, which suggests she may still be confusing some colors.`,
         onlineTitle: "SCREEN TIME (8m)",
         onlineAction: "Rewatch Colors Lesson",
@@ -200,7 +206,7 @@ export default function ParentProgress() {
         title: "COLORS PRACTICE",
         status: `Current Status: Improving (${score}%)`,
         intro:
-          "Sofia is improving, but she still needs more practice to become confident.",
+          `${childFirstName} is improving, but she still needs more practice to become confident.`,
         childDid: `She completed "${activityTitle}" with ${attempts} attempts, so a repeat game would help strengthen her skills.`,
         onlineTitle: "SCREEN TIME (5m)",
         onlineAction: "Replay Colors Game",
@@ -219,7 +225,7 @@ export default function ParentProgress() {
       title: "COLORS ACHIEVED",
       status: `Current Status: Excellent (${score}%)`,
       intro:
-        "Sofia did very well in the Colors activity and shows strong understanding.",
+        `${childFirstName} did very well in the Colors activity and shows strong understanding.`,
       childDid: `She completed "${activityTitle}" with only ${attempts} attempt(s), which shows good color recognition.`,
       onlineTitle: "SCREEN TIME (5m)",
       onlineAction: "Play Again for Fun",

@@ -14,6 +14,7 @@ export default function ParentSignup() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [childName, setChildName] = useState("");
   const [childPin, setChildPin] = useState("");
   const [error, setError] = useState("");
 
@@ -40,9 +41,16 @@ export default function ParentSignup() {
 
     const cleanUsername = username.trim();
     const cleanPassword = password.trim();
+    const cleanChildName = childName.trim();
     const cleanChildPin = childPin.trim();
 
-    if (!cleanUsername || !cleanPassword || !confirmPassword.trim() || !cleanChildPin) {
+    if (
+      !cleanUsername ||
+      !cleanPassword ||
+      !confirmPassword.trim() ||
+      !cleanChildName ||
+      !cleanChildPin
+    ) {
       setError("Please fill in all fields.");
       return;
     }
@@ -105,7 +113,7 @@ export default function ParentSignup() {
         .insert([
           {
             parent_id: createdParent.id,
-            child_name: "Sofia Cruz",
+            child_name: cleanChildName,
             grade_level: "Kinder",
             pin_code: cleanChildPin,
           },
@@ -279,6 +287,17 @@ export default function ParentSignup() {
             </div>
 
             {/* CHILD PIN */}
+            <div className="le-row1">
+              <span className="le-label1">Child Name:</span>
+              <input
+                className="le-input"
+                type="text"
+                placeholder="Enter child's full name"
+                value={childName}
+                onChange={(e) => setChildName(e.target.value)}
+              />
+            </div>
+
             <div className="le-row1">
               <span className="le-label1">Child PIN:</span>
               <input

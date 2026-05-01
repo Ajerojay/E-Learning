@@ -3,12 +3,12 @@ import "./ParentDashboard.css";
 import { useNavigate } from "react-router-dom";
 import logo from "../../images/learnease logo-no bg.png";
 import { supabase } from "../lib/supabase";
-import { getOrCreateActiveChildId } from "../lib/childProgress";
+import { getOrCreateActiveChildId, getFirstName } from "../lib/childProgress";
 
 export default function ParentDashboard() {
   const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(true);
-  const [childName, setChildName] = React.useState("Sofia");
+  const [childName, setChildName] = React.useState("Child");
   const [overallProgress, setOverallProgress] = React.useState(0);
   const [recentActivity, setRecentActivity] = React.useState("No activity yet");
 
@@ -49,6 +49,7 @@ export default function ParentDashboard() {
           .maybeSingle(),
       ]);
 
+      const fetchedChildName = child?.child_name || "Child";
       if (child?.child_name) {
         setChildName(child.child_name);
       }
@@ -59,7 +60,8 @@ export default function ParentDashboard() {
 
       if (latest?.category_code) {
         const category = latest.category_code.charAt(0).toUpperCase() + latest.category_code.slice(1);
-        setRecentActivity(`${child?.child_name || "Sofia"} completed "${category}"`);
+        const recentName = getFirstName(fetchedChildName);
+        setRecentActivity(`${recentName} completed "${category}"`);
       }
     };
 

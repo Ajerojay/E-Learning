@@ -18,6 +18,12 @@ export const SUBJECT_KEYS = [
 
 export type SubjectKey = (typeof SUBJECT_KEYS)[number];
 
+export function getFirstName(name: string): string {
+  const clean = name.trim();
+  if (!clean) return "Child";
+  return clean.split(/\s+/)[0];
+}
+
 export function getLocalUser(): LocalUser | null {
   try {
     return JSON.parse(localStorage.getItem("user") || "null");
@@ -62,7 +68,7 @@ export async function getOrCreateActiveChildId(): Promise<string | null> {
     .insert([
       {
         parent_id: localUser.id,
-        child_name: "Sofia Cruz",
+        child_name: "Child",
         grade_level: "Kinder",
         pin_code: localStorage.getItem("studentPin") || "1234",
       },
