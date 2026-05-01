@@ -4,6 +4,7 @@ import "./ParentLogin.css";
 import { useNavigate } from "react-router-dom";
 import bear from "../../images/learnease logo-no bg.png";
 import { supabase } from "../lib/supabase";
+import { getOrCreateActiveChildId } from "../lib/childProgress";
 
 const ADMIN_USERNAME = "admin";
 const ADMIN_PASSWORD = "admin123";
@@ -66,9 +67,27 @@ export default function ParentLogin() {
         })
       );
 
-      if (!localStorage.getItem("studentPin")) {
-        localStorage.setItem("studentPin", "1234");
+      const { data: childData, error: childError } = await supabase
+        .from("children_accounts")
+        .select("id, pin_code")
+        .eq("parent_id", data.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (childError) {
+        console.error("Child lookup error:", childError.message);
       }
+
+      if (childData?.id) {
+        localStorage.setItem("activeChildId", childData.id);
+        if (childData.pin_code) {
+          localStorage.setItem("studentPin", childData.pin_code);
+        }
+      }
+
+      await getOrCreateActiveChildId();
 
       navigate("/parent-dashboard");
     } catch (err) {

@@ -2,10 +2,15 @@ import React from "react";
 import "./ParentDashboard.css";
 import { useNavigate } from "react-router-dom";
 import logo from "../../images/learnease logo-no bg.png";
+import { supabase } from "../lib/supabase";
+import { getOrCreateActiveChildId } from "../lib/childProgress";
 
 export default function ParentDashboard() {
   const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(true);
+  const [childName, setChildName] = React.useState("Sofia");
+  const [overallProgress, setOverallProgress] = React.useState(0);
+  const [recentActivity, setRecentActivity] = React.useState("No activity yet");
 
   const sidebarIcons = import.meta.glob("../../images/sidebar/*", {
     eager: true,
@@ -22,6 +27,44 @@ export default function ParentDashboard() {
     });
     return match?.[1];
   };
+
+  React.useEffect(() => {
+    const loadDashboardData = async () => {
+      const childId = await getOrCreateActiveChildId();
+      if (!childId) return;
+
+      const [{ data: child }, { data: overall }, { data: latest }] = await Promise.all([
+        supabase.from("children_accounts").select("child_name").eq("id", childId).maybeSingle(),
+        supabase
+          .from("v_child_overall_progress")
+          .select("overall_progress_percent")
+          .eq("child_id", childId)
+          .maybeSingle(),
+        supabase
+          .from("v_child_recent_activity")
+          .select("category_code, game_title")
+          .eq("child_id", childId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+      if (child?.child_name) {
+        setChildName(child.child_name);
+      }
+
+      if (overall?.overall_progress_percent != null) {
+        setOverallProgress(Math.round(overall.overall_progress_percent));
+      }
+
+      if (latest?.category_code) {
+        const category = latest.category_code.charAt(0).toUpperCase() + latest.category_code.slice(1);
+        setRecentActivity(`${child?.child_name || "Sofia"} completed "${category}"`);
+      }
+    };
+
+    void loadDashboardData();
+  }, []);
 
   return (
     <div className="pd-wrapper">
@@ -114,10 +157,10 @@ export default function ParentDashboard() {
 
             <div className="pd-progress-item">
               <p className="pd-child-name">
-                Sofia: <span className="pd-progress-percent">45%</span> Progress
+                {childName}: <span className="pd-progress-percent">{overallProgress}%</span> Progress
               </p>
               <div className="pd-progress-bar">
-                <div className="pd-progress-fill" style={{ width: "45%" }}></div>
+                <div className="pd-progress-fill" style={{ width: `${overallProgress}%` }}></div>
               </div>
             </div>
 
@@ -128,7 +171,7 @@ export default function ParentDashboard() {
               <h2>Recent Activity</h2>
             </div>
             <p className="pd-activity-text">
-              Sofia completed <strong>"Colors"</strong>
+              <strong>{recentActivity}</strong>
             </p>
           </section>
         </main>

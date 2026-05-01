@@ -1,5 +1,5 @@
 import "./ColorsQuestPage.css";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   DndContext,
@@ -7,6 +7,8 @@ import {
   useDroppable,
   DragEndEvent,
 } from "@dnd-kit/core";
+import { supabase } from "../lib/supabase";
+import { getOrCreateActiveChildId } from "../lib/childProgress";
 
 type Item = {
   id: string;
@@ -94,6 +96,7 @@ export default function ColorsQuestPage() {
   const [placed, setPlaced] = useState<Record<string, "red" | "blue" | "yellow">>(
     {}
   );
+  const [childId, setChildId] = useState<string | null>(null);
   const [message, setMessage] = useState(
     "Drag each object into the correct color basket!"
   );
@@ -111,34 +114,29 @@ export default function ColorsQuestPage() {
   const totalItems = items.length;
   const isFinished = totalCorrect === totalItems;
 
-  const saveProgress = (
-    score: number,
-    finished: boolean,
-    attempts: number
-  ) => {
-    const existing = JSON.parse(localStorage.getItem("progress") || "{}");
-
-    existing.colors = {
-      score,
-      completed: score >= 80,
-      finished,
-      attempts,
-      lessonTitle: "Colors Lesson",
-      activityTitle: "Sort the Colors",
+  useEffect(() => {
+    const loadChild = async () => {
+      const id = await getOrCreateActiveChildId();
+      setChildId(id);
     };
 
-    localStorage.setItem("progress", JSON.stringify(existing));
+    void loadChild();
+  }, []);
 
-    localStorage.setItem(
-      "recentActivity",
-      JSON.stringify({
-        category: "Colors",
-        activity: "Sort the Colors",
-        score,
-        attempts,
-        finished,
-      })
-    );
+  const saveProgress = async (score: number, finished: boolean, attempts: number) => {
+    if (!childId) return;
+
+    const { error } = await supabase.rpc("record_game_attempt", {
+      p_child_id: childId,
+      p_game_code: "colors_sort",
+      p_score: score,
+      p_wrong_attempts: attempts,
+      p_finished: finished,
+    });
+
+    if (error) {
+      console.error("Failed to save colors progress:", error.message);
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -163,7 +161,7 @@ export default function ColorsQuestPage() {
       const finished = newCorrect === totalItems;
 
       setMessage(`Great job! ${draggedItem.name} belongs to ${overId}!`);
-      saveProgress(score, finished, wrongAttempts);
+      void saveProgress(score, finished, wrongAttempts);
 
       if (finished) {
         setMessage("Amazing! You sorted all the colors correctly!");
@@ -174,7 +172,7 @@ export default function ColorsQuestPage() {
       setMessage(`Oops! Try again. ${draggedItem.name} does not belong there.`);
 
       const currentScore = Math.round((totalCorrect / totalItems) * 100);
-      saveProgress(currentScore, false, nextAttempts);
+      void saveProgress(currentScore, false, nextAttempts);
     }
   };
 
@@ -182,7 +180,6 @@ export default function ColorsQuestPage() {
     setPlaced({});
     setWrongAttempts(0);
     setMessage("Drag each object into the correct color basket!");
-    saveProgress(0, false, 0);
   };
 
   return (

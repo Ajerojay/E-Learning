@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import "./StudentAccess.css";
 
@@ -18,7 +18,13 @@ export default function StudentAccess() {
   };
 
   const handleSubmit = () => {
-    const storedPin = localStorage.getItem("studentPin") || "1234";
+    const storedPin = localStorage.getItem("studentPin");
+
+    if (!storedPin) {
+      setPin("");
+      alert("Please log in as parent first to set up your child's PIN.");
+      return;
+    }
 
     if (pin === storedPin) {
       navigate("/student");
@@ -27,6 +33,27 @@ export default function StudentAccess() {
       alert("Incorrect PIN");
     }
   };
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key >= "0" && event.key <= "9") {
+        setPin((prev) => (prev.length < 4 ? prev + event.key : prev));
+        return;
+      }
+
+      if (event.key === "Backspace" || event.key === "Delete") {
+        setPin((prev) => prev.slice(0, -1));
+        return;
+      }
+
+      if (event.key === "Enter") {
+        handleSubmit();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleSubmit]);
 
   return (
     <div className="lockscreen">

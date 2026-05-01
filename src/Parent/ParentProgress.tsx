@@ -1,36 +1,86 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "./ParentProgress.css";
 import { useNavigate } from "react-router-dom";
 import logo from "../../images/learnease logo-no bg.png";
+import { supabase } from "../lib/supabase";
+import { getOrCreateActiveChildId, SUBJECT_KEYS, type SubjectKey } from "../lib/childProgress";
 
-type ProgressItem = {
-  score: number;
-  completed: boolean;
-  finished?: boolean;
-  attempts?: number;
-  lessonTitle?: string;
-  activityTitle?: string;
+type CategoryProgressRow = {
+  category_code: SubjectKey;
+  category_score: number;
 };
 
-type ProgressData = {
-  [key: string]: ProgressItem;
+type ColorsProgress = {
+  score: number;
+  completed: boolean;
+  attempts: number;
+  activityTitle: string;
 };
 
 export default function ParentProgress() {
   const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(true);
-  const [progress, setProgress] = useState<ProgressData>({});
+  const [loading, setLoading] = useState(true);
+  const [childName, setChildName] = useState("Sofia Cruz");
+  const [categoryRows, setCategoryRows] = useState<CategoryProgressRow[]>([]);
+  const [colorsData, setColorsData] = useState<ColorsProgress>({
+    score: 0,
+    completed: false,
+    attempts: 0,
+    activityTitle: "Sort the Colors",
+  });
 
   useEffect(() => {
-    const demoMode = localStorage.getItem("demoMode");
+    const loadProgress = async () => {
+      setLoading(true);
+      const childId = await getOrCreateActiveChildId();
+      if (!childId) {
+        setLoading(false);
+        return;
+      }
 
-    if (demoMode === "true") {
-      setProgress({});
-      return;
-    }
+      const [{ data: child }, { data: categories }, { data: colorsProgress }] =
+        await Promise.all([
+          supabase.from("children_accounts").select("child_name").eq("id", childId).maybeSingle(),
+          supabase
+            .from("v_child_category_progress")
+            .select("category_code, category_score")
+            .eq("child_id", childId),
+          supabase
+            .from("child_game_progress")
+            .select(
+              "best_score, completed, total_attempts, learning_games!inner(game_code, game_title)"
+            )
+            .eq("child_id", childId)
+            .eq("learning_games.game_code", "colors_sort")
+            .maybeSingle(),
+        ]);
 
-    const saved = JSON.parse(localStorage.getItem("progress") || "{}");
-    setProgress(saved);
+      if (child?.child_name) {
+        setChildName(child.child_name);
+      }
+
+      if (categories) {
+        setCategoryRows(categories as CategoryProgressRow[]);
+      }
+
+      if (colorsProgress) {
+        const game = Array.isArray(colorsProgress.learning_games)
+          ? colorsProgress.learning_games[0]
+          : colorsProgress.learning_games;
+
+        setColorsData({
+          score: colorsProgress.best_score || 0,
+          completed: Boolean(colorsProgress.completed),
+          attempts: colorsProgress.total_attempts || 0,
+          activityTitle: game?.game_title || "Sort the Colors",
+        });
+      }
+
+      setLoading(false);
+    };
+
+    void loadProgress();
   }, []);
 
   const sidebarIcons = import.meta.glob("../../images/sidebar/*", {
@@ -56,7 +106,7 @@ export default function ParentProgress() {
     return "Getting Started";
   };
 
-  const subjects = [
+  const subjects: { key: SubjectKey; label: string; icon: string }[] = [
     { key: "colors", label: "Colors", icon: "🎨" },
     { key: "shapes", label: "Shapes", icon: "🔺" },
     { key: "letters", label: "Letters", icon: "🔤" },
@@ -65,49 +115,23 @@ export default function ParentProgress() {
     { key: "logic", label: "Logic", icon: "🧩" },
   ];
 
-  const safeProgress = {
-    colors: progress.colors || { score: 0, completed: false },
-    shapes: progress.shapes || { score: 0, completed: false },
-    letters: progress.letters || { score: 0, completed: false },
-    numbers: progress.numbers || { score: 0, completed: false },
-    phonics: progress.phonics || { score: 0, completed: false },
-    logic: progress.logic || { score: 0, completed: false },
-  };
+  const safeProgress = useMemo(() => {
+    const base = Object.fromEntries(SUBJECT_KEYS.map((key) => [key, 0])) as Record<SubjectKey, number>;
+    for (const row of categoryRows) {
+      base[row.category_code] = Math.round(row.category_score || 0);
+    }
+    return base;
+  }, [categoryRows]);
 
-  const overall =
-    subjects.reduce(
-      (sum, sub) => sum + (safeProgress[sub.key as keyof typeof safeProgress]?.score || 0),
-      0
-    ) / subjects.length;
+  const overall = Math.round(
+    SUBJECT_KEYS.reduce((sum, key) => sum + (safeProgress[key] || 0), 0) / SUBJECT_KEYS.length
+  );
 
-  const hasRealColorsData =
-    progress.colors &&
-    typeof progress.colors.score === "number" &&
-    typeof progress.colors.attempts === "number";
-
-  const colorsData: ProgressItem = hasRealColorsData
-    ? {
-        score: progress.colors?.score || 0,
-        completed: progress.colors?.completed || false,
-        finished: progress.colors?.finished || false,
-        attempts: progress.colors?.attempts || 0,
-        lessonTitle: progress.colors?.lessonTitle || "Colors Lesson",
-        activityTitle: progress.colors?.activityTitle || "Sort the Colors",
-      }
-    : {
-        score: 0,
-        completed: false,
-        finished: false,
-        attempts: 0,
-        lessonTitle: "Colors Lesson",
-        activityTitle: "Sort the Colors",
-      };
+  const hasRealColorsData = colorsData.attempts > 0;
 
   const getColorsRecommendation = () => {
     const score = colorsData.score || 0;
     const attempts = colorsData.attempts || 0;
-    const finished = colorsData.finished || false;
-    const lessonTitle = colorsData.lessonTitle || "Colors Lesson";
     const activityTitle = colorsData.activityTitle || "Sort the Colors";
 
     if (!hasRealColorsData) {
@@ -131,7 +155,7 @@ export default function ParentProgress() {
       };
     }
 
-    if (!finished) {
+    if (!colorsData.completed) {
       return {
         title: "COLORS SUPPORT",
         status: `Current Status: Not Finished (${score}%)`,
@@ -160,7 +184,7 @@ export default function ParentProgress() {
         childDid: `She completed "${activityTitle}" with ${attempts} attempts, which suggests she may still be confusing some colors.`,
         onlineTitle: "SCREEN TIME (8m)",
         onlineAction: "Rewatch Colors Lesson",
-        onlineDesc: `Let her rewatch "${lessonTitle}" before trying the activity again.`,
+        onlineDesc: 'Let her rewatch "Colors Lesson" before trying the activity again.',
         onlineButton: "▶ Watch Lesson",
         onlineRoute: "/lesson/colors",
         offlineTitle: "PARENT TIME (10m)",
@@ -307,7 +331,7 @@ export default function ParentProgress() {
             <div className="pp-child-card">
               <div className="pp-avatar">🦄</div>
               <div>
-                <h2>Sofia Cruz</h2>
+                <h2>{childName}</h2>
                 <p className="pp-grade">Kinder</p>
               </div>
             </div>
@@ -328,7 +352,7 @@ export default function ParentProgress() {
 
           <section className="pp-grid">
             {subjects.map((sub) => {
-              const score = safeProgress[sub.key as keyof typeof safeProgress]?.score || 0;
+              const score = safeProgress[sub.key] || 0;
               return (
                 <div key={sub.key} className="pp-subject-card">
                   <div className="pp-subject-header">
@@ -354,7 +378,7 @@ export default function ParentProgress() {
             <div className="pp-recommended-title">
               <span>⭐</span>
               <h2>
-                RECOMMENDED FOR <span>SOFIA</span>
+                RECOMMENDED FOR <span>{childName.toUpperCase()}</span>
               </h2>
             </div>
 
@@ -387,7 +411,7 @@ export default function ParentProgress() {
                   <p className="pp-mini-title">🏠 {colorsRecommendation.offlineTitle}</p>
                   <strong>{colorsRecommendation.offlineAction}</strong>
                   <p>{colorsRecommendation.offlineDesc}</p>
-                  <button disabled={!hasRealColorsData}>
+                  <button disabled={!hasRealColorsData || loading}>
                     {colorsRecommendation.offlineButton}
                   </button>
                 </div>

@@ -14,6 +14,7 @@ export default function ParentSignup() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [childPin, setChildPin] = useState("");
   const [error, setError] = useState("");
 
   const [showPassword, setShowPassword] = useState(false);
@@ -39,9 +40,15 @@ export default function ParentSignup() {
 
     const cleanUsername = username.trim();
     const cleanPassword = password.trim();
+    const cleanChildPin = childPin.trim();
 
-    if (!cleanUsername || !cleanPassword || !confirmPassword.trim()) {
+    if (!cleanUsername || !cleanPassword || !confirmPassword.trim() || !cleanChildPin) {
       setError("Please fill in all fields.");
+      return;
+    }
+
+    if (!/^\d{4}$/.test(cleanChildPin)) {
+      setError("Child PIN must be exactly 4 digits.");
       return;
     }
 
@@ -76,18 +83,37 @@ export default function ParentSignup() {
         return;
       }
 
-      const { error: insertError } = await supabase
+      const { data: createdParent, error: insertError } = await supabase
         .from("parents_accounts")
         .insert([
           {
             username: cleanUsername,
             password: cleanPassword,
           },
-        ]);
+        ])
+        .select("id")
+        .single();
 
       if (insertError) {
         console.error("Signup error:", insertError.message);
         setError("Failed to register account.");
+        return;
+      }
+
+      const { error: childInsertError } = await supabase
+        .from("children_accounts")
+        .insert([
+          {
+            parent_id: createdParent.id,
+            child_name: "Sofia Cruz",
+            grade_level: "Kinder",
+            pin_code: cleanChildPin,
+          },
+        ]);
+
+      if (childInsertError) {
+        console.error("Child setup error:", childInsertError.message);
+        setError("Account created, but child PIN setup failed. Please contact support.");
         return;
       }
 
@@ -250,6 +276,24 @@ export default function ParentSignup() {
                   </p>
                 )}
               </div>
+            </div>
+
+            {/* CHILD PIN */}
+            <div className="le-row1">
+              <span className="le-label1">Child PIN:</span>
+              <input
+                className="le-input"
+                type="password"
+                inputMode="numeric"
+                pattern="\d{4}"
+                maxLength={4}
+                placeholder="Set 4-digit PIN"
+                value={childPin}
+                onChange={(e) => {
+                  const onlyDigits = e.target.value.replace(/\D/g, "").slice(0, 4);
+                  setChildPin(onlyDigits);
+                }}
+              />
             </div>
 
             <button className="le-btn1" type="submit" disabled={loading}>
