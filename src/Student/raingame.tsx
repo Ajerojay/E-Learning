@@ -10,7 +10,7 @@ export default function RainGame() {
   const [selected, setSelected] = useState<number[]>([]);
   const [score, setScore] = useState<number>(0);
   const [wrong, setWrong] = useState<number>(0);
-  const [locked, setLocked] = useState<boolean>(false); // para di makapindot habang checking
+  const [locked, setLocked] = useState<boolean>(false);
 
   useEffect(() => {
     generateGame();
@@ -30,7 +30,7 @@ export default function RainGame() {
   };
 
   const checkAnswer = () => {
-    if (locked) return;
+    if (locked || selected.length === 0) return;
 
     setLocked(true);
 
@@ -40,9 +40,7 @@ export default function RainGame() {
       setWrong((prev) => prev + 1);
     }
 
-    setTimeout(() => {
-      generateGame();
-    }, 1000);
+    setTimeout(generateGame, 800); // ⚡ faster reset
   };
 
  const positions = [
@@ -52,7 +50,7 @@ export default function RainGame() {
     { top: 100, left: 10 }, // bottom left
     { top: 16, left: 125 }  // bottom right
   ];
-    []
+ 
 
   return (
     <div
@@ -63,9 +61,13 @@ export default function RainGame() {
 
       <h2 className="title">Count the Raindrops!</h2>
 
+      {/* 🧠 SIMPLE INSTRUCTION */}
+      <p className="instruction">
+        Tap the raindrops that match the number ☁️
+      </p>
+
       <div className="cloud-wrapper">
         <img src={cloudImg} className="cloud-img" />
-
         <div className="cloud-number">{target}</div>
 
         <div className="drops-area">
@@ -83,8 +85,12 @@ export default function RainGame() {
         </div>
       </div>
 
-      {/* 🔘 SUBMIT BUTTON */}
-      <button className="submit-btn" onClick={checkAnswer}>
+      {/* 🔘 SMART SUBMIT */}
+      <button
+        className="submit-btn"
+        onClick={checkAnswer}
+        disabled={selected.length === 0 || locked}
+      >
         Submit
       </button>
 

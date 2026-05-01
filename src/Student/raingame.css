@@ -118,4 +118,17 @@ html, body {
   color: white;
   cursor: pointer;
 }
+.instruction {
+  position: absolute;
+  top: 110px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 20px;
+  color: #555;
+}
 
+/* DISABLED BUTTON */
+.submit-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
