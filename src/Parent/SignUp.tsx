@@ -6,6 +6,7 @@ import { IoEyeOutline, IoEyeOffOutline } from "react-icons/io5";
 
 import "./Signup.css";
 import bear from "../img/bear.jpg";
+import { supabase } from "../lib/supabase";
 
 export default function ParentSignup() {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ export default function ParentSignup() {
 
   const [activeField, setActiveField] = useState("");
   const [confirmTyping, setConfirmTyping] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const checks = {
     length: password.length >= 8,
@@ -31,11 +33,14 @@ export default function ParentSignup() {
   const allPassed = Object.values(checks).every(Boolean);
   const passwordsMatch = password === confirmPassword && confirmPassword !== "";
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
 
-    if (!username || !password || !confirmPassword) {
+    const cleanUsername = username.trim();
+    const cleanPassword = password.trim();
+
+    if (!cleanUsername || !cleanPassword || !confirmPassword.trim()) {
       setError("Please fill in all fields.");
       return;
     }
@@ -50,8 +55,50 @@ export default function ParentSignup() {
       return;
     }
 
-    alert("Account created successfully!");
-    navigate("/");
+    try {
+      setLoading(true);
+
+      // Check if username already exists
+      const { data: existingUser, error: checkError } = await supabase
+        .from("parents_accounts")
+        .select("id")
+        .eq("username", cleanUsername)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error("Check username error:", checkError.message);
+        setError("Something went wrong while checking the username.");
+        return;
+      }
+
+      if (existingUser) {
+        setError("Username already exists. Please choose another one.");
+        return;
+      }
+
+      const { error: insertError } = await supabase
+        .from("parents_accounts")
+        .insert([
+          {
+            username: cleanUsername,
+            password: cleanPassword,
+          },
+        ]);
+
+      if (insertError) {
+        console.error("Signup error:", insertError.message);
+        setError("Failed to register account.");
+        return;
+      }
+
+      alert("Account registered successfully!");
+      navigate("/");
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong while registering.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -73,7 +120,6 @@ export default function ParentSignup() {
           <p className="le-subtitle1">Learning made fun and easy!</p>
 
           <form className="le-form1" onSubmit={handleSubmit}>
-            
             {/* USERNAME */}
             <div className="le-row1">
               <span className="le-label1">Username:</span>
@@ -110,7 +156,6 @@ export default function ParentSignup() {
                     {showPassword ? <IoEyeOffOutline /> : <IoEyeOutline />}
                   </button>
 
-                  {/* PASSWORD TOOLTIP */}
                   {activeField === "password" && !allPassed && (
                     <div className="le-passHints">
                       <p className="invalid">Weak Password</p>
@@ -128,20 +173,21 @@ export default function ParentSignup() {
                       </p>
 
                       <p className={checks.special ? "valid" : "invalid"}>
-                        {checks.special ? "✔" : "✖"} Special char (!@#$)
+                        {checks.special ? "✔" : "✖"} Special char (!@#$%^&*)
                       </p>
                     </div>
                   )}
                 </div>
 
-                {/* STRONG PASSWORD */}
                 {allPassed && (
-                  <p style={{
-                    fontSize: "13px",
-                    fontWeight: "700",
-                    color: "#2e7d32",
-                    marginTop: "6px"
-                  }}>
+                  <p
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: "700",
+                      color: "#2e7d32",
+                      marginTop: "6px",
+                    }}
+                  >
                     ✔ Strong Password
                   </p>
                 )}
@@ -173,9 +219,7 @@ export default function ParentSignup() {
                   <button
                     type="button"
                     className="le-showPwd"
-                    onClick={() =>
-                      setShowConfirmPassword(!showConfirmPassword)
-                    }
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
                     {showConfirmPassword ? (
                       <IoEyeOffOutline />
@@ -184,7 +228,6 @@ export default function ParentSignup() {
                     )}
                   </button>
 
-                  {/* CONFIRM TOOLTIP */}
                   {activeField === "confirm" &&
                     confirmTyping &&
                     !passwordsMatch && (
@@ -194,22 +237,23 @@ export default function ParentSignup() {
                     )}
                 </div>
 
-                {/* PASSWORD MATCHED */}
                 {confirmTyping && passwordsMatch && (
-                  <p style={{
-                    fontSize: "13px",
-                    fontWeight: "700",
-                    color: "#2e7d32",
-                    marginTop: "6px"
-                  }}>
+                  <p
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: "700",
+                      color: "#2e7d32",
+                      marginTop: "6px",
+                    }}
+                  >
                     ✔ Passwords matched
                   </p>
                 )}
               </div>
             </div>
 
-            <button className="le-btn1" type="submit">
-              CREATE ACCOUNT
+            <button className="le-btn1" type="submit" disabled={loading}>
+              {loading ? "CREATING..." : "CREATE ACCOUNT"}
             </button>
 
             {error && <p className="le-errorMsg">{error}</p>}
@@ -230,7 +274,6 @@ export default function ParentSignup() {
                 Login here
               </Link>
             </div>
-
           </form>
         </div>
       </main>

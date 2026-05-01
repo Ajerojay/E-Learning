@@ -3,9 +3,7 @@ import { IoEyeOutline, IoEyeOffOutline } from "react-icons/io5";
 import "./ParentLogin.css";
 import { useNavigate } from "react-router-dom";
 import bear from "../../images/learnease logo-no bg.png";
-
-const TEMP_USERNAME = "parent";
-const TEMP_PASSWORD = "Parent123!";
+import { supabase } from "../lib/supabase";
 
 const ADMIN_USERNAME = "admin";
 const ADMIN_PASSWORD = "admin123";
@@ -17,9 +15,11 @@ export default function ParentLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError(null);
 
     const user = username.trim();
     const pass = password.trim();
@@ -29,29 +29,58 @@ export default function ParentLogin() {
       return;
     }
 
+    // Admin login
     if (user === ADMIN_USERNAME && pass === ADMIN_PASSWORD) {
       localStorage.setItem("user", JSON.stringify({ role: "admin" }));
       navigate("/admin");
       return;
     }
 
-    if (user === TEMP_USERNAME && pass === TEMP_PASSWORD) {
-      localStorage.setItem("user", JSON.stringify({ role: "parent" }));
+    try {
+      setLoading(true);
+
+      const { data, error } = await supabase
+        .from("parents_accounts")
+        .select("*")
+        .eq("username", user)
+        .eq("password", pass)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Login error:", error.message);
+        setError("Something went wrong while logging in.");
+        return;
+      }
+
+      if (!data) {
+        setError("Invalid credentials.");
+        return;
+      }
+
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          role: "parent",
+          id: data.id,
+          username: data.username,
+        })
+      );
 
       if (!localStorage.getItem("studentPin")) {
         localStorage.setItem("studentPin", "1234");
       }
 
       navigate("/parent-dashboard");
-      return;
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong while logging in.");
+    } finally {
+      setLoading(false);
     }
-
-    setError("Invalid credentials.");
   };
 
   return (
     <div className="le-page">
-
       {/* LEFT */}
       <aside className="le-left">
         <div className="le-bearWrap">
@@ -67,12 +96,10 @@ export default function ParentLogin() {
       {/* RIGHT */}
       <main className="le-right">
         <div className="le-card">
-
           <h1 className="le-title">WELCOME PARENT!</h1>
           <p className="le-subtitle">Learning made fun and easy!</p>
 
           <form className="le-form" onSubmit={handleLogin}>
-
             {/* USERNAME */}
             <label className="le-row">
               <span className="le-label">Username:</span>
@@ -110,8 +137,8 @@ export default function ParentLogin() {
 
             {/* BUTTONS */}
             <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
-              <button className="le-btn" type="submit">
-                LOGIN
+              <button className="le-btn" type="submit" disabled={loading}>
+                {loading ? "LOGGING IN..." : "LOGIN"}
               </button>
 
               <button
@@ -126,7 +153,7 @@ export default function ParentLogin() {
             {/* ERROR */}
             {error && <p className="le-error">{error}</p>}
 
-            {/* 🔥 RESTORED LINKS */}
+            {/* LINKS */}
             <div className="le-links">
               <span className="le-linkText">
                 New Parent?{" "}
@@ -139,9 +166,7 @@ export default function ParentLogin() {
                 Forgot Password?
               </a>
             </div>
-
           </form>
-
         </div>
       </main>
     </div>
