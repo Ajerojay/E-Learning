@@ -1,3 +1,172 @@
+/* Preface gate — matches Colors / Numbers lesson layout (rainbow bg, framed TV, pill title) */
+.cq-gate {
+  width: 100vw;
+  min-height: 100vh;
+  margin: 0;
+  padding: 24px 20px 96px;
+  box-sizing: border-box;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  text-align: center;
+  font-family: system-ui, -apple-system, "Segoe UI", "Nunito", "Comic Sans MS",
+    cursive, sans-serif;
+  position: relative;
+}
+
+.cq-gate-back {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 2;
+  border: none;
+  border-radius: 30px;
+  padding: 10px 18px;
+  font-size: 16px;
+  font-weight: bold;
+  background: white;
+  color: #333;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.cq-gate-back:hover {
+  background: #ff9800;
+  color: white;
+  transform: translateY(-2px);
+}
+
+.cq-gate-tag {
+  position: absolute;
+  top: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #9aa6b2;
+  color: white;
+  padding: 6px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.cq-gate-title {
+  margin: 76px auto 10px;
+  color: #2d3d52;
+  font-size: clamp(26px, 5vw, 34px);
+  font-weight: 800;
+}
+
+.cq-gate-instruction {
+  max-width: 520px;
+  margin: 0 auto 22px;
+  padding: 0 12px;
+  font-size: 17px;
+  line-height: 1.45;
+  color: #4a5568;
+  font-weight: 600;
+}
+
+/* Same framed “TV” as LessonPage */
+.cq-gate-tv {
+  margin: 0 auto;
+  width: min(92vw, 650px);
+  height: clamp(220px, 52vw, 370px);
+  border-radius: 20px;
+  border: 15px solid #333;
+  background: #000;
+  overflow: hidden;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cq-gate-video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  background: #000;
+}
+
+.cq-gate-no-video {
+  margin: 0;
+  padding: 48px 20px;
+  color: #e2e8f0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* Same amber pill as .video-title on LessonPage */
+.cq-gate-video-title {
+  display: inline-block;
+  margin: 18px auto 14px;
+  padding: 10px 22px;
+
+  background: linear-gradient(135deg, #ffb347, #ffcc33);
+  color: #2b2b2b;
+
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+
+  border-radius: 999px;
+
+  box-shadow:
+    0 6px 15px rgba(0, 0, 0, 0.25),
+    inset 0 2px 5px rgba(255, 255, 255, 0.4);
+
+  max-width: min(92vw, 650px);
+}
+
+.cq-play-game-btn {
+  margin-top: 6px;
+  padding: 14px 36px;
+  font-size: 18px;
+  border: none;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #a8e0ff 0%, #6ec4ef 55%, #4eb5e9 100%);
+  color: white;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.cq-play-game-btn:hover {
+  transform: translateY(-2px) scale(1.03);
+  filter: brightness(1.05);
+}
+
+/* Rain Quest: overlays on top of RainGame full-screen layout */
+.rq-game-shell {
+  position: relative;
+  min-height: 100vh;
+}
+
+.rq-game-shell > .cq-back-btn,
+.rq-game-shell > .cq-back-lesson-btn {
+  z-index: 20;
+}
+
+.cq-back-lesson-btn {
+  position: absolute;
+  left: 22px;
+  top: 78px;
+  z-index: 2;
+  border: none;
+  border-radius: 999px;
+  background: #e8f4ff;
+  color: #4a6fa5;
+  padding: 12px 18px;
+  font-size: 16px;
+  font-weight: 700;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+}
+
 .cq-page {
   min-height: 100vh;
   background: linear-gradient(180deg, #dff5c7 0%, #d6efbe 100%);
@@ -210,6 +379,13 @@
 
 .cq-action-btn.success {
   background: #63b96c;
+}
+
+@media (max-width: 540px) {
+  .cq-gate-tv {
+    border-width: 10px;
+    border-radius: 16px;
+  }
 }
 
 @media (max-width: 900px) {

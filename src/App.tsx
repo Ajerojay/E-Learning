@@ -18,7 +18,9 @@ import LessonPage from "./Student/LessonPage";
 import ColorsQuestPage from "./Student/ColorsQuestPage";
 import SoundGame from "./Student/PhonicsQuestPage";
 import LogicGame from "./Student/LogicQuestPage";
-import RainGame from "./Student/raingame";
+import NumbersQuestPage from "./Student/NumbersQuestPage";
+import LetterQuestPage from "./Student/LetterQuestPage";
+import ShapesQuestPage from "./Student/ShapesQuestPage";
 
 function App() {
   return (
@@ -44,14 +46,13 @@ function App() {
         <Route path="/quest/colors" element={<ColorsQuestPage />} />
         <Route path="/student/PhonicsQuestPage" element={<SoundGame />} />
         <Route path="/student/LogicQuestPage" element={<LogicGame />} />
-
-
-        {/* 🌧️ RAIN GAME */}
-        <Route path="/rain-game" element={<RainGame />} />
-
-        {/* ⚠️ ALWAYS LAST */}
+        <Route path="/quest/number" element={<NumbersQuestPage />} />
+        <Route path="/quest/letter" element={<LetterQuestPage />} />
+        <Route path="/quest/shapes" element={<ShapesQuestPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
-
+        
+         {/* ⚠️ ALWAYS LAST */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );  

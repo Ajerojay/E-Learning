@@ -1,4 +1,11 @@
-
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
 body {
   margin: 0;
   padding: 0;
@@ -18,17 +25,24 @@ body {
   margin-top: 40px;   /* 👈 IMPORTANT */
   margin-bottom: 20px;/* 👈 ito lang gagalaw sa title + level */
 }
-.game-container {
+.phonics-page.game-container {
   position: relative;
   text-align: center;
   font-family: "Poppins", sans-serif;
   padding: 40px;
   min-height: 100vh;
+
+  width: 100vw;
+  max-width: none;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  
   background: linear-gradient(135deg, #d0f0ff, #fce4ec);
   box-sizing: border-box;
-  overflow: hidden;
-}
 
+  overflow-x: hidden;
+  overflow-y: auto;
+}
 .phonics-page.game-container.phonics-bg-image {
   background-image: url("./images/phonics-bg.jpg");
   background-size: cover;
@@ -170,7 +184,8 @@ body {
 /* SOUND AREA */
 .phonics-page .sound-area {
   position: relative;
-  margin-top: 40px;
+  width: min(1100px, 100%);
+  margin: -20px auto 0;
 }
 
 /* SOUND CIRCLE */
@@ -191,7 +206,7 @@ body {
   box-shadow: 0 6px 15px rgba(0,0,0,0.2);
   transition: 0.2s;
   margin-bottom: 20px;
-  margin-top: 20px;
+  margin-top: -10px;
 }
 
 .phonics-page .sound-circle:hover {
@@ -402,12 +417,17 @@ body {
   font-weight: 700;
   color: #1f2937;
   text-shadow: 0 2px 10px rgba(255, 255, 255, 0.85);
+
 }
 
 .phonics-page .pq-level-text {
   font-size: 18px;
   color: #334155;
   text-shadow: 0 2px 10px rgba(255, 255, 255, 0.85);
+
+  position: relative;
+  top: -5px; /* taas unti */
+
 }
 
 .phonics-page .pq-page-title {
@@ -416,7 +436,7 @@ body {
   max-width: min(980px, 92vw);
   padding: 0;
   position: relative;
-  top: -15px; /* taas unti */
+  top: -25px; /* taas unti */
 }
 /* MOBILE */
 @media (max-width: 768px) {
@@ -486,7 +506,7 @@ body {
 
 /* ColorsQuest-style panel and completion actions for phonics */
 .phonics-page .pq-panel {
-  margin: 28px auto 18px;
+  margin: 24px auto 24px;
   width: fit-content;
   max-width: calc(100% - 48px);
   text-align: center;
@@ -495,10 +515,9 @@ body {
   border-radius: 20px;
   box-shadow: 0 8px 18px rgba(0,0,0,0.1);
   min-width: min(92vw, 600px);
-
-  position: relative;
-  top: 20px;
+  
 }
+
 .phonics-page .pq-message {
   margin: 0 0 10px;
   font-size: 22px;
@@ -515,12 +534,10 @@ body {
 }
 
 .phonics-page .pq-actions {
-  margin-top: 22px;
+  margin-top: 16px;
   display: flex;
   gap: 12px;
   justify-content: center;
-
-  height: 43px; /* reserve space */
 }
 
 .phonics-page .pq-action-btn {
