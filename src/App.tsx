@@ -16,13 +16,9 @@ import StudentAccess from "./Student/StudentAccess";
 import StudentPage from "./Student/StudentPage";
 import LessonPage from "./Student/LessonPage";
 import ColorsQuestPage from "./Student/ColorsQuestPage";
-<<<<<<< HEAD
-import Level1Sound from "./Student/Level1Sound";
-import Level2Pattern from "./Student/Level2Pattern";
-
-=======
-import RainGame from "./Student/RainGame";
->>>>>>> 6cb3cb2a442f231436c055bf569a45a3bf4d4f83
+import SoundGame from "./Student/PhonicsQuestPage";
+import LogicGame from "./Student/LogicQuestPage";
+import RainGame from "./Student/raingame";
 
 function App() {
   return (
@@ -46,10 +42,9 @@ function App() {
         <Route path="/student" element={<StudentPage />} />
         <Route path="/lesson/:category" element={<LessonPage />} />
         <Route path="/quest/colors" element={<ColorsQuestPage />} />
-<<<<<<< HEAD
-        <Route path="/student/sound" element={<Level1Sound />} />
-        <Route path="/student/pattern" element={<Level2Pattern />} />
-=======
+        <Route path="/student/PhonicsQuestPage" element={<SoundGame />} />
+        <Route path="/student/LogicQuestPage" element={<LogicGame />} />
+
 
         {/* 🌧️ RAIN GAME */}
         <Route path="/rain-game" element={<RainGame />} />
@@ -57,7 +52,6 @@ function App() {
         {/* ⚠️ ALWAYS LAST */}
         <Route path="*" element={<Navigate to="/" replace />} />
 
->>>>>>> 6cb3cb2a442f231436c055bf569a45a3bf4d4f83
       </Routes>
     </BrowserRouter>
   );  

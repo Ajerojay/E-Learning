@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
+
 import colorsBg from "./images/colors-bg.png";
 import numbersBg from "./images/numbers-bg.jpg";
 import phonicsBg from "./images/phonics-bg.jpg";
@@ -23,6 +24,7 @@ type VideoLesson = {
 export default function LessonPage() {
   const navigate = useNavigate();
   const { category } = useParams();
+  const LOGIC_ACTIVITY_COUNT = 2;
 
   const [lessonVideoUrl, setLessonVideoUrl] = useState("");
   const [lessonTitle, setLessonTitle] = useState("");
@@ -133,6 +135,20 @@ export default function LessonPage() {
 
         {!loading && lessonTitle && <p className="video-title">{lessonTitle}</p>}
 
+        {!loading && category === "phonics" && (
+          <>
+            <p className="lesson-activity-meta">  
+              listening choices — tap the speaker, then pick the animal!
+            </p>
+            <button
+              className="start-quest-btn"
+              onClick={() => navigate("/student/PhonicsQuestPage")}
+            >
+              Start Phonics Activity
+            </button>
+          </>
+        )}
+
         {!loading && category === "colors" && lessonVideoUrl && (
           <button
             className="start-quest-btn"
@@ -140,6 +156,24 @@ export default function LessonPage() {
           >
             Start Colors Activity
           </button>
+        )}
+
+        {!loading && category === "logic" && (
+          <>
+            <p className="lesson-activity-meta">
+              logic choices — drag the correct symbol into the box!
+            </p>
+            <button
+              className="start-quest-btn"
+              onClick={() =>
+                navigate("/student/LogicQuestPage", {
+                  state: { showStartPopup: true },
+                })
+              }
+            >
+              Start Logic Activity
+            </button>
+          </>
         )}
       </div>
     </div>

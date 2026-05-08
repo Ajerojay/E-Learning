@@ -1,0 +1,596 @@
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Poppins", sans-serif;
+  background: linear-gradient(135deg, #d0f0ff, #fce4ec);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+
+  position: relative;
+  top: -30px;
+  
+  margin-top: 40px;   /* 👈 IMPORTANT */
+  margin-bottom: 20px;/* 👈 ito lang gagalaw sa title + level */
+}
+.game-container {
+  position: relative;
+  text-align: center;
+  font-family: "Poppins", sans-serif;
+  padding: 40px;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #d0f0ff, #fce4ec);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.phonics-page.game-container.phonics-bg-image {
+  background-image: url("./images/phonics-bg.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.phonics-page.game-container > *:not(.phonics-bg):not(.pq-back-btn) {
+  position: relative;
+  z-index: 2;
+}
+
+/* PHONICS BACKGROUND LAYERS */
+.phonics-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.phonics-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 12% 16%, rgba(255, 235, 59, 0.22) 0 110px, transparent 111px),
+    radial-gradient(circle at 84% 20%, rgba(255, 152, 200, 0.22) 0 120px, transparent 121px),
+    radial-gradient(circle at 20% 82%, rgba(135, 206, 250, 0.25) 0 120px, transparent 121px),
+    radial-gradient(circle at 88% 78%, rgba(187, 222, 251, 0.24) 0 130px, transparent 131px);
+}
+
+.phonics-bg::after {
+  content: "Aa  Bb  Cc  Dd  Ee  Ff";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 20px;
+  text-align: center;
+  letter-spacing: 14px;
+  font-size: 30px;
+  font-weight: 700;
+  color: rgba(92, 135, 211, 0.2);
+}
+
+.phonics-letter {
+  position: absolute;
+  font-size: 52px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+  animation: floatLetter 4s ease-in-out infinite;
+}
+
+.letter-a { top: 9%; left: 9%; color: rgba(255, 128, 171, 0.8); }
+.letter-b { top: 18%; right: 15%; color: rgba(120, 190, 255, 0.86); animation-delay: 0.6s; }
+.letter-c { bottom: 18%; left: 17%; color: rgba(255, 193, 7, 0.8); animation-delay: 1.2s; }
+.letter-d { bottom: 13%; right: 12%; color: rgba(129, 199, 132, 0.85); animation-delay: 1.8s; }
+
+.phonics-bubble {
+  position: absolute;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.55);
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(173, 216, 255, 0.45) 60%,
+    rgba(135, 206, 250, 0.28) 100%
+  );
+  animation: pulseBubble 3.2s ease-in-out infinite;
+  box-shadow: 0 6px 14px rgba(71, 140, 222, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #27557d;
+  font-size: 24px;
+  font-weight: 800;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.phonics-bubble:hover {
+  transform: scale(1.08);
+  box-shadow: 0 8px 18px rgba(71, 140, 222, 0.28);
+}
+
+.phonics-bubble.is-popped {
+  animation: popBubble 0.65s ease-out;
+}
+
+.bubble-1 {
+  top: 31%;
+  left: 5%;
+  width: 70px;
+  height: 70px;
+}
+
+.bubble-2 {
+  top: 12%;
+  right: 7%;
+  width: 58px;
+  height: 58px;
+  animation-delay: 0.9s;
+}
+
+.bubble-3 {
+  bottom: 9%;
+  right: 36%;
+  width: 80px;
+  height: 80px;
+  animation-delay: 1.4s;
+}
+
+.phonics-page .pq-back-btn {
+  position: absolute;
+  left: 22px;
+  top: 22px;
+  z-index: 2;
+  border: none;
+  border-radius: 999px;
+  background: #fff3ea;
+  color: #7a5d52;
+  padding: 14px 20px;
+  font-size: 18px;
+  font-weight: 700;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+}
+
+.phonics-page .pq-back-btn:hover {
+  transform: translateY(-1px);
+}
+
+.phonics-page .sound-area p {
+  font-size: 20px;
+  margin-top: 50px;
+}
+
+/* SOUND AREA */
+.phonics-page .sound-area {
+  position: relative;
+  margin-top: 40px;
+}
+
+/* SOUND CIRCLE */
+.phonics-page .sound-circle {
+  width: 150px;
+  height: 150px;
+  background: #e3f2fd;
+  border-radius: 50%;
+  margin: 0 auto;
+
+  font-size: 80px; /* 🔥 lumaki speaker icon */
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+  transition: 0.2s;
+  margin-bottom: 20px;
+  margin-top: 20px;
+}
+
+.phonics-page .sound-circle:hover {
+  transform: scale(1.1);
+  background: #bbdefb;
+}
+
+/* LION PIC*/
+.phonics-page .lion-guide {
+  position: absolute;
+  left: 55%;
+  top: 10px;
+  width: 220px;
+  filter: drop-shadow(0 0 12px rgba(255,255,255,0.7));
+}
+
+
+/* CHOICES */
+.phonics-page .choices {
+  margin-top: 140px !important;
+  display: flex;
+  justify-content: center;
+  gap: 50px !important;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.phonics-page .choice-btn {
+  font-size: 60px;
+  margin: 0;
+  padding: 20px;
+  border-radius: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  background: linear-gradient(180deg, #fff8ef 0%, #ffeccf 100%);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+}
+
+.phonics-page .choice-btn:hover {
+  transform: translateY(-3px) scale(1.08);
+  background: linear-gradient(180deg, #fff4cf 0%, #ffd98f 100%);
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.2);
+}
+
+.phonics-page .choice-btn-cat {
+  background: linear-gradient(180deg, #ffe8a9 0%, #ffd27a 100%);
+}
+
+.phonics-page .choice-btn-dog {
+  background: linear-gradient(180deg, #ffd9c2 0%, #ffbe94 100%);
+}
+
+.phonics-page .choice-btn-cow {
+  background: linear-gradient(180deg, #f3f4f6 0%, #d9dde3 100%);
+}
+
+.phonics-page .choice-btn-lion {
+  background: linear-gradient(180deg, #ffd782 0%, #ffbe55 100%);
+}
+
+.phonics-page .choice-btn-chicken {
+  background: linear-gradient(180deg, #ffe3ee 0%, #ffc4dc 100%);
+}
+
+/* POPUP */
+.phonics-page .popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  font-weight: bold;
+  color: white;
+  z-index: 999;
+  animation: fadeIn 0.3s ease;
+}
+
+/* NEXT LEVEL POPUP CARD (NO BLUR OVERLAY) */
+.phonics-page .level-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 520px;
+  max-width: 90%;
+  background: linear-gradient(135deg, #fff6c9 0%, #ffe1ef 100%);
+  border-radius: 24px;
+  padding: 32px 34px 34px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.14);
+  z-index: 1000;
+  text-align: center;
+  animation: popupShow 0.3s ease;
+}
+
+.phonics-page .level-popup h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #263238;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.phonics-page .level-popup p {
+  margin: 10px 0 0;
+  font-size: 24px;
+  color: #263238;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.phonics-page .level-popup-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 44px;
+}
+
+.phonics-page .level-popup button {
+  border: none;
+  outline: none;
+  min-width: 176px;
+  padding: 15px 22px;
+  border-radius: 12px;
+  font-size: 20px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.phonics-page .level-popup button:hover {
+  transform: scale(1.05);
+}
+
+.phonics-page .level-popup button:first-of-type {
+  background: #b7fac9;
+  color: white;
+  box-shadow: 0 6px 12px rgba(64, 180, 90, 0.18);
+}
+
+.phonics-page .level-popup button:last-of-type {
+  background: #ffd9de;
+  color: white;
+  box-shadow: 0 6px 12px rgba(220, 110, 125, 0.16);
+}
+
+.phonics-page .level-popup button:first-of-type:hover {
+  background: #a7f2bb;
+}
+
+.phonics-page .level-popup button:last-of-type:hover {
+  background: #ffcdd4;
+}
+
+.phonics-page .level-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+  align-items: center;     /* vertical center */
+  justify-content: center; /* horizontal center */
+
+  z-index: 999;
+}
+
+/* STATS */
+.stats {
+  margin-top: 30px;
+  font-size: 20px;
+}
+.header {
+  display: flex;
+  flex-direction: column;   /* 👈 ensures vertical order */
+  align-items: center;
+  gap: 5px;
+}
+
+.title {
+  margin: 0;
+  font-size: 64px !important;
+  font-weight: 700;
+
+  position: relative;
+  top: -20px !important;  
+}
+
+.level-text {
+  margin: 0;
+  font-size: 18px;
+  color: #666;
+
+  position: relative;
+  top: 45px;
+}
+.phonics-page .pq-main-title {
+  font-size: 45px;
+  font-weight: 700;
+  color: #1f2937;
+  text-shadow: 0 2px 10px rgba(255, 255, 255, 0.85);
+}
+
+.phonics-page .pq-level-text {
+  font-size: 18px;
+  color: #334155;
+  text-shadow: 0 2px 10px rgba(255, 255, 255, 0.85);
+}
+
+.phonics-page .pq-page-title {
+  margin-top: 9px !important; margin: 14px auto 10px;
+  width: fit-content;
+  max-width: min(980px, 92vw);
+  padding: 0;
+  position: relative;
+  top: -15px; /* taas unti */
+}
+/* MOBILE */
+@media (max-width: 768px) {
+  .lion-guide {
+    position: static;
+    margin-top: 10px;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.level-popup {
+  width: 400px;        /* fixed width */
+  max-width: 90%;      /* responsive (mobile safe) */
+}
+/* POP ANIMATION */
+@keyframes popBounce {
+  0% {
+    transform: translate(-50%, -60%) scale(0.7);
+    opacity: 0;
+  }
+  60% {
+    transform: translate(-50%, -48%) scale(1.05);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes floatLetter {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulseBubble {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.65;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.95;
+  }
+}
+
+@keyframes popBubble {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  35% {
+    transform: scale(1.45);
+    opacity: 0.25;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+}
+
+/* ColorsQuest-style panel and completion actions for phonics */
+.phonics-page .pq-panel {
+  margin: 28px auto 18px;
+  width: fit-content;
+  max-width: calc(100% - 48px);
+  text-align: center;
+  background: rgba(255, 255, 255, 0.75);
+  padding: 18px 24px;
+  border-radius: 20px;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.1);
+  min-width: min(92vw, 600px);
+
+  position: relative;
+  top: 20px;
+}
+.phonics-page .pq-message {
+  margin: 0 0 10px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #6d5650;
+  line-height: 1.25;
+}
+
+.phonics-page .pq-progress {
+  margin: 0;
+  font-size: 18px;
+  color: #4e4e4e;
+  line-height: 1.25;
+}
+
+.phonics-page .pq-actions {
+  margin-top: 22px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+
+  height: 43px; /* reserve space */
+}
+
+.phonics-page .pq-action-btn {
+  border: none;
+  border-radius: 14px;
+  padding: 12px 18px;
+  background: #f2f2f2;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.phonics-page .pq-action-btn.success {
+  background: #c8f7c5;
+}
+
+.phonics-page .pq-action-btn:hover {
+  transform: scale(1.03);
+}
+
+.phonics-page .sound-area {
+  margin-top: 8px;
+}
+
+.phonics-page .instruction {
+  margin-top: 99px !important;
+  color: #111827;
+  font-weight: 700;
+  font-size: 18px;
+  text-shadow: 0 2px 10px rgba(255, 255, 255, 0.85);
+}
+
+.stats,
+.header,
+.title,
+.level-text {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .pq-panel {
+    margin-top: 64px;
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .pq-title {
+    font-size: 64px !important;
+  }
+
+  .pq-message,
+  .pq-progress {
+    font-size: 18px;
+  }
+
+  .pq-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+@keyframes popupShow {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.7);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
