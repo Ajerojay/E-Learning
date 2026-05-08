@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 import colorsBg from "./images/colors-bg.png";
-import numbersBg from "./images/numbers-bg.jpg";
 import phonicsBg from "./images/phonics-bg.jpg";
 import shapesBg from "./images/shapes-bg.jpg";
 import lettersBg from "./images/letters-bg.jpg";
@@ -34,7 +33,8 @@ export default function LessonPage() {
 
   const bgMap: Record<string, string> = {
     colors: colorsBg,
-    numbers: numbersBg,
+    /* Same watercolor rainbow as Colors so Numbers lesson matches that look */
+    numbers: colorsBg,
     phonics: phonicsBg,
     shapes: shapesBg,
     letters: lettersBg,
@@ -131,7 +131,9 @@ export default function LessonPage() {
           )}
         </div>
 
-        {!loading && lessonTitle && <p className="video-title">{lessonTitle}</p>}
+        {!loading && lessonTitle && lessonVideoUrl && (
+          <p className="video-title">{lessonTitle}</p>
+        )}
 
         {!loading && category === "colors" && lessonVideoUrl && (
           <button
@@ -141,7 +143,17 @@ export default function LessonPage() {
             Start Colors Activity
           </button>
         )}
+
+        {!loading && category === "numbers" && lessonVideoUrl && (
+          <button
+            className="start-quest-btn"
+            onClick={() => navigate("/quest/numbers")}
+          >
+            Start Numbers Activity
+          </button>
+        )}
       </div>
     </div>
   );
 }
+

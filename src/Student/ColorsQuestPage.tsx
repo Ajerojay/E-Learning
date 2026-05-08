@@ -1,6 +1,7 @@
 import "./ColorsQuestPage.css";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import colorsBg from "./images/colors-bg.png";
 import {
   DndContext,
   useDraggable,
@@ -92,6 +93,11 @@ function Basket({
 export default function ColorsQuestPage() {
   const navigate = useNavigate();
 
+  const [lessonLoading, setLessonLoading] = useState(true);
+  const [lessonVideoUrl, setLessonVideoUrl] = useState("");
+  const [lessonTitle, setLessonTitle] = useState("");
+  const [gameStarted, setGameStarted] = useState(false);
+
   const [items] = useState<Item[]>(initialItems);
   const [placed, setPlaced] = useState<Record<string, "red" | "blue" | "yellow">>(
     {}
@@ -121,6 +127,54 @@ export default function ColorsQuestPage() {
     };
 
     void loadChild();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorsLessonVideo = async () => {
+      setLessonLoading(true);
+
+      const user = JSON.parse(localStorage.getItem("user") || "null");
+      const userGradeLevel = user?.grade_level || user?.gradeLevel || null;
+
+      let query = supabase
+        .from("video_lessons")
+        .select("*")
+        .eq("category", "Colors")
+        .eq("is_published", true)
+        .order("created_at", { ascending: false });
+
+      if (userGradeLevel) {
+        query = query.eq("grade_level", userGradeLevel);
+      }
+
+      const { data, error } = await query.limit(1).maybeSingle();
+
+      if (error) {
+        console.error("Colors quest lesson fetch:", error.message);
+        setLessonVideoUrl("");
+        setLessonTitle("");
+        setLessonLoading(false);
+        return;
+      }
+
+      if (!data) {
+        setLessonVideoUrl("");
+        setLessonTitle("");
+        setLessonLoading(false);
+        return;
+      }
+
+      setLessonTitle(data.title);
+
+      const { data: publicData } = supabase.storage
+        .from("lesson-videos")
+        .getPublicUrl(data.video_path);
+
+      setLessonVideoUrl(publicData.publicUrl);
+      setLessonLoading(false);
+    };
+
+    void fetchColorsLessonVideo();
   }, []);
 
   const saveProgress = async (score: number, finished: boolean, attempts: number) => {
@@ -182,10 +236,74 @@ export default function ColorsQuestPage() {
     setMessage("Drag each object into the correct color basket!");
   };
 
+  if (!gameStarted) {
+    return (
+      <div
+        className="cq-gate"
+        style={{ backgroundImage: `url(${colorsBg})` }}
+      >
+        <button
+          className="cq-gate-back"
+          type="button"
+          onClick={() => navigate("/student")}
+        >
+          ← Back
+        </button>
+
+        <div className="cq-gate-tag">Colors</div>
+
+        <h2 className="cq-gate-title">Color Quest</h2>
+
+        <p className="cq-gate-instruction">
+          {lessonLoading
+            ? "Loading lesson..."
+            : lessonVideoUrl
+              ? "Watch the Colors lesson below, then tap Play Game."
+              : "Your teacher has not uploaded a Colors lesson video yet. Once they add one in admin, you can play the sorting game!"}
+        </p>
+
+        <div className="cq-gate-tv">
+          {lessonLoading ? (
+            <p className="cq-gate-no-video">Loading...</p>
+          ) : lessonVideoUrl ? (
+            <video className="cq-gate-video" controls playsInline>
+              <source src={lessonVideoUrl} type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          ) : (
+            <p className="cq-gate-no-video">No video yet</p>
+          )}
+        </div>
+
+        {lessonTitle && lessonVideoUrl && (
+          <p className="cq-gate-video-title">{lessonTitle}</p>
+        )}
+
+        {lessonVideoUrl && !lessonLoading && (
+          <button
+            type="button"
+            className="cq-play-game-btn"
+            onClick={() => setGameStarted(true)}
+          >
+            Play Game
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="cq-page">
       <button className="cq-back-btn" onClick={() => navigate("/student")}>
         ← Back
+      </button>
+
+      <button
+        type="button"
+        className="cq-back-lesson-btn"
+        onClick={() => setGameStarted(false)}
+      >
+        ← Lesson
       </button>
 
       <h1 className="cq-title">Sort the Colors!</h1>
