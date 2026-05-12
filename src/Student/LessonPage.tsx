@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase";
 
 
 import colorsBg from "./images/colors-bg.png";
+import numbersBg from "./images/numbers-bg.jpg";
 import phonicsBg from "./images/phonics-bg.jpg";
 import shapesBg from "./images/shapes-bg.jpg";
 import lettersBg from "./images/letters-bg.jpg";
@@ -34,8 +35,7 @@ export default function LessonPage() {
 
   const bgMap: Record<string, string> = {
     colors: colorsBg,
-    /* Same watercolor rainbow as Colors so Numbers lesson matches that look */
-    numbers: colorsBg,
+    numbers: numbersBg,
     phonics: phonicsBg,
     shapes: shapesBg,
     letters: lettersBg,

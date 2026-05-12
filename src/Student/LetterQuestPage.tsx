@@ -343,7 +343,7 @@ export default function LetterQuestPage() {
     if (letter === target && !placedIds.includes(id)) {
       const updated = [...placedIds, id];
       setPlacedIds(updated);
-      setFeedback(`Great job! ${letter}`);
+      setFeedback("Great job!");
       setSelected(null);
 
       persistLetterProgress(
