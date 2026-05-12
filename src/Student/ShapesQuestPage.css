@@ -48,25 +48,37 @@
   margin-right: 20px;
 }
 
+.sq-title-wrapper {
+  position: relative;
+  width: min(920px, calc(100% - 40px));
+  margin: 24px auto 0;
+  text-align: center;
+  padding: 0 0 16px;
+}
+
 .sq-title {
-  position: fixed;
-  top: 40px;
-  left: 50%;
-  transform: translateX(-50%);
+  position: relative;
   font-size: 64px;
   font-weight: 900;
   color: #7b5b4a;
-  z-index: 999;
+  margin: 0;
   text-shadow: 0 3px 0 rgba(255, 255, 255, 0.65);
 }
 
+.sq-subtitle {
+  font-size: 22px;
+  color: grey;
+  margin-top: 8px;
+  font-weight: 600;
+  text-shadow: 0 2px 6px rgba(255, 255, 255, 0.6);
+}
 
 .sq-game-card {
-  margin-top:20px;
-  background: rgba(255, 255, 255, 0.92);
-  padding: 12px;
-  border-radius: 20px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  margin-top: 38px;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .sq-game-container {
@@ -676,21 +688,4 @@
 
 .sq-guide-popup button:hover {
   transform: scale(1.05);
-}
-.sq-title-wrapper {
-  text-align: center;
-
-  margin-top: 10px;
-}
-
-.sq-subtitle {
-  font-size: 22px;
-
-  color: grey;
-
-  margin-top: 120px;
-
-  font-weight: 600;
-
-  text-shadow: 0 2px 6px rgba(255,255,255,0.6);
 }

@@ -32,12 +32,40 @@ export function getLocalUser(): LocalUser | null {
   }
 }
 
+/** Validates PIN against Supabase and sets `activeChildId` + `studentPin` for the student session. */
+export async function linkChildSessionToSupabasePin(pin: string): Promise<boolean> {
+  const trimmed = pin.trim();
+  if (!trimmed) return false;
+
+  const { data: row, error } = await supabase
+    .from("children_accounts")
+    .select("id, pin_code")
+    .eq("pin_code", trimmed)
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("PIN lookup:", error.message);
+    return false;
+  }
+  if (!row?.id) return false;
+
+  localStorage.setItem(CHILD_ID_KEY, row.id);
+  localStorage.setItem("studentPin", row.pin_code || trimmed);
+  return true;
+}
+
 export async function getOrCreateActiveChildId(): Promise<string | null> {
   const cachedChildId = localStorage.getItem(CHILD_ID_KEY);
   if (cachedChildId) return cachedChildId;
 
   const localUser = getLocalUser();
   if (!localUser?.id || localUser.role !== "parent") {
+    const pin = localStorage.getItem("studentPin");
+    if (pin && (await linkChildSessionToSupabasePin(pin))) {
+      return localStorage.getItem(CHILD_ID_KEY);
+    }
     return null;
   }
 

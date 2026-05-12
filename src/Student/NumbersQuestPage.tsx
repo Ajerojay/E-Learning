@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./NumbersQuestPage.css";
+import { getOrCreateActiveChildId } from "../lib/childProgress";
+import {
+  loadPrimaryGameCodeForCategory,
+  recordGameProgressRpc,
+} from "../lib/gameProgressDb";
+import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
+import bgMusic from "./bg-music-loop.mp3";
 
 import cloudImg from "../Student/images/cloud.png";
 import bgImg from "../Student/images/numbers-bg.jpg";
@@ -58,8 +65,11 @@ export default function NumbersQuestPage() {
   const navigate = useNavigate();
   const warnedSecondsRef = useRef<Set<number>>(new Set());
   const lastSpokenRef = useRef<{ text: string; at: number } | null>(null);
+  const bgMusicRef = useRef<HTMLAudioElement | null>(null);
+  const isVoiceSpeakingRef = useRef(false);
   const [voicesReady, setVoicesReady] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [musicEnabled, setMusicEnabled] = useState(true);
 
   const [levelIndex, setLevelIndex] = useState(0);
   const [target, setTarget] = useState<number>(3);
@@ -78,6 +88,8 @@ export default function NumbersQuestPage() {
   const [levelSummaryOpen, setLevelSummaryOpen] = useState(false);
   const [timeUpOpen, setTimeUpOpen] = useState(false);
   const [isFinishedAllLevels, setIsFinishedAllLevels] = useState(false);
+  const [childId, setChildId] = useState<string | null>(null);
+  const [gameCode, setGameCode] = useState<string | null>(null);
 
   const level = levels[levelIndex] ?? levels[0];
 
@@ -138,6 +150,25 @@ export default function NumbersQuestPage() {
     setTarget(num);
   }, [levelIndex, level.targetMax, level.targetMin]);
 
+  useEffect(() => {
+    const load = async () => {
+      const id = await getOrCreateActiveChildId();
+      setChildId(id);
+      const code = await loadPrimaryGameCodeForCategory("numbers");
+      setGameCode(code);
+    };
+    void load();
+  }, []);
+
+  const saveNumbersProgress = async (
+    score: number,
+    finished: boolean,
+    attempts: number
+  ) => {
+    if (!childId || !gameCode) return;
+    await recordGameProgressRpc(childId, gameCode, score, attempts, finished);
+  };
+
   const generateRound = () => {
     const num =
       Math.floor(Math.random() * (level.targetMax - level.targetMin + 1)) +
@@ -190,6 +221,21 @@ export default function NumbersQuestPage() {
       u.rate = 1.12;
       u.pitch = 1.55;
       u.volume = 1;
+
+      // Pause music when voice starts speaking
+      isVoiceSpeakingRef.current = true;
+      if (bgMusicRef.current && musicEnabled) {
+        bgMusicRef.current.pause();
+      }
+
+      // Resume music when voice ends
+      u.onend = () => {
+        isVoiceSpeakingRef.current = false;
+        if (bgMusicRef.current && musicEnabled) {
+          bgMusicRef.current.play().catch(() => {});
+        }
+      };
+
       window.speechSynthesis.speak(u);
     } catch {
       // ignore
@@ -231,6 +277,37 @@ export default function NumbersQuestPage() {
       );
     };
   }, []);
+
+  useEffect(() => {
+    // Initialize background music
+    if (!bgMusicRef.current) {
+      const audio = new Audio(bgMusic);
+      audio.loop = true;
+      audio.volume = 0.3;
+      bgMusicRef.current = audio;
+
+      if (musicEnabled) {
+        audio.play().catch(() => {});
+      }
+    }
+
+    return () => {
+      if (bgMusicRef.current) {
+        bgMusicRef.current.pause();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    // Handle music enabled/disabled toggle
+    if (bgMusicRef.current) {
+      if (musicEnabled && !isVoiceSpeakingRef.current) {
+        bgMusicRef.current.play().catch(() => {});
+      } else {
+        bgMusicRef.current.pause();
+      }
+    }
+  }, [musicEnabled]);
 
   useEffect(() => {
     // 3-2-1 start countdown voice + beep
@@ -288,6 +365,12 @@ export default function NumbersQuestPage() {
       setMessage("Great job! Correct!");
       setCorrectRounds((p) => {
         const next = p + 1;
+        const finishedAll = levelIndex >= 2 && next >= totalRoundsToComplete;
+        const maxSteps = levels.length * totalRoundsToComplete;
+        const stepsDone = levelIndex * totalRoundsToComplete + next;
+        const pct = finishedAll ? 100 : Math.round((stepsDone / maxSteps) * 100);
+        void saveNumbersProgress(pct, finishedAll, wrongAttempts);
+
         if (next >= totalRoundsToComplete) {
           if (levelIndex >= 2) {
             setMessage("Amazing! You finished all levels!");
@@ -300,7 +383,12 @@ export default function NumbersQuestPage() {
         return next;
       });
     } else {
-      setWrongAttempts((prev) => prev + 1);
+      const nextWrong = wrongAttempts + 1;
+      const maxSteps = levels.length * totalRoundsToComplete;
+      const stepsDone = levelIndex * totalRoundsToComplete + correctRounds;
+      const pct = Math.round((stepsDone / maxSteps) * 100);
+      void saveNumbersProgress(pct, false, nextWrong);
+      setWrongAttempts(nextWrong);
       setMessage("Oops! Try again.");
     }
 
@@ -318,6 +406,7 @@ export default function NumbersQuestPage() {
 
   const [correctRounds, setCorrectRounds] = useState(0);
   const totalRoundsToComplete = 3;
+  const canProceedAfterTimeUp = false;
 
   return (
     <div className="nq-page-bg nq-page-bg--no-card" style={{ backgroundImage: `url(${bgImg})` }}>
@@ -335,6 +424,27 @@ export default function NumbersQuestPage() {
           Level {levelIndex + 1}: {level.name}
         </div>
         <div className="nq-timer">⏱ {timeLeft}s</div>
+        <button
+          type="button"
+          className="nq-sound-toggle"
+          onClick={() => {
+            setMusicEnabled((prev) => {
+              const next = !prev;
+              if (bgMusicRef.current) {
+                if (next && !isVoiceSpeakingRef.current) {
+                  bgMusicRef.current.play().catch(() => {});
+                } else {
+                  bgMusicRef.current.pause();
+                }
+              }
+              return next;
+            });
+          }}
+          aria-label={musicEnabled ? "Turn music off" : "Turn music on"}
+          title={musicEnabled ? "Mute Music" : "Unmute Music"}
+        >
+          {musicEnabled ? "🎵" : "🔇"}
+        </button>
         <button
           type="button"
           className="nq-sound-toggle"
@@ -391,135 +501,140 @@ export default function NumbersQuestPage() {
       </button>
 
       {countdown !== null && (
-        <div className="nq-countdown" aria-hidden="true">
-          <div className="nq-countdown-bubble">{countdown}</div>
-        </div>
+        <GameOverlay isOpen={countdown !== null}>
+          <GamePopup
+            title={<Countdown value={countdown} />}
+            subtitle="Get ready!"
+          />
+        </GameOverlay>
       )}
 
       {timeUpOpen && (
-        <div className="nq-popup" role="dialog" aria-modal="true">
-          ⏰ Time&apos;s up!
-          <br />
-          <span className="nq-popup-meta">
-            Level {levelIndex + 1} | Rounds: {correctRounds}/{totalRoundsToComplete} | Wrong Attempts:{" "}
-            {wrongAttempts}
-          </span>
-          <br />
-          <br />
-          {levelIndex < 2 ? (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  setTimeUpOpen(false);
-                  setCorrectRounds(0);
-                  setLevelIndex((p) => Math.min(p + 1, 2));
-                }}
-              >
-                Proceed to Level {levelIndex + 2}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setTimeUpOpen(false);
-                  setCorrectRounds(0);
-                  generateRound();
-                  setTimeLeft(30);
-                  setCountdown(3);
-                }}
-              >
-                Replay this Level
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  setTimeUpOpen(false);
-                  setCorrectRounds(0);
-                  generateRound();
-                  setTimeLeft(30);
-                  setCountdown(3);
-                }}
-              >
-                Replay this Level
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setTimeUpOpen(false);
-                  setCorrectRounds(0);
-                  setLevelIndex(0);
-                }}
-              >
-                Play Again
-              </button>
-            </>
-          )}
-        </div>
+        <GameOverlay isOpen={timeUpOpen}>
+          <GamePopup
+            title="⏰ Time's up!"
+            subtitle={`Level ${levelIndex + 1} | Rounds: ${correctRounds}/${totalRoundsToComplete} | Wrong Attempts: ${wrongAttempts}`}
+            buttons={
+              levelIndex < 2
+                ? canProceedAfterTimeUp
+                  ? [
+                      {
+                        label: `Proceed to Level ${levelIndex + 2}`,
+                        onClick: () => {
+                          setTimeUpOpen(false);
+                          setCorrectRounds(0);
+                          setLevelIndex((p) => Math.min(p + 1, 2));
+                        },
+                      },
+                      {
+                        label: "Replay Level",
+                        onClick: () => {
+                          setTimeUpOpen(false);
+                          setCorrectRounds(0);
+                          generateRound();
+                          setTimeLeft(30);
+                          setCountdown(3);
+                        },
+                        variant: "secondary",
+                      },
+                    ]
+                  : [
+                      {
+                        label: "Back to Lesson",
+                        onClick: () => navigate("/lesson/numbers"),
+                      },
+                      {
+                        label: "Replay Level",
+                        onClick: () => {
+                          setTimeUpOpen(false);
+                          setCorrectRounds(0);
+                          generateRound();
+                          setTimeLeft(30);
+                          setCountdown(3);
+                        },
+                        variant: "secondary",
+                      },
+                    ]
+                : [
+                    {
+                      label: "Back to Lesson",
+                      onClick: () => {
+                        setTimeUpOpen(false);
+                        navigate("/lesson/numbers");
+                      },
+                      variant: "secondary",
+                    },
+                    {
+                      label: "Replay Level",
+                      onClick: () => {
+                        setTimeUpOpen(false);
+                        setCorrectRounds(0);
+                        generateRound();
+                        setTimeLeft(30);
+                        setCountdown(3);
+                      },
+                    },
+                  ]
+            }
+          />
+        </GameOverlay>
       )}
 
       {proceedPromptLevel !== null && levelIndex < 2 && (
-        <div className="nq-popup" role="dialog" aria-modal="true">
-          🎉 Level {levelIndex + 1} Complete!
-          <br />
-          Proceed to Level {levelIndex + 2}?
-          <br />
-          <br />
-          <button
-            type="button"
-            onClick={() => {
-              setProceedPromptLevel(null);
-              setCorrectRounds(0);
-              setLevelIndex((p) => Math.min(p + 1, 2));
-            }}
-          >
-            Yes, let&apos;s go!
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setProceedPromptLevel(null);
-              setLevelSummaryOpen(true);
-            }}
-          >
-            Not now
-          </button>
-        </div>
+        <GameOverlay isOpen={proceedPromptLevel !== null}>
+          <GamePopup
+            title="🎉 Level Complete!"
+            subtitle={`Proceed to Level ${levelIndex + 2}?`}
+            buttons={[
+              {
+                label: "Yes",
+                onClick: () => {
+                  setProceedPromptLevel(null);
+                  setCorrectRounds(0);
+                  setLevelIndex((p) => Math.min(p + 1, 2));
+                },
+                variant: "yes",
+              },
+              {
+                label: "No",
+                onClick: () => {
+                  setProceedPromptLevel(null);
+                  setLevelSummaryOpen(true);
+                },
+                variant: "no",
+              },
+            ]}
+          />
+        </GameOverlay>
       )}
 
       {levelSummaryOpen && levelIndex < 2 && (
-        <div className="nq-popup nq-popup--summary" role="dialog" aria-modal="true">
-          {message}
-          <br />
-          <span className="nq-popup-meta">
-            Rounds: {correctRounds}/{totalRoundsToComplete} | Wrong Attempts: {wrongAttempts}
-          </span>
-          <br />
-          <br />
-          <button
-            type="button"
-            onClick={() => {
-              setLevelSummaryOpen(false);
-              setCorrectRounds(0);
-              setLevelIndex((p) => Math.min(p + 1, 2));
-            }}
-          >
-            Proceed to Level {levelIndex + 2}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setLevelSummaryOpen(false);
-              setCorrectRounds(0);
-              generateRound();
-              setCountdown(3);
-            }}
-          >
-            Replay this Level
-          </button>
-        </div>
+        <GameOverlay isOpen={levelSummaryOpen}>
+          <GamePopup
+            title={message}
+            subtitle={`Rounds: ${correctRounds}/${totalRoundsToComplete} | Wrong Attempts: ${wrongAttempts}`}
+            buttons={[
+              {
+                label: "Back to Lesson",
+                onClick: () => {
+                  setLevelSummaryOpen(false);
+                  navigate("/lesson/numbers");
+                },
+                variant: "no",
+              },
+              {
+                label: "Replay Level",
+                onClick: () => {
+                  setLevelSummaryOpen(false);
+                  setCorrectRounds(0);
+                  generateRound();
+                  setCountdown(3);
+                },
+                variant: "yes",
+              },
+            ]}
+          />
+        </GameOverlay>
       )}
 
       <div className="nq-panel nq-panel--page">

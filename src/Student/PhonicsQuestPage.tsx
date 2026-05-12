@@ -3,6 +3,7 @@ import "./PhonicsQuestPage.css";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { getOrCreateActiveChildId } from "../lib/childProgress";
+import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
 
 import lion from "../img/lion-.png";
 import cat from "../img/cat-arrow.png";
@@ -43,6 +44,7 @@ export default function Level1Sound() {
   const [score, setScore] = useState(0);
   const [level, setLevel] = useState(0);
   const [showNext, setShowNext] = useState(false);
+  const [showNoPrompt, setShowNoPrompt] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [childId, setChildId] = useState<string | null>(null);
   const [gameCode, setGameCode] = useState("phonics_sound_match");
@@ -129,6 +131,8 @@ export default function Level1Sound() {
       const nextWrong = wrong + 1;
       setWrong(nextWrong);
       setMessage("Oops! Try again!");
+      const pct = Math.round((score / levels.length) * 100);
+      void saveProgress(pct, false, nextWrong);
     }
   };
 
@@ -207,16 +211,54 @@ export default function Level1Sound() {
       </div>
 
       {showNext && (
-        <div className="level-overlay">
-          <div className="level-popup">
-            <h2>🎉 Level {level + 1} Complete!</h2>
-            <p>Proceed to Level {level + 2}?</p>
-            <div className="level-popup-buttons">
-              <button onClick={goNextLevel}>Yes, let's go!</button>
-              <button onClick={() => navigate("/lesson/phonics")}>Not now</button>
-            </div>
-          </div>
-        </div>
+        <GameOverlay isOpen={showNext}>
+          <GamePopup
+            title={`🎉 Level ${level + 1} Complete!`}
+            subtitle={`Proceed to Level ${level + 2}?`}
+            buttons={[
+              {
+                label: "Yes",
+                onClick: goNextLevel,
+                variant: "yes",
+              },
+              {
+                label: "No",
+                onClick: () => {
+                  setShowNext(false);
+                  setShowNoPrompt(true);
+                },
+                variant: "no",
+              },
+            ]}
+          />
+        </GameOverlay>
+      )}
+
+      {showNoPrompt && (
+        <GameOverlay isOpen={showNoPrompt}>
+          <GamePopup
+            title="Keep playing?"
+            subtitle={`Progress: ${score}/${levels.length} | Wrong Attempts: ${wrong}`}
+            buttons={[
+              {
+                label: "Back to Lesson",
+                onClick: () => {
+                  setShowNoPrompt(false);
+                  navigate("/lesson/phonics");
+                },
+                variant: "secondary",
+              },
+              {
+                label: "Replay Level",
+                onClick: () => {
+                  setShowNoPrompt(false);
+                  handlePlayAgain();
+                },
+                variant: "yes",
+              },
+            ]}
+          />
+        </GameOverlay>
       )}
 
     </div>

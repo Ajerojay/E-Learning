@@ -15,51 +15,33 @@ type CategoryProgressRow = {
   category_score: number;
 };
 
-type ColorsProgress = {
-  score: number;
-  completed: boolean;
-  attempts: number;
-  activityTitle: string;
-};
-
 export default function ParentProgress() {
   const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(true);
   const [loading, setLoading] = useState(true);
   const [childName, setChildName] = useState("Sofia Cruz");
   const [categoryRows, setCategoryRows] = useState<CategoryProgressRow[]>([]);
-  const [colorsData, setColorsData] = useState<ColorsProgress>({
-    score: 0,
-    completed: false,
-    attempts: 0,
-    activityTitle: "Sort the Colors",
-  });
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadProgress = async () => {
       setLoading(true);
       const childId = await getOrCreateActiveChildId();
       if (!childId) {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
         return;
       }
 
-      const [{ data: child }, { data: categories }, { data: colorsProgress }] =
-        await Promise.all([
-          supabase.from("children_accounts").select("child_name").eq("id", childId).maybeSingle(),
-          supabase
-            .from("v_child_category_progress")
-            .select("category_code, category_score")
-            .eq("child_id", childId),
-          supabase
-            .from("child_game_progress")
-            .select(
-              "best_score, completed, total_attempts, learning_games!inner(game_code, game_title)"
-            )
-            .eq("child_id", childId)
-            .eq("learning_games.game_code", "colors_sort")
-            .maybeSingle(),
-        ]);
+      const [{ data: child }, { data: categories }] = await Promise.all([
+        supabase.from("children_accounts").select("child_name").eq("id", childId).maybeSingle(),
+        supabase
+          .from("v_child_category_progress")
+          .select("category_code, category_score")
+          .eq("child_id", childId),
+      ]);
+
+      if (cancelled) return;
 
       if (child?.child_name) {
         setChildName(child.child_name);
@@ -69,23 +51,23 @@ export default function ParentProgress() {
         setCategoryRows(categories as CategoryProgressRow[]);
       }
 
-      if (colorsProgress) {
-        const game = Array.isArray(colorsProgress.learning_games)
-          ? colorsProgress.learning_games[0]
-          : colorsProgress.learning_games;
-
-        setColorsData({
-          score: colorsProgress.best_score || 0,
-          completed: Boolean(colorsProgress.completed),
-          attempts: colorsProgress.total_attempts || 0,
-          activityTitle: game?.game_title || "Sort the Colors",
-        });
-      }
-
       setLoading(false);
     };
 
     void loadProgress();
+    const onFocus = () => {
+      void loadProgress();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void loadProgress();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   const sidebarIcons = import.meta.glob("../../images/sidebar/*", {
@@ -132,116 +114,193 @@ export default function ParentProgress() {
     SUBJECT_KEYS.reduce((sum, key) => sum + (safeProgress[key] || 0), 0) / SUBJECT_KEYS.length
   );
 
-  const hasRealColorsData = colorsData.attempts > 0;
   const childFirstName = getFirstName(childName);
 
-  const getColorsRecommendation = () => {
-    const score = colorsData.score || 0;
-    const attempts = colorsData.attempts || 0;
-    const activityTitle = colorsData.activityTitle || "Sort the Colors";
-
-    if (!hasRealColorsData) {
-      return {
-        title: "NO RECOMMENDATION YET",
-        status: "Current Status: None as of now",
-        intro: "No Colors activity data has been recorded yet.",
-        childDid:
-          `Once ${childFirstName} starts and completes an activity, this section will show personalized recommendations.`,
-        onlineTitle: "SCREEN TIME",
-        onlineAction: "No activity yet",
-        onlineDesc:
-          "There is no recommended screen-time activity at the moment.",
-        onlineButton: "—",
-        onlineRoute: "",
-        offlineTitle: "PARENT TIME",
-        offlineAction: "No activity yet",
-        offlineDesc:
-          "There is no recommended parent-guided activity at the moment.",
-        offlineButton: "—",
-      };
-    }
-
-    if (!colorsData.completed) {
-      return {
-        title: "COLORS SUPPORT",
-        status: `Current Status: Not Finished (${score}%)`,
-        intro:
-          `${childFirstName} has not finished the Colors activity yet. She may still be learning how to sort objects correctly.`,
-        childDid: `She started "${activityTitle}" but did not finish it yet.`,
-        onlineTitle: "SCREEN TIME (5m)",
-        onlineAction: "Replay Colors Game",
-        onlineDesc: `Let her try "${activityTitle}" again to complete the task.`,
-        onlineButton: "▶ Play Again",
-        onlineRoute: "/quest/colors",
-        offlineTitle: "PARENT TIME (10m)",
-        offlineAction: "Color Basket Practice",
-        offlineDesc:
-          "Use red, blue, and yellow objects at home and ask her to sort them into groups.",
-        offlineButton: "✅ Mark as done",
-      };
-    }
-
-    if (attempts >= 6) {
-      return {
-        title: "COLORS REVIEW",
-        status: `Current Status: Needs Video Review (${score}%)`,
-        intro:
-          `${childFirstName} completed the activity, but she needed many attempts. Rewatching the lesson may help reinforce color recognition.`,
-        childDid: `She completed "${activityTitle}" with ${attempts} attempts, which suggests she may still be confusing some colors.`,
-        onlineTitle: "SCREEN TIME (8m)",
-        onlineAction: "Rewatch Colors Lesson",
-        onlineDesc: 'Let her rewatch "Colors Lesson" before trying the activity again.',
-        onlineButton: "▶ Watch Lesson",
-        onlineRoute: "/lesson/colors",
-        offlineTitle: "PARENT TIME (10m)",
-        offlineAction: "Find Colors Around",
-        offlineDesc:
-          "Ask her to find red, blue, and yellow items around the house and name each one.",
-        offlineButton: "✅ Mark as done",
-      };
-    }
-
-    if (attempts >= 3) {
-      return {
-        title: "COLORS PRACTICE",
-        status: `Current Status: Improving (${score}%)`,
-        intro:
-          `${childFirstName} is improving, but she still needs more practice to become confident.`,
-        childDid: `She completed "${activityTitle}" with ${attempts} attempts, so a repeat game would help strengthen her skills.`,
-        onlineTitle: "SCREEN TIME (5m)",
-        onlineAction: "Replay Colors Game",
-        onlineDesc: `Encourage her to replay "${activityTitle}" one more time.`,
-        onlineButton: "▶ Play Again",
-        onlineRoute: "/quest/colors",
-        offlineTitle: "PARENT TIME (8m)",
-        offlineAction: "Color Sorting Game",
-        offlineDesc:
-          "Prepare simple colored objects at home and let her sort them into matching groups.",
-        offlineButton: "✅ Mark as done",
-      };
-    }
-
-    return {
-      title: "COLORS ACHIEVED",
-      status: `Current Status: Excellent (${score}%)`,
-      intro:
-        `${childFirstName} did very well in the Colors activity and shows strong understanding.`,
-      childDid: `She completed "${activityTitle}" with only ${attempts} attempt(s), which shows good color recognition.`,
-      onlineTitle: "SCREEN TIME (5m)",
-      onlineAction: "Play Again for Fun",
-      onlineDesc:
-        "Let her replay the game for reinforcement or move on to another activity.",
-      onlineButton: "▶ Play Now",
-      onlineRoute: "/quest/colors",
-      offlineTitle: "PARENT TIME (5m)",
-      offlineAction: "Color Hunt",
-      offlineDesc:
-        "Ask her to find one red, one blue, and one yellow object around the house.",
-      offlineButton: "✅ Mark as done",
-    };
+  type Recommendation = {
+    title: string;
+    status: string;
+    intro: string;
+    childDid: string;
+    onlineTitle: string;
+    onlineAction: string;
+    onlineDesc: string;
+    onlineButton: string;
+    onlineRoute: string;
+    offlineTitle: string;
+    offlineAction: string;
+    offlineDesc: string;
+    offlineButton: string;
   };
 
-  const colorsRecommendation = getColorsRecommendation();
+  const buildRecommendationForSubject = (
+    key: SubjectKey,
+    score: number
+  ): Recommendation => {
+    const baseNoActivity: Recommendation = {
+      title: "NO RECOMMENDATION YET",
+      status: "Current Status: None as of now",
+      intro: `No ${key} activity data has been recorded yet.`,
+      childDid:
+        `Once ${childFirstName} starts and completes an activity here, this section will show personalized recommendations.`,
+      onlineTitle: "SCREEN TIME",
+      onlineAction: "No activity yet",
+      onlineDesc: "There is no recommended screen-time activity at the moment.",
+      onlineButton: "—",
+      onlineRoute: "",
+      offlineTitle: "PARENT TIME",
+      offlineAction: "No activity yet",
+      offlineDesc:
+        "There is no recommended parent-guided activity at the moment.",
+      offlineButton: "—",
+    };
+
+    if (score <= 0) return baseNoActivity;
+
+    const statusPrefix =
+      score >= 80 ? "Excellent" : score >= 60 ? "Good" : score >= 30 ? "Needs Practice" : "Getting Started";
+
+    const common: Recommendation = {
+      ...baseNoActivity,
+      title: "",
+      status: `Current Status: ${statusPrefix} (${score}%)`,
+      onlineButton: "▶ Play Now",
+      offlineButton: "✅ Mark as done",
+    };
+
+    switch (key) {
+      case "colors":
+        return {
+          ...common,
+          title: "COLORS FOCUS",
+          intro:
+            score >= 80
+              ? `${childFirstName} shows strong understanding of colors. A quick replay will keep skills sharp.`
+              : `${childFirstName} is still learning to sort objects into the right color baskets.`,
+          childDid:
+            score >= 80
+              ? `${childFirstName} completed the Colors activity with a great score.`
+              : `${childFirstName} has started the Colors activity but still needs more practice.`,
+          onlineTitle: "SCREEN TIME (5m)",
+          onlineAction: "Replay Colors Game",
+          onlineDesc: "Let her replay the Colors sorting game for extra practice.",
+          onlineRoute: "/quest/colors",
+          offlineTitle: "PARENT TIME (10m)",
+          offlineAction: "Color Hunt",
+          offlineDesc:
+            "Ask her to find red, blue, and yellow objects around the house and name each one.",
+        };
+      case "shapes":
+        return {
+          ...common,
+          title: "SHAPES FOCUS",
+          intro:
+            score >= 80
+              ? `${childFirstName} is confident with basic shapes.`
+              : `${childFirstName} is still mixing up some shapes like squares and rectangles.`,
+          childDid:
+            score >= 80
+              ? `${childFirstName} can match most shapes correctly in the house-building activity.`
+              : `${childFirstName} has started the shapes activity but still needs help matching shapes to the right spots.`,
+          onlineTitle: "SCREEN TIME (10m)",
+          onlineAction: "Shape Sorter Adventure",
+          onlineDesc: "Drag shapes to the correct spots to build the house.",
+          onlineRoute: "/quest/shapes",
+          offlineTitle: "PARENT TIME (15m)",
+          offlineAction: "Shape Hunt at Home",
+          offlineDesc:
+            "Look for objects shaped like circles, rectangles, and triangles around the house together.",
+        };
+      case "letters":
+        return {
+          ...common,
+          title: "LETTERS PRACTICE",
+          intro:
+            score >= 80
+              ? `${childFirstName} is recognizing letters very well.`
+              : `${childFirstName} is still learning to match letters to the correct basket.`,
+          childDid:
+            score >= 80
+              ? `${childFirstName} can sort most letters correctly in the apple-and-basket game.`
+              : `${childFirstName} has begun matching letters but still needs more practice with A, B, C and beyond.`,
+          onlineTitle: "SCREEN TIME (8m)",
+          onlineAction: "Replay Letters Game",
+          onlineDesc:
+            "Let her play the apple letter sorting game again to strengthen recognition.",
+          onlineRoute: "/quest/letter",
+          offlineTitle: "PARENT TIME (10m)",
+          offlineAction: "Alphabet Cards",
+          offlineDesc:
+            "Use letter cards or write letters on paper and ask her to find objects that start with each letter.",
+        };
+      case "numbers":
+        return {
+          ...common,
+          title: "NUMBERS PRACTICE",
+          intro:
+            score >= 80
+              ? `${childFirstName} can quickly count and match numbers.`
+              : `${childFirstName} is still learning to count and match the correct number of raindrops.`,
+          childDid:
+            score >= 80
+              ? `${childFirstName} finishes the counting raindrops game with strong accuracy.`
+              : `${childFirstName} sometimes taps too many or too few raindrops when counting.`,
+          onlineTitle: "SCREEN TIME (8m)",
+          onlineAction: "Replay Numbers Game",
+          onlineDesc:
+            "Have her replay the counting raindrops game to build stronger number sense.",
+          onlineRoute: "/quest/number",
+          offlineTitle: "PARENT TIME (10m)",
+          offlineAction: "Count Around the House",
+          offlineDesc:
+            "Count steps, toys, or snacks together and compare the numbers out loud.",
+        };
+      case "phonics":
+        return {
+          ...common,
+          title: "PHONICS INTRO",
+          intro:
+            score >= 80
+              ? `${childFirstName} is great at matching animal sounds to the right animal.`
+              : `${childFirstName} is still getting used to animal sounds and needs more listening practice.`,
+          childDid:
+            score >= 80
+              ? `${childFirstName} usually chooses the right animal after hearing the sound.`
+              : `${childFirstName} sometimes guesses the wrong animal after hearing the sound.`,
+          onlineTitle: "LISTEN & LEARN (5m)",
+          onlineAction: "Replay Phonics Game",
+          onlineDesc:
+            "Let her replay the animal sound matching game to build listening skills.",
+          onlineRoute: "/student/PhonicsQuestPage",
+          offlineTitle: "TALK TOGETHER (10m)",
+          offlineAction: "Animal Sounds Game",
+          offlineDesc:
+            "Make animal sounds together and ask her to guess which animal it is.",
+        };
+      case "logic":
+      default:
+        return {
+          ...common,
+          title: "LOGIC FOCUS",
+          intro:
+            score >= 80
+              ? `${childFirstName} is doing very well with patterns and logic puzzles.`
+              : `${childFirstName} is still learning to spot patterns and choose the correct next symbol.`,
+          childDid:
+            score >= 80
+              ? `${childFirstName} can complete most logic levels without much help.`
+              : `${childFirstName} sometimes picks the wrong symbol when finishing a pattern.`,
+          onlineTitle: "SCREEN TIME (10m)",
+          onlineAction: "Replay Logic Game",
+          onlineDesc:
+            "Encourage her to replay the pattern game and explain why each choice is correct.",
+          onlineRoute: "/student/LogicQuestPage",
+          offlineTitle: "PARENT TIME (10m)",
+          offlineAction: "Pattern at Home",
+          offlineDesc:
+            "Create simple patterns with toys (car, car, block…) and ask her what comes next.",
+        };
+    }
+  };
 
   return (
     <div className="pp-wrapper">
@@ -392,37 +451,45 @@ export default function ParentProgress() {
               Based on her recent activity, here are the best ways to help her improve.
             </p>
 
-            <div className="pp-recommend-card blue">
-              <div className="pp-tag">{colorsRecommendation.title}</div>
-              <h3>🎨 {colorsRecommendation.status}</h3>
-              <p>{colorsRecommendation.intro}</p>
-              <p className="pp-child-did">{colorsRecommendation.childDid}</p>
+            {subjects.map((sub) => {
+              const score = safeProgress[sub.key] || 0;
+              const rec = buildRecommendationForSubject(sub.key, score);
+              const cardClass = `pp-recommend-card pp-recommend-card--${sub.key}`;
 
-              <div className="pp-recommend-actions">
-                <div className="pp-recommend-box">
-                  <p className="pp-mini-title">📱 {colorsRecommendation.onlineTitle}</p>
-                  <strong>{colorsRecommendation.onlineAction}</strong>
-                  <p>{colorsRecommendation.onlineDesc}</p>
+              return (
+                <div key={sub.key} className={cardClass}>
+                  <div className="pp-tag">{rec.title || `${sub.label.toUpperCase()} FOCUS`}</div>
+                  <h3>
+                    {sub.icon} {rec.status}
+                  </h3>
+                  <p>{rec.intro}</p>
+                  <p className="pp-child-did">{rec.childDid}</p>
 
-                  {colorsRecommendation.onlineRoute ? (
-                    <button onClick={() => navigate(colorsRecommendation.onlineRoute)}>
-                      {colorsRecommendation.onlineButton}
-                    </button>
-                  ) : (
-                    <button disabled>{colorsRecommendation.onlineButton}</button>
-                  )}
+                  <div className="pp-recommend-actions">
+                    <div className="pp-recommend-box">
+                      <p className="pp-mini-title">📱 {rec.onlineTitle}</p>
+                      <strong>{rec.onlineAction}</strong>
+                      <p>{rec.onlineDesc}</p>
+
+                      {rec.onlineRoute ? (
+                        <button onClick={() => navigate(rec.onlineRoute)}>
+                          {rec.onlineButton}
+                        </button>
+                      ) : (
+                        <button disabled>{rec.onlineButton}</button>
+                      )}
+                    </div>
+
+                    <div className="pp-recommend-box">
+                      <p className="pp-mini-title">🏠 {rec.offlineTitle}</p>
+                      <strong>{rec.offlineAction}</strong>
+                      <p>{rec.offlineDesc}</p>
+                      <button disabled={score <= 0 || loading}>{rec.offlineButton}</button>
+                    </div>
+                  </div>
                 </div>
-
-                <div className="pp-recommend-box">
-                  <p className="pp-mini-title">🏠 {colorsRecommendation.offlineTitle}</p>
-                  <strong>{colorsRecommendation.offlineAction}</strong>
-                  <p>{colorsRecommendation.offlineDesc}</p>
-                  <button disabled={!hasRealColorsData || loading}>
-                    {colorsRecommendation.offlineButton}
-                  </button>
-                </div>
-              </div>
-            </div>
+              );
+            })}
           </section>
         </main>
       </div>

@@ -10,6 +10,7 @@ import {
 import lion_think from "../img/lion_think.png";
 import { supabase } from "../lib/supabase";
 import { getOrCreateActiveChildId } from "../lib/childProgress";
+import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
 
 type LogicChoice = { id: string; emoji: string };
 type LogicLevel = {
@@ -129,6 +130,7 @@ export default function Level2Pattern() {
   const [level, setLevel] = useState(0);
   const [proceedPromptLevel, setProceedPromptLevel] = useState<number | null>(null);
   const [showCongratsPanel, setShowCongratsPanel] = useState(false);
+  const [showNoPrompt, setShowNoPrompt] = useState(false);
   const [showStartPopup, setShowStartPopup] = useState(openedFromLesson);
   const [isStarted, setIsStarted] = useState(!openedFromLesson);
   const [message, setMessage] = useState("Drag the correct symbol into the box!");
@@ -136,6 +138,7 @@ export default function Level2Pattern() {
   const [gameCode, setGameCode] = useState<string | null>(null);
 
   const currentLevel = logicLevels[level];
+  const canProceedAfterTimeUp = false;
 
   // ⏱ TIMER
   const [isFinished, setIsFinished] = useState(false);
@@ -348,71 +351,123 @@ export default function Level2Pattern() {
 
       {/* ⭐ LEVEL PROCEED POPUP */}
       {proceedPromptLevel !== null && (
-        <div className="level-popup">
-          <h2>🎉 Level {level + 1} Complete!</h2>
+        <GameOverlay isOpen={proceedPromptLevel !== null}>
+          <GamePopup
+            title="🎉 Level Complete!"
+            subtitle={`Proceed to Level ${level + 2}?`}
+            buttons={[
+              {
+                label: "Yes",
+                onClick: handleProceed,
+                variant: "yes",
+              },
+              {
+                label: "No",
+                onClick: () => {
+                  setProceedPromptLevel(null);
+                  setShowNoPrompt(true);
+                },
+                variant: "no",
+              },
+            ]}
+          />
+        </GameOverlay>
+      )}
 
-          <p>Proceed to Level {level + 2}?</p>
-
-          <div className="level-popup-buttons">
-            <button onClick={handleProceed}>Yes, let's go!</button>
-
-            <button
-              onClick={() => {
-                setProceedPromptLevel(null);
-                setShowCongratsPanel(true);
-              }}
-            >
-              Not now
-            </button>
-          </div>
-        </div>
+      {showNoPrompt && (
+        <GameOverlay isOpen={showNoPrompt}>
+          <GamePopup
+            title="Keep playing?"
+            subtitle={`Progress: ${score}/${logicLevels.length} | Wrong Attempts: ${wrong}`}
+            buttons={[
+              {
+                label: "Back to Lesson",
+                onClick: () => {
+                  setShowNoPrompt(false);
+                  navigate("/lesson/logic");
+                },
+                variant: "secondary",
+              },
+              {
+                label: "Replay Level",
+                onClick: () => {
+                  setShowNoPrompt(false);
+                  handleRestart();
+                },
+                variant: "yes",
+              },
+            ]}
+          />
+        </GameOverlay>
       )}
 
       {/* 🔥 FIXED POPUP */}
       {showStartPopup && (
-        <div className="lq-popup-overlay">
-          <div className="lq-popup-content">
-            <h2>⏱ You have 30s to answer!</h2>
-            <div className="lq-popup-buttons">
-              <button
-                onClick={() => {
+        <GameOverlay isOpen={showStartPopup}>
+          <GamePopup
+            title="⏱ You have 30s to answer!"
+            buttons={[
+              {
+                label: "Go",
+                onClick: () => {
                   setShowStartPopup(false);
                   setIsStarted(true);
-                }}
-              >
-                Go
-              </button>
-              <button onClick={handleBack}>← Back</button>
-            </div>
-          </div>
-        </div>
+                },
+              },
+              {
+                label: "← Back",
+                onClick: handleBack,
+                variant: "secondary",
+              },
+            ]}
+          />
+        </GameOverlay>
       )}
 
 {popup === "TIME_UP" && (
-  <div className="lq-popup-overlay">
-    <div className="lq-popup-content">
-      <h2>⏰ Time's up!</h2>
-      <p className="lq-popup-stats">
-        Level {level + 1} | Progress: {score}/{logicLevels.length} | Wrong Attempts: {wrong}
-      </p>
-
-      <div
-        className={`lq-popup-buttons ${
-          level === logicLevels.length - 1
-            ? "lq-popup-buttons-final"
-            : "lq-popup-buttons-stacked"
-        }`}
-      >
-        {level < logicLevels.length - 1 ? (
-          <button onClick={handleProceed}>Proceed to Level {level + 2}</button>
-        ) : null}
-        <button onClick={handleReplayLevel}>Replay this Level</button>
-        {level === logicLevels.length - 1 && (
-          <button onClick={handleRestart}>Play Again</button>
-        )}
-      </div>
-    </div>
-  </div>
+  <GameOverlay isOpen={popup === "TIME_UP"}>
+    <GamePopup
+      title="⏰ Time's up!"
+      subtitle={`Level ${level + 1} | Progress: ${score}/${logicLevels.length} | Wrong Attempts: ${wrong}`}
+      buttons={
+        level < logicLevels.length - 1
+          ? canProceedAfterTimeUp
+            ? [
+                {
+                  label: `Proceed to Level ${level + 2}`,
+                  onClick: handleProceed,
+                },
+                {
+                  label: "Replay Level",
+                  onClick: handleReplayLevel,
+                  variant: "secondary",
+                },
+              ]
+            : [
+                {
+                  label: "Back to Lesson",
+                  onClick: handleBack,
+                },
+                {
+                  label: "Replay Level",
+                  onClick: handleReplayLevel,
+                  variant: "secondary",
+                },
+              ]
+          : [
+              {
+                label: "Back to Lesson",
+                onClick: handleBack,
+                variant: "secondary",
+              },
+              {
+                label: "Replay Level",
+                onClick: handleReplayLevel,
+              },
+            ]
+      }
+    />
+  </GameOverlay>
 )}
 
     </div>

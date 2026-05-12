@@ -45,17 +45,19 @@ function App() {
         <Route path="/lesson/:category" element={<LessonPage />} />
         <Route path="/quest/colors" element={<ColorsQuestPage />} />
         <Route path="/student/PhonicsQuestPage" element={<SoundGame />} />
+        <Route path="/student/sound" element={<SoundGame />} />
         <Route path="/student/LogicQuestPage" element={<LogicGame />} />
+        <Route path="/student/pattern" element={<LogicGame />} />
         <Route path="/quest/number" element={<NumbersQuestPage />} />
+        <Route path="/quest/numbers" element={<Navigate to="/quest/number" replace />} />
         <Route path="/quest/letter" element={<LetterQuestPage />} />
         <Route path="/quest/shapes" element={<ShapesQuestPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-        
-         {/* ⚠️ ALWAYS LAST */}
+
+        {/* ⚠️ ALWAYS LAST */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
-  );  
+  );
 }
 
 export default App;

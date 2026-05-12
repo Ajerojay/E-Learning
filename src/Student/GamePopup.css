@@ -1,0 +1,108 @@
+/* Shared Game Popup Styles */
+
+.game-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: rgba(20, 20, 25, 0.35);
+  backdrop-filter: blur(2px);
+}
+
+.game-popup {
+  width: min(92vw, 520px);
+  background: rgba(255, 255, 255, 0.92);
+  border: 3px solid rgba(176, 125, 115, 0.5);
+  border-radius: 18px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
+  padding: 24px 20px 20px;
+  text-align: center;
+  color: #6d5650;
+}
+
+.game-popup-title {
+  font-weight: 800;
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.game-popup-subtitle {
+  font-weight: 700;
+  font-size: 16px;
+  opacity: 0.9;
+  margin-bottom: 12px;
+}
+
+.game-popup-content {
+  font-weight: 600;
+  font-size: 14px;
+  margin: 12px 0;
+  opacity: 0.85;
+}
+
+.game-popup-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.game-popup-btn {
+  border: none;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-weight: 800;
+  cursor: pointer;
+  font-size: 16px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.game-popup-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+}
+
+.game-popup-btn.primary {
+  background: #6aa7ff;
+  color: white;
+}
+
+.game-popup-btn.secondary {
+  background: #ffb347;
+  color: white;
+}
+
+.game-popup-btn.yes {
+  background: #34c759;
+  color: white;
+}
+
+.game-popup-btn.no {
+  background: #ff4d4f;
+  color: white;
+}
+
+.game-countdown {
+  font-size: 64px;
+  line-height: 1;
+  font-weight: 900;
+  color: #b07d73;
+}
+
+@media (max-width: 600px) {
+  .game-popup {
+    width: 95vw;
+    padding: 20px 16px;
+  }
+
+  .game-popup-title {
+    font-size: 20px;
+  }
+
+  .game-popup-btn {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+}

@@ -7,6 +7,12 @@ import {
   useDroppable,
 } from "@dnd-kit/core";
 import "./ShapesQuestPage.css";
+import { getOrCreateActiveChildId } from "../lib/childProgress";
+import {
+  loadPrimaryGameCodeForCategory,
+  recordGameProgressRpc,
+} from "../lib/gameProgressDb";
+import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
 
 import gameBg from "./images/shapes-bg.jpg";
 import bearImg from "./images/bear-3.png";
@@ -184,6 +190,8 @@ export default function ShapesQuestPage() {
   const [voicesReady, setVoicesReady] = useState(false);
   const [timeUpOpen, setTimeUpOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [childId, setChildId] = useState<string | null>(null);
+  const [gameCode, setGameCode] = useState<string | null>(null);
 
   const level = levels[levelIndex] ?? levels[0];
   const activeShapes = level.shapes;
@@ -197,6 +205,7 @@ export default function ShapesQuestPage() {
   const progress = Object.keys(placed).length;
   const total = slots.length;
   const levelComplete = progress === total;
+  const canProceedAfterTimeUp = false;
   const isFinished = finalCongratsOpen;
 
   const slotToShape = useMemo(() => {
@@ -208,6 +217,25 @@ export default function ShapesQuestPage() {
     }
     return result;
   }, [activeShapes, placed]);
+
+  useEffect(() => {
+    const load = async () => {
+      const id = await getOrCreateActiveChildId();
+      setChildId(id);
+      const code = await loadPrimaryGameCodeForCategory("shapes");
+      setGameCode(code);
+    };
+    void load();
+  }, []);
+
+  const persistShapesProgress = (
+    pct: number,
+    finished: boolean,
+    attempts: number
+  ) => {
+    if (!childId || !gameCode) return;
+    void recordGameProgressRpc(childId, gameCode, pct, attempts, finished);
+  };
 
   const handleDragEnd = (event: DragEndEvent) => {
     if (countdown !== null) return;
@@ -235,21 +263,32 @@ export default function ShapesQuestPage() {
       setPlaced(updated);
 
       const nextProgress = Object.keys(updated).length;
+      const pctForLevel = Math.round(
+        ((levelIndex + nextProgress / total) / levels.length) * 100
+      );
       if (nextProgress === total) {
         if (levelIndex >= 2) {
           setFinalCongratsOpen(true);
           setMessage("Amazing! You finished all levels!");
+          persistShapesProgress(100, true, wrongAttempts);
         } else {
           setProceedPromptLevel(levelIndex);
           setTimerRunning(false);
           setMessage(`Great job! Level ${levelIndex + 1} complete!`);
+          persistShapesProgress(Math.min(99, pctForLevel), false, wrongAttempts);
         }
       } else {
         setMessage(`Great job! That's the correct ${activeKind}.`);
+        persistShapesProgress(Math.min(99, pctForLevel), false, wrongAttempts);
       }
     } else {
-      setWrongAttempts((p) => p + 1);
+      const nextWrong = wrongAttempts + 1;
+      setWrongAttempts(nextWrong);
       setMessage("Oops! Try again.");
+      const pctForLevel = Math.round(
+        ((levelIndex + progress / total) / levels.length) * 100
+      );
+      persistShapesProgress(Math.min(99, pctForLevel), false, nextWrong);
     }
   };
 
@@ -711,119 +750,124 @@ export default function ShapesQuestPage() {
             </div>
 
             {countdown !== null && (
-              <div className="sq-countdown" aria-hidden="true">
-                <div className="sq-countdown-bubble">{countdown}</div>
-              </div>
+              <GameOverlay isOpen={countdown !== null}>
+                <GamePopup
+                  title={<Countdown value={countdown} />}
+                  subtitle="Get ready!"
+                />
+              </GameOverlay>
             )}
 
             {timeUpOpen && (
-              <div
-                className="sq-level-popup sq-level-popup--summary"
-                role="dialog"
-                aria-modal="true"
-              >
-                ⏰ Time&apos;s up!
-                <br />
-                <span className="sq-level-popup__meta">
-                  Level {levelIndex + 1} | Progress: {progress}/{total} | Wrong
-                  Attempts: {wrongAttempts}
-                </span>
-                <br />
-                <br />
-                {levelIndex < 2 ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTimeUpOpen(false);
-                        handleProceed();
-                      }}
-                    >
-                      Proceed to Level {levelIndex + 2}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTimeUpOpen(false);
-                        resetCurrentLevel();
-                      }}
-                    >
-                      Replay this Level
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTimeUpOpen(false);
-                        resetCurrentLevel();
-                      }}
-                    >
-                      Replay this Level
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTimeUpOpen(false);
-                        handlePlayAgain();
-                      }}
-                    >
-                      Play Again
-                    </button>
-                  </>
-                )}
-              </div>
+              <GameOverlay isOpen={timeUpOpen}>
+                <GamePopup
+                  title="⏰ Time's up!"
+                  subtitle={`Level ${levelIndex + 1} | Progress: ${progress}/${total} | Wrong Attempts: ${wrongAttempts}`}
+                  buttons={
+                    levelIndex < 2
+                      ? canProceedAfterTimeUp
+                        ? [
+                            {
+                              label: `Proceed to Level ${levelIndex + 2}`,
+                              onClick: () => {
+                                setTimeUpOpen(false);
+                                handleProceed();
+                              },
+                            },
+                            {
+                              label: "Replay Level",
+                              onClick: () => {
+                                setTimeUpOpen(false);
+                                resetCurrentLevel();
+                              },
+                              variant: "secondary",
+                            },
+                          ]
+                        : [
+                            {
+                              label: "Back to Lesson",
+                              onClick: () => navigate("/lesson/shapes"),
+                            },
+                            {
+                              label: "Replay Level",
+                              onClick: () => {
+                                setTimeUpOpen(false);
+                                resetCurrentLevel();
+                              },
+                              variant: "secondary",
+                            },
+                          ]
+                      : [
+                          {
+                            label: "Back to Lesson",
+                            onClick: () => {
+                              setTimeUpOpen(false);
+                              navigate("/lesson/shapes");
+                            },
+                            variant: "secondary",
+                          },
+                          {
+                            label: "Replay Level",
+                            onClick: () => {
+                              setTimeUpOpen(false);
+                              resetCurrentLevel();
+                            },
+                          },
+                        ]
+                  }
+                />
+              </GameOverlay>
             )}
 
             {proceedPromptLevel !== null && levelIndex < 2 && (
-              <div className="sq-level-popup" role="dialog" aria-modal="true">
-                🎉 Level {levelIndex + 1} Complete!
-                <br />
-                Proceed to Level {levelIndex + 2}?
-                <br />
-                <br />
-                <button type="button" onClick={handleProceed}>
-                  Yes, let's go!
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setProceedPromptLevel(null);
-                    setLevelSummaryOpen(true);
-                  }}
-                >
-                  Not now
-                </button>
-              </div>
+              <GameOverlay isOpen={proceedPromptLevel !== null}>
+                <GamePopup
+                  title="🎉 Level Complete!"
+                  subtitle={`Proceed to Level ${levelIndex + 2}?`}
+                  buttons={[
+                    {
+                      label: "Yes",
+                      onClick: handleProceed,
+                      variant: "yes",
+                    },
+                    {
+                      label: "No",
+                      onClick: () => {
+                        setProceedPromptLevel(null);
+                        setLevelSummaryOpen(true);
+                      },
+                      variant: "no",
+                    },
+                  ]}
+                />
+              </GameOverlay>
             )}
 
             {levelSummaryOpen && levelIndex < 2 && (
-              <div
-                className="sq-level-popup sq-level-popup--summary"
-                role="dialog"
-                aria-modal="true"
-              >
-                {message ? message : "Great job!"}
-                <br />
-                <span className="sq-level-popup__meta">
-                  Progress: {progress}/{total} | Wrong Attempts: {wrongAttempts}
-                </span>
-                <br />
-                <br />
-                <button type="button" onClick={handleProceed}>
-                  Proceed to Level {levelIndex + 2}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLevelSummaryOpen(false);
-                    resetCurrentLevel();
-                  }}
-                >
-                  Replay this Level
-                </button>
-              </div>
+              <GameOverlay isOpen={levelSummaryOpen}>
+                <GamePopup
+                  title={message ? message : "Great job!"}
+                  subtitle={`Progress: ${progress}/${total} | Wrong Attempts: ${wrongAttempts}`}
+                  buttons={[
+                    {
+                      label: "Back to Lesson",
+                      onClick: () => {
+                        setLevelSummaryOpen(false);
+                        navigate("/lesson/shapes");
+                      },
+                      variant: "no",
+                    },
+                    {
+                      label: "Replay Level",
+                      onClick: () => {
+                        setLevelSummaryOpen(false);
+                        resetCurrentLevel();
+                      },
+                      variant: "yes",
+                    },
+                  ]}
+                />
+              </GameOverlay>
             )}
           </DndContext>
         </div>

@@ -23,7 +23,6 @@ type VideoLesson = {
 export default function LessonPage() {
   const navigate = useNavigate();
   const { category } = useParams();
-  const LOGIC_ACTIVITY_COUNT = 2;
 
   const [lessonVideoUrl, setLessonVideoUrl] = useState("");
   const [lessonTitle, setLessonTitle] = useState("");
@@ -53,6 +52,8 @@ export default function LessonPage() {
     shapes: "Shapes",
     logic: "Logic",
   };
+
+  const hasPublishedVideo = Boolean(!loading && lessonVideoUrl);
 
   useEffect(() => {
     const fetchLessonVideo = async () => {
@@ -137,12 +138,13 @@ export default function LessonPage() {
           <p className="video-title">{lessonTitle}</p>
         )}
 
-        {!loading && category === "phonics" && (
+        {hasPublishedVideo && category === "phonics" && (
           <>
-            <p className="lesson-activity-meta">  
+            <p className="lesson-activity-meta">
               listening choices — tap the speaker, then pick the animal!
             </p>
             <button
+              type="button"
               className="start-quest-btn"
               onClick={() => navigate("/student/PhonicsQuestPage")}
             >
@@ -151,8 +153,9 @@ export default function LessonPage() {
           </>
         )}
 
-        {!loading && category === "colors" && lessonVideoUrl && (
+        {hasPublishedVideo && category === "colors" && (
           <button
+            type="button"
             className="start-quest-btn"
             onClick={() => navigate("/quest/colors")}
           >
@@ -160,12 +163,13 @@ export default function LessonPage() {
           </button>
         )}
 
-        {!loading && category === "logic" && (
+        {hasPublishedVideo && category === "logic" && (
           <>
             <p className="lesson-activity-meta">
               logic choices — drag the correct symbol into the box!
             </p>
             <button
+              type="button"
               className="start-quest-btn"
               onClick={() =>
                 navigate("/student/LogicQuestPage", {
@@ -177,13 +181,45 @@ export default function LessonPage() {
             </button>
           </>
         )}
-        {!loading && category === "numbers" && lessonVideoUrl && (
+
+        {hasPublishedVideo && category === "numbers" && (
           <button
+            type="button"
             className="start-quest-btn"
-            onClick={() => navigate("/quest/numbers")}
+            onClick={() => navigate("/quest/number")}
           >
             Start Numbers Activity
           </button>
+        )}
+
+        {hasPublishedVideo && category === "letters" && (
+          <>
+            <p className="lesson-activity-meta">
+              match each apple to the right letter basket!
+            </p>
+            <button
+              type="button"
+              className="start-quest-btn"
+              onClick={() => navigate("/quest/letter")}
+            >
+              Start Letters Activity
+            </button>
+          </>
+        )}
+
+        {hasPublishedVideo && category === "shapes" && (
+          <>
+            <p className="lesson-activity-meta">
+              drag shapes into the right spots to build the house!
+            </p>
+            <button
+              type="button"
+              className="start-quest-btn"
+              onClick={() => navigate("/quest/shapes")}
+            >
+              Start Shapes Activity
+            </button>
+          </>
         )}
       </div>
     </div>

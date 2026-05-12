@@ -29,9 +29,11 @@ export default function ParentDashboard() {
   };
 
   React.useEffect(() => {
+    let cancelled = false;
+
     const loadDashboardData = async () => {
       const childId = await getOrCreateActiveChildId();
-      if (!childId) return;
+      if (!childId || cancelled) return;
 
       const [{ data: child }, { data: overall }, { data: latest }] = await Promise.all([
         supabase.from("children_accounts").select("child_name").eq("id", childId).maybeSingle(),
@@ -49,6 +51,8 @@ export default function ParentDashboard() {
           .maybeSingle(),
       ]);
 
+      if (cancelled) return;
+
       const fetchedChildName = child?.child_name || "Child";
       if (child?.child_name) {
         setChildName(child.child_name);
@@ -56,16 +60,33 @@ export default function ParentDashboard() {
 
       if (overall?.overall_progress_percent != null) {
         setOverallProgress(Math.round(overall.overall_progress_percent));
+      } else {
+        setOverallProgress(0);
       }
 
       if (latest?.category_code) {
         const category = latest.category_code.charAt(0).toUpperCase() + latest.category_code.slice(1);
         const recentName = getFirstName(fetchedChildName);
         setRecentActivity(`${recentName} completed "${category}"`);
+      } else {
+        setRecentActivity("No activity yet");
       }
     };
 
     void loadDashboardData();
+    const onFocus = () => {
+      void loadDashboardData();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void loadDashboardData();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   return (

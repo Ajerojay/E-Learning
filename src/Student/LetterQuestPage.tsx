@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./LetterQuestPage.css";
+import { getOrCreateActiveChildId } from "../lib/childProgress";
+import {
+  loadPrimaryGameCodeForCategory,
+  recordGameProgressRpc,
+} from "../lib/gameProgressDb";
+import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
+import bgMusic from "./bg-music-loop.mp3";
 
-import pageBg from "./images/letter-bg.png";
-import gameBg from "./images/letters-bg.jpg";
 import bear from "./images/bear-2.png";
 
 import appleA from "./images/a.png";
@@ -56,6 +61,8 @@ export default function LetterQuestPage() {
   const navigate = useNavigate();
   const warnedSecondsRef = useRef<Set<number>>(new Set());
   const lastSpokenRef = useRef<{ text: string; at: number } | null>(null);
+  const bgMusicRef = useRef<HTMLAudioElement | null>(null);
+  const isVoiceSpeakingRef = useRef(false);
   const [levelIndex, setLevelIndex] = useState(0);
   const [placedIds, setPlacedIds] = useState<number[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -73,6 +80,9 @@ export default function LetterQuestPage() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [voicesReady, setVoicesReady] = useState(false);
   const [timeUpOpen, setTimeUpOpen] = useState(false);
+  const [childId, setChildId] = useState<string | null>(null);
+  const [gameCode, setGameCode] = useState<string | null>(null);
+  const [musicEnabled, setMusicEnabled] = useState(true);
 
   const makeLevel3Set = (count = 4) =>
     [...level3Pool].sort(() => Math.random() - 0.5).slice(0, count);
@@ -88,8 +98,68 @@ export default function LetterQuestPage() {
       ? level3Targets.length - level3Remaining.length
       : placedIds.length;
 
+  const canProceedAfterTimeUp = false;
+
   const isFinished = finalCongratsOpen;
   const levelNames = ["Easy", "Medium", "Hard"];
+
+  useEffect(() => {
+    const load = async () => {
+      const id = await getOrCreateActiveChildId();
+      setChildId(id);
+      const code = await loadPrimaryGameCodeForCategory("letters");
+      setGameCode(code);
+    };
+    void load();
+  }, []);
+
+  useEffect(() => {
+    // Initialize background music
+    if (!bgMusicRef.current) {
+      const audio = new Audio(bgMusic);
+      audio.loop = true;
+      audio.volume = 0.3;
+      bgMusicRef.current = audio;
+
+      if (musicEnabled) {
+        audio.play().catch(() => {});
+      }
+    }
+
+    return () => {
+      if (bgMusicRef.current) {
+        bgMusicRef.current.pause();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    // Handle music enabled/disabled toggle
+    if (bgMusicRef.current) {
+      if (musicEnabled && !isVoiceSpeakingRef.current) {
+        bgMusicRef.current.play().catch(() => {});
+      } else {
+        bgMusicRef.current.pause();
+      }
+    }
+  }, [musicEnabled]);
+
+  const persistLetterProgress = (
+    levelIdx: number,
+    prog: number,
+    total: number,
+    finished: boolean,
+    attempts: number
+  ) => {
+    if (!childId || !gameCode) return;
+    const pct = finished
+      ? 100
+      : Math.min(
+          99,
+          Math.round(((levelIdx + prog / Math.max(total, 1)) / 3) * 100)
+        );
+    void recordGameProgressRpc(childId, gameCode, pct, attempts, finished);
+  };
 
   const getHappyVoice = () => {
     if (!("speechSynthesis" in window)) return null;
@@ -130,6 +200,21 @@ export default function LetterQuestPage() {
       u.rate = 1.12;
       u.pitch = 1.55;
       u.volume = 1;
+
+      // Pause music when voice starts speaking
+      isVoiceSpeakingRef.current = true;
+      if (bgMusicRef.current && musicEnabled) {
+        bgMusicRef.current.pause();
+      }
+
+      // Resume music when voice ends
+      u.onend = () => {
+        isVoiceSpeakingRef.current = false;
+        if (bgMusicRef.current && musicEnabled) {
+          bgMusicRef.current.play().catch(() => {});
+        }
+      };
+
       window.speechSynthesis.speak(u);
     } catch {
       // ignore
@@ -211,10 +296,35 @@ export default function LetterQuestPage() {
         const updated = level3Remaining.filter((b) => b.letter !== letter);
         setLevel3Remaining(updated);
 
-        if (updated.length === 0) setFinalCongratsOpen(true);
+        if (updated.length === 0) {
+          setFinalCongratsOpen(true);
+          persistLetterProgress(
+            2,
+            level3Targets.length,
+            level3Targets.length,
+            true,
+            wrongAttempts
+          );
+        } else {
+          persistLetterProgress(
+            2,
+            level3Targets.length - updated.length,
+            level3Targets.length,
+            false,
+            wrongAttempts
+          );
+        }
       } else {
-        setWrongAttempts((p) => p + 1);
+        const nextWrong = wrongAttempts + 1;
+        setWrongAttempts(nextWrong);
         setFeedback("Oops! Try again.");
+        persistLetterProgress(
+          2,
+          level3Targets.length - level3Remaining.length,
+          level3Targets.length,
+          false,
+          nextWrong
+        );
       }
       return;
     }
@@ -223,10 +333,12 @@ export default function LetterQuestPage() {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
 
-    let target = "";
-    if (x < rect.width / 3) target = "A";
-    else if (x < (rect.width / 3) * 2) target = "B";
-    else target = "C";
+    let target = e.currentTarget.dataset.target ?? "";
+    if (!target) {
+      if (x < rect.width / 3) target = "A";
+      else if (x < (rect.width / 3) * 2) target = "B";
+      else target = "C";
+    }
 
     if (letter === target && !placedIds.includes(id)) {
       const updated = [...placedIds, id];
@@ -234,12 +346,28 @@ export default function LetterQuestPage() {
       setFeedback(`Great job! ${letter}`);
       setSelected(null);
 
+      persistLetterProgress(
+        levelIndex,
+        updated.length,
+        totalItems,
+        false,
+        wrongAttempts
+      );
+
       if (updated.length === totalItems) {
         setProceedPromptLevel(levelIndex);
       }
     } else {
-      setWrongAttempts((p) => p + 1);
+      const nextWrong = wrongAttempts + 1;
+      setWrongAttempts(nextWrong);
       setFeedback("Oops! Try again.");
+      persistLetterProgress(
+        levelIndex,
+        placedIds.length,
+        totalItems,
+        false,
+        nextWrong
+      );
     }
   };
 
@@ -352,135 +480,181 @@ export default function LetterQuestPage() {
   ]);
 
   return (
-    <div className="page-bg" style={{ backgroundImage: `url(${gameBg})` }}>
-      <div className="top-bar">
-        <button className="back-btn" onClick={() => navigate("/student")}>← Back</button>
-        <button className="lesson-btn" onClick={() => navigate("/lesson/letters")}>← Lesson</button>
-        <button
-          type="button"
-          className="lesson-btn lq-sound-btn"
-          onClick={() => {
-            setSoundEnabled((prev) => {
-              const next = !prev;
-              if (!next && "speechSynthesis" in window) {
-                window.speechSynthesis.cancel();
-              }
-              return next;
-            });
-          }}
-        >
-          {soundEnabled ? "🔊 On" : "🔇 Off"}
-        </button>
+    <div className="cq-page">
+      <button className="cq-back-btn" onClick={() => navigate("/lesson/letters")}>← Back</button>
+      <h1 className="cq-title">Match the Letters!</h1>
+      <div className="cq-level-meta-row">
+        <div className="cq-level-meta">
+          Level {levelIndex + 1}: {levelNames[levelIndex]} • ⏱ {timeLeft}s
+        </div>
+        <div className="cq-sound-buttons">
+          <button
+            type="button"
+            className="cq-sound-toggle"
+            onClick={() => {
+              setMusicEnabled((prev) => {
+                const next = !prev;
+                if (bgMusicRef.current) {
+                  if (next && !isVoiceSpeakingRef.current) {
+                    bgMusicRef.current.play().catch(() => {});
+                  } else {
+                    bgMusicRef.current.pause();
+                  }
+                }
+                return next;
+              });
+            }}
+            aria-label={musicEnabled ? "Mute music" : "Unmute music"}
+            title={musicEnabled ? "Mute Music" : "Unmute Music"}
+          >
+            {musicEnabled ? "🎵" : "🔇"}
+          </button>
+          <button
+            type="button"
+            className="cq-sound-toggle"
+            onClick={() => {
+              setSoundEnabled((prev) => {
+                const next = !prev;
+                if (!next && "speechSynthesis" in window) {
+                  window.speechSynthesis.cancel();
+                }
+                return next;
+              });
+            }}
+            aria-label={soundEnabled ? "Mute voice" : "Unmute voice"}
+            title={soundEnabled ? "Mute Voice" : "Unmute Voice"}
+          >
+            {soundEnabled ? "🔊" : "🔇"}
+          </button>
+        </div>
       </div>
 
-      <h2 className="title">Match the Letters!</h2>
-
-      <div className="game-card">
-        <div
-          className={`game-container level-${levelIndex}`}
-          style={{ backgroundImage: `url(${pageBg})` }}
-        >
-          <div className="level">
-            Level {levelIndex + 1}: {levelNames[levelIndex]} | ⏱ {timeLeft}s
-          </div>
+      <div className={`game-container level-${levelIndex}`}>
 
           {countdown !== null && (
-            <div className="lq-countdown" aria-hidden="true">
-              <div className="lq-countdown-bubble">{countdown}</div>
-            </div>
+            <GameOverlay isOpen={countdown !== null}>
+              <GamePopup
+                title={<Countdown value={countdown} />}
+                subtitle="Get ready!"
+              />
+            </GameOverlay>
           )}
 
           {timeUpOpen && (
-              <div className="level-popup level-popup--summary">
-              ⏰ Time&apos;s up!
-              <br />
-              <span className="level-popup__meta">
-                Progress: {progress}/{totalItems} | Wrong Attempts: {wrongAttempts}
-              </span>
-              <br />
-              <br />
-              {levelIndex < 2 ? (
-                <>
-                  <button
-                    onClick={() => {
-                      setTimeUpOpen(false);
-                      handleProceed();
-                    }}
-                  >
-                    Proceed to Level {levelIndex + 2}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setTimeUpOpen(false);
-                      resetCurrentLevel();
-                    }}
-                  >
-                    Replay this Level
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => {
-                      setTimeUpOpen(false);
-                      resetCurrentLevel();
-                    }}
-                  >
-                    Replay this Level
-                  </button>
-                  <button
-                    onClick={() => {
-                      setTimeUpOpen(false);
-                      handlePlayAgain();
-                    }}
-                  >
-                    Play Again
-                  </button>
-                </>
-              )}
-            </div>
+            <GameOverlay isOpen={timeUpOpen}>
+              <GamePopup
+                title="⏰ Time's up!"
+                subtitle={`Progress: ${progress}/${totalItems} | Wrong Attempts: ${wrongAttempts}`}
+                buttons={
+                  levelIndex < 2
+                    ? canProceedAfterTimeUp
+                      ? [
+                          {
+                            label: `Proceed to Level ${levelIndex + 2}`,
+                            onClick: () => {
+                              setTimeUpOpen(false);
+                              handleProceed();
+                            },
+                          },
+                          {
+                            label: "Replay Level",
+                            onClick: () => {
+                              setTimeUpOpen(false);
+                              resetCurrentLevel();
+                            },
+                            variant: "secondary",
+                          },
+                        ]
+                      : [
+                          {
+                            label: "Back to Lesson",
+                            onClick: () => {
+                              setTimeUpOpen(false);
+                              navigate("/lesson/letters");
+                            },
+                          },
+                          {
+                            label: "Replay Level",
+                            onClick: () => {
+                              setTimeUpOpen(false);
+                              resetCurrentLevel();
+                            },
+                            variant: "secondary",
+                          },
+                        ]
+                    : [
+                        {
+                          label: "Back to Lesson",
+                          onClick: () => {
+                            setTimeUpOpen(false);
+                            navigate("/lesson/letters");
+                          },
+                          variant: "secondary",
+                        },
+                        {
+                          label: "Replay Level",
+                          onClick: () => {
+                            setTimeUpOpen(false);
+                            resetCurrentLevel();
+                          },
+                        },
+                      ]
+                }
+              />
+            </GameOverlay>
           )}
 
-          {/* LEVEL COMPLETE PROMPT (PIC 1) */}
+          {/* LEVEL COMPLETE PROMPT */}
           {proceedPromptLevel !== null && levelIndex < 2 && (
-            <div className="level-popup">
-              🎉 Level {levelIndex + 1} Complete!
-              <br />
-              Proceed to Level {levelIndex + 2} ?
-              <br />
-              <br />
-              <button onClick={handleProceed}>Yes, let's go!</button>
-              <button
-                onClick={() => {
-                  setProceedPromptLevel(null);
-                  setLevelSummaryOpen(true);
-                }}
-              >
-                Not now
-              </button>
-            </div>
+            <GameOverlay isOpen={proceedPromptLevel !== null}>
+              <GamePopup
+                title="🎉 Level Complete!"
+                subtitle={`Proceed to Level ${levelIndex + 2}?`}
+                buttons={[
+                  {
+                    label: "Yes",
+                    onClick: handleProceed,
+                    variant: "yes",
+                  },
+                  {
+                    label: "No",
+                    onClick: () => {
+                      setProceedPromptLevel(null);
+                      setLevelSummaryOpen(true);
+                    },
+                    variant: "no",
+                  },
+                ]}
+              />
+            </GameOverlay>
           )}
 
-          {/* SUMMARY POPUP AFTER "NOT NOW" (PIC 2) */}
+          {/* SUMMARY POPUP AFTER "No" */}
           {levelSummaryOpen && levelIndex < 2 && (
-            <div className="level-popup level-popup--summary">
-              {feedback ? feedback : "Great job!"}
-              <br />
-              <span className="level-popup__meta">
-                Progress: {progress}/{totalItems} | Wrong Attempts: {wrongAttempts}
-              </span>
-              <br />
-              <br />
-              <button onClick={handleProceed}>Proceed to Level {levelIndex + 2}</button>
-              <button
-                onClick={() => {
-                  setLevelSummaryOpen(false);
-                  resetCurrentLevel();
-                }}
-              >
-                Replay this Level
-              </button>
-            </div>
+            <GameOverlay isOpen={levelSummaryOpen}>
+              <GamePopup
+                title={feedback ? feedback : "Great job!"}
+                subtitle={`Progress: ${progress}/${totalItems} | Wrong Attempts: ${wrongAttempts}`}
+                buttons={[
+                  {
+                    label: "Back to Lesson",
+                    onClick: () => {
+                      setLevelSummaryOpen(false);
+                      navigate("/lesson/letters");
+                    },
+                    variant: "no",
+                  },
+                  {
+                    label: "Replay Level",
+                    onClick: () => {
+                      setLevelSummaryOpen(false);
+                      resetCurrentLevel();
+                    },
+                    variant: "yes",
+                  },
+                ]}
+              />
+            </GameOverlay>
           )}
 
           {/* APPLES */}
@@ -524,23 +698,35 @@ export default function LetterQuestPage() {
 
           <img src={bear} className="bear" />
 
-          <div
-            className="basket-set"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={handleDrop}
-          >
+          <div className="basket-set">
             {levelIndex === 2 ? (
-              <div className="level3-baskets">
+              <div
+                className="level3-baskets"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDrop}
+              >
                 {level3Targets.map((b, i) => (
                   <img key={i} src={b.basket} className="basket-img" />
                 ))}
               </div>
             ) : (
-              <img src={basketSet} className="basket-img" />
+              <>
+                <img src={basketSet} className="basket-img" />
+                <div className="basket-zones">
+                  {['A', 'B', 'C'].map((target) => (
+                    <div
+                      key={target}
+                      data-target={target}
+                      className="basket-zone"
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={handleDrop}
+                    />
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </div>
-      </div>
 
       <div className="cq-panel">
         <div className="cq-message">

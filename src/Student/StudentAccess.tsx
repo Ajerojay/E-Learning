@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import "./StudentAccess.css";
+import { linkChildSessionToSupabasePin } from "../lib/childProgress";
 
 export default function StudentAccess() {
   const [pin, setPin] = useState("");
+  const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -14,25 +16,30 @@ export default function StudentAccess() {
   };
 
   const handleDelete = () => {
-    setPin(pin.slice(0, -1));
+    setPin((p) => p.slice(0, -1));
   };
 
-  const handleSubmit = () => {
-    const storedPin = localStorage.getItem("studentPin");
+  const handleSubmit = useCallback(async () => {
+    if (pin.length !== 4 || busy) return;
 
-    if (!storedPin) {
+    setBusy(true);
+    try {
+      const ok = await linkChildSessionToSupabasePin(pin);
+      if (ok) {
+        navigate("/student");
+        return;
+      }
       setPin("");
-      alert("Please log in as parent first to set up your child's PIN.");
-      return;
+      const storedPin = localStorage.getItem("studentPin");
+      if (!storedPin) {
+        alert("Please log in as parent first to set up your child's PIN.");
+      } else {
+        alert("Incorrect PIN");
+      }
+    } finally {
+      setBusy(false);
     }
-
-    if (pin === storedPin) {
-      navigate("/student");
-    } else {
-      setPin("");
-      alert("Incorrect PIN");
-    }
-  };
+  }, [pin, busy, navigate]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -47,7 +54,7 @@ export default function StudentAccess() {
       }
 
       if (event.key === "Enter") {
-        handleSubmit();
+        void handleSubmit();
       }
     };
 
@@ -57,8 +64,6 @@ export default function StudentAccess() {
 
   return (
     <div className="lockscreen">
-
-      {/* BACK BUTTON (SMART LABEL) */}
       <button
         className="access-back-btn"
         onClick={() => navigate("/")}
@@ -68,7 +73,6 @@ export default function StudentAccess() {
 
       <h1 className="lock-title">Enter Passcode</h1>
 
-      {/* DOTS */}
       <div className="pin-dots">
         {[0, 1, 2, 3].map((i) => (
           <div
@@ -78,23 +82,21 @@ export default function StudentAccess() {
         ))}
       </div>
 
-      {/* KEYPAD */}
       <div className="keypad">
-        {[1,2,3,4,5,6,7,8,9].map((num) => (
-          <button key={num} onClick={() => handleInput(num.toString())}>
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+          <button key={num} type="button" onClick={() => handleInput(num.toString())}>
             {num}
           </button>
         ))}
 
-        <button className="empty"></button>
-        <button onClick={() => handleInput("0")}>0</button>
-        <button onClick={handleDelete}>⌫</button>
+        <button type="button" className="empty" aria-hidden="true" />
+        <button type="button" onClick={() => handleInput("0")}>0</button>
+        <button type="button" onClick={handleDelete}>⌫</button>
       </div>
 
-      <button className="enter-btn" onClick={handleSubmit}>
-        Enter
+      <button type="button" className="enter-btn" onClick={() => void handleSubmit()} disabled={busy || pin.length !== 4}>
+        {busy ? "Checking…" : "Enter"}
       </button>
-
     </div>
   );
 }
