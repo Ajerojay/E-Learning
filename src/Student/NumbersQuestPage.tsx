@@ -28,6 +28,8 @@ const levels: LevelConfig[] = [
   { name: "Hard", targetMin: 1, targetMax: 9, dropCount: 10 },
 ];
 
+const COUNTDOWN_INTRO_DELAY_MS = 1200;
+
 type DropPos = { top: number; left: number };
 
 const positionsByCount: Record<number, DropPos[]> = {
@@ -106,7 +108,8 @@ export default function NumbersQuestPage() {
       setTimerRunning(true);
       return;
     }
-    const t = window.setTimeout(() => setCountdown((p) => (p === null ? null : p - 1)), 900);
+    const delay = countdown === 3 ? COUNTDOWN_INTRO_DELAY_MS + 900 : 900;
+    const t = window.setTimeout(() => setCountdown((p) => (p === null ? null : p - 1)), delay);
     return () => window.clearTimeout(t);
   }, [countdown]);
 
@@ -242,6 +245,31 @@ export default function NumbersQuestPage() {
     }
   };
 
+  const speakFeedback = (text: string) => {
+    try {
+      if (!soundEnabled) return;
+      if (!("speechSynthesis" in window)) return;
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      const voices = window.speechSynthesis.getVoices();
+      const voice =
+        voices.find((v) =>
+          /(female|girl|kid|child|zira|samantha|jenny)/i.test(v.name)
+        ) || voices[0];
+
+      if (voice) {
+        utterance.voice = voice;
+      }
+
+      utterance.rate = 1;
+      utterance.pitch = 1.4;
+      utterance.volume = 1;
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      // ignore feedback errors
+    }
+  };
+
   const playKidBeep = (n: number) => {
     try {
       if (!soundEnabled) return;
@@ -317,8 +345,12 @@ export default function NumbersQuestPage() {
       playKidBeep(0);
       return;
     }
-    sayKid(String(countdown), { interrupt: true, skipDedupe: true });
-    playKidBeep(countdown);
+    const delay = countdown === 3 ? COUNTDOWN_INTRO_DELAY_MS : 0;
+    const t = window.setTimeout(() => {
+      sayKid(String(countdown), { interrupt: true, skipDedupe: true });
+      playKidBeep(countdown);
+    }, delay);
+    return () => window.clearTimeout(t);
   }, [countdown]);
 
   useEffect(() => {
@@ -363,6 +395,7 @@ export default function NumbersQuestPage() {
 
     if (isCorrect) {
       setMessage("Great job! Correct!");
+      speakFeedback("Great job!");
       setCorrectRounds((p) => {
         const next = p + 1;
         const finishedAll = levelIndex >= 2 && next >= totalRoundsToComplete;
@@ -390,6 +423,7 @@ export default function NumbersQuestPage() {
       void saveNumbersProgress(pct, false, nextWrong);
       setWrongAttempts(nextWrong);
       setMessage("Oops! Try again.");
+      speakFeedback("Try again!");
     }
 
     window.setTimeout(() => {
@@ -413,9 +447,6 @@ export default function NumbersQuestPage() {
       <div className="nq-top-bar">
         <button type="button" className="nq-back-btn" onClick={() => navigate("/student")}>
           ← Back
-        </button>
-        <button type="button" className="nq-lesson-btn" onClick={() => navigate("/lesson/numbers")}>
-          ← Lesson
         </button>
       </div>
 
@@ -513,7 +544,7 @@ export default function NumbersQuestPage() {
         <GameOverlay isOpen={timeUpOpen}>
           <GamePopup
             title="⏰ Time's up!"
-            subtitle={`Level ${levelIndex + 1} | Rounds: ${correctRounds}/${totalRoundsToComplete} | Wrong Attempts: ${wrongAttempts}`}
+            subtitle={`You completed ${correctRounds}/${totalRoundsToComplete} rounds in Level ${levelIndex + 1}.`}
             buttons={
               levelIndex < 2
                 ? canProceedAfterTimeUp
@@ -583,8 +614,8 @@ export default function NumbersQuestPage() {
       {proceedPromptLevel !== null && levelIndex < 2 && (
         <GameOverlay isOpen={proceedPromptLevel !== null}>
           <GamePopup
-            title="🎉 Level Complete!"
-            subtitle={`Proceed to Level ${levelIndex + 2}?`}
+            title="🎉 Awesome!"
+            subtitle={`Level ${levelIndex + 1} complete! Proceed to Level ${levelIndex + 2}?`}
             buttons={[
               {
                 label: "Yes",
@@ -611,7 +642,7 @@ export default function NumbersQuestPage() {
       {levelSummaryOpen && levelIndex < 2 && (
         <GameOverlay isOpen={levelSummaryOpen}>
           <GamePopup
-            title={message}
+            title="Keep playing?"
             subtitle={`Rounds: ${correctRounds}/${totalRoundsToComplete} | Wrong Attempts: ${wrongAttempts}`}
             buttons={[
               {

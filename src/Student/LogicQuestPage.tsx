@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import "./LogicQuestPage.css";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   DndContext,
   useDraggable,
@@ -11,6 +11,9 @@ import lion_think from "../img/lion_think.png";
 import { supabase } from "../lib/supabase";
 import { getOrCreateActiveChildId } from "../lib/childProgress";
 import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
+import bgMusic from "./bg-music-loop.mp3";
+
+const COUNTDOWN_INTRO_DELAY_MS = 1200;
 
 type LogicChoice = { id: string; emoji: string };
 type LogicLevel = {
@@ -117,10 +120,6 @@ function DropTarget({
 
 export default function Level2Pattern() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const openedFromLesson = Boolean(
-    (location.state as { showStartPopup?: boolean } | null)?.showStartPopup
-  );
 
   const [popup, setPopup] = useState("");
   const [wrong, setWrong] = useState(0);
@@ -131,24 +130,153 @@ export default function Level2Pattern() {
   const [proceedPromptLevel, setProceedPromptLevel] = useState<number | null>(null);
   const [showCongratsPanel, setShowCongratsPanel] = useState(false);
   const [showNoPrompt, setShowNoPrompt] = useState(false);
-  const [showStartPopup, setShowStartPopup] = useState(openedFromLesson);
-  const [isStarted, setIsStarted] = useState(!openedFromLesson);
+  const [isStarted, setIsStarted] = useState(true);
+  const [countdown, setCountdown] = useState<number | null>(3);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [musicEnabled, setMusicEnabled] = useState(true);
   const [message, setMessage] = useState("Drag the correct symbol into the box!");
   const [childId, setChildId] = useState<string | null>(null);
   const [gameCode, setGameCode] = useState<string | null>(null);
+  const warnedSecondsRef = useRef<Set<number>>(new Set());
+  const bgMusicRef = useRef<HTMLAudioElement | null>(null);
 
   const currentLevel = logicLevels[level];
   const canProceedAfterTimeUp = false;
 
   // ⏱ TIMER
   const [isFinished, setIsFinished] = useState(false);
+  const sayKid = (text: string) => {
+    try {
+      if (!soundEnabled || !("speechSynthesis" in window)) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "en-US";
+      utterance.rate = 1;
+      utterance.pitch = 1.25;
+      utterance.volume = 1;
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      // ignore speech errors
+    }
+  };
+
+  const speakFeedback = (text: string) => {
+    try {
+      if (!soundEnabled || !("speechSynthesis" in window)) return;
+      const utterance = new SpeechSynthesisUtterance(text);
+      const voices = window.speechSynthesis.getVoices();
+      const voice =
+        voices.find((v) =>
+          /(female|girl|kid|child|zira|samantha|jenny)/i.test(v.name)
+        ) || voices[0];
+
+      if (voice) utterance.voice = voice;
+
+      utterance.rate = 1;
+      utterance.pitch = 1.4;
+      utterance.volume = 1;
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      // ignore feedback errors
+    }
+  };
+
+  const playKidBeep = (n: number) => {
+    try {
+      if (!soundEnabled) return;
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = n === 0 ? 880 : 520 + (5 - Math.min(n, 5)) * 80;
+      gain.gain.value = 0.06;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.16);
+      window.setTimeout(() => ctx.close(), 250);
+    } catch {
+      // ignore audio errors
+    }
+  };
+
+  useEffect(() => {
+    if (!bgMusicRef.current) {
+      const audio = new Audio(bgMusic);
+      audio.loop = true;
+      audio.volume = 0.25;
+      bgMusicRef.current = audio;
+      if (musicEnabled) audio.play().catch(() => {});
+    }
+
+    return () => {
+      bgMusicRef.current?.pause();
+    };
+  }, []);
+
+  useEffect(() => {
+    const audio = bgMusicRef.current;
+    if (!audio) return;
+    if (musicEnabled) {
+      audio.play().catch(() => {});
+    } else {
+      audio.pause();
+    }
+  }, [musicEnabled]);
+
+  useEffect(() => {
+    if (!isStarted) return;
+    if (countdown === null) return;
+    if (popup || isFinished || proceedPromptLevel !== null || showNoPrompt) return;
+
+    if (countdown <= 0) {
+      setCountdown(null);
+      sayKid("Go!");
+      playKidBeep(0);
+      return;
+    }
+
+    const introDelay = countdown === 3 ? COUNTDOWN_INTRO_DELAY_MS : 0;
+    const voiceTimer = window.setTimeout(() => {
+      sayKid(String(countdown));
+      playKidBeep(countdown);
+    }, introDelay);
+    const nextTimer = window.setTimeout(
+      () => setCountdown((p) => (p === null ? null : p - 1)),
+      introDelay + 850
+    );
+
+    return () => {
+      window.clearTimeout(voiceTimer);
+      window.clearTimeout(nextTimer);
+    };
+  }, [
+    isStarted,
+    countdown,
+    popup,
+    isFinished,
+    proceedPromptLevel,
+    showNoPrompt,
+    soundEnabled,
+  ]);
+
   useEffect(() => {
     if (!isStarted) return;
     if (isFinished) return;
+    if (countdown !== null) return;
+    if (popup) return;
     if (proceedPromptLevel !== null) return; // ✅ pause timer kapag level complete popup lumabas
   
     if (time === 0) {
       setPopup("TIME_UP");
+      setMessage("Time's up!");
+      sayKid("Time's up!");
+      playKidBeep(0);
+      const percent = Math.round((score / logicLevels.length) * 100);
+      void saveProgress(percent, false, wrong);
       return;
     }
   
@@ -157,7 +285,19 @@ export default function Level2Pattern() {
     }, 1000);
   
     return () => clearInterval(timer);
-  }, [time, isFinished, isStarted, proceedPromptLevel]);
+  }, [time, isFinished, isStarted, countdown, proceedPromptLevel, popup, score, wrong]);
+
+  useEffect(() => {
+    if (!isStarted) return;
+    if (countdown !== null) return;
+    if (popup || isFinished || proceedPromptLevel !== null || showNoPrompt) return;
+    if (time > 5 || time <= 0) return;
+    if (warnedSecondsRef.current.has(time)) return;
+
+    warnedSecondsRef.current.add(time);
+    sayKid(String(time));
+    playKidBeep(time);
+  }, [isStarted, countdown, popup, isFinished, proceedPromptLevel, showNoPrompt, time, soundEnabled]);
 
   useEffect(() => {
     const loadProgressContext = async () => {
@@ -213,7 +353,7 @@ export default function Level2Pattern() {
   };
 
   const handleDropChoice = (value: string) => {
-    if (!isStarted || time === 0) return;
+    if (!isStarted || countdown !== null || popup === "TIME_UP" || time === 0) return;
 
     setDropped(value);
 
@@ -223,6 +363,7 @@ export default function Level2Pattern() {
       const finished = level === logicLevels.length - 1;
 
       setScore(nextScore);
+      speakFeedback("Great job!");
       void saveProgress(percent, finished, wrong);
 
       if (finished) {
@@ -238,13 +379,15 @@ export default function Level2Pattern() {
       const nextWrong = wrong + 1;
       setWrong(nextWrong);
       setMessage("Oops! Try the other symbol.");
-      void saveProgress(0, false, nextWrong);
+      speakFeedback("Try again!");
+      const percent = Math.round((score / logicLevels.length) * 100);
+      void saveProgress(percent, false, nextWrong);
       setDropped(null);
     }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    if (!isStarted || time === 0) return;
+    if (!isStarted || countdown !== null || popup === "TIME_UP" || time === 0) return;
 
     const dragged = String(event.active.id);
     const targetId = event.over?.id ? String(event.over.id) : null;
@@ -268,7 +411,8 @@ export default function Level2Pattern() {
     setPopup("");
     setIsFinished(false);
     setIsStarted(true);
-    setShowStartPopup(false);
+    setCountdown(3);
+    warnedSecondsRef.current = new Set();
     setMessage("Drag the correct symbol into the box!");
   };
 
@@ -279,6 +423,8 @@ export default function Level2Pattern() {
     setPopup("");
     setDropped(null);
     setTime(30);
+    setCountdown(3);
+    warnedSecondsRef.current = new Set();
     setMessage("Drag the correct symbol into the box!");
   };
 
@@ -286,6 +432,8 @@ export default function Level2Pattern() {
     setPopup("");
     setDropped(null);
     setTime(30);
+    setCountdown(3);
+    warnedSecondsRef.current = new Set();
     setMessage("Drag the correct symbol into the box!");
   };
 
@@ -297,7 +445,36 @@ export default function Level2Pattern() {
 
       <h2 className="lq-main-title">What comes next?</h2>
 
-      <div className="timer">⏱ {time}s</div>
+      <div className="lq-meta-row">
+        <span className="lq-level-pill">Level {level + 1}</span>
+        <span className={`timer ${time <= 5 ? "timer-warning" : ""}`}>⏱ {time}s</span>
+        <button
+          type="button"
+          className="lq-sound-toggle"
+          onClick={() => setMusicEnabled((prev) => !prev)}
+          aria-label={musicEnabled ? "Mute music" : "Unmute music"}
+          title={musicEnabled ? "Mute Music" : "Unmute Music"}
+        >
+          {musicEnabled ? "🎵" : "🔇"}
+        </button>
+        <button
+          type="button"
+          className="lq-sound-toggle"
+          onClick={() => {
+            setSoundEnabled((prev) => {
+              const next = !prev;
+              if (!next && "speechSynthesis" in window) {
+                window.speechSynthesis.cancel();
+              }
+              return next;
+            });
+          }}
+          aria-label={soundEnabled ? "Mute sound" : "Unmute sound"}
+          title={soundEnabled ? "Mute Sound" : "Unmute Sound"}
+        >
+          {soundEnabled ? "🔊" : "🔇"}
+        </button>
+      </div>
 
       <DndContext onDragEnd={handleDragEnd}>
         <div className="pattern-content">
@@ -321,7 +498,7 @@ export default function Level2Pattern() {
                   key={c.id}
                   id={c.id}
                   emoji={c.emoji}
-                  disabled={!isStarted || time === 0 || isFinished}
+                  disabled={!isStarted || countdown !== null || time === 0 || isFinished}
                 />
               ))}
             </div>
@@ -353,8 +530,8 @@ export default function Level2Pattern() {
       {proceedPromptLevel !== null && (
         <GameOverlay isOpen={proceedPromptLevel !== null}>
           <GamePopup
-            title="🎉 Level Complete!"
-            subtitle={`Proceed to Level ${level + 2}?`}
+            title="🎉 Awesome!"
+            subtitle={`Level ${level + 1} complete! Proceed to Level ${level + 2}?`}
             buttons={[
               {
                 label: "Yes",
@@ -392,7 +569,7 @@ export default function Level2Pattern() {
                 label: "Replay Level",
                 onClick: () => {
                   setShowNoPrompt(false);
-                  handleRestart();
+                  handleReplayLevel();
                 },
                 variant: "yes",
               },
@@ -401,25 +578,11 @@ export default function Level2Pattern() {
         </GameOverlay>
       )}
 
-      {/* 🔥 FIXED POPUP */}
-      {showStartPopup && (
-        <GameOverlay isOpen={showStartPopup}>
+      {countdown !== null && !popup && !isFinished && (
+        <GameOverlay isOpen={countdown !== null}>
           <GamePopup
-            title="⏱ You have 30s to answer!"
-            buttons={[
-              {
-                label: "Go",
-                onClick: () => {
-                  setShowStartPopup(false);
-                  setIsStarted(true);
-                },
-              },
-              {
-                label: "← Back",
-                onClick: handleBack,
-                variant: "secondary",
-              },
-            ]}
+            title={<Countdown value={countdown} />}
+            subtitle="Get ready!"
           />
         </GameOverlay>
       )}
@@ -428,7 +591,7 @@ export default function Level2Pattern() {
   <GameOverlay isOpen={popup === "TIME_UP"}>
     <GamePopup
       title="⏰ Time's up!"
-      subtitle={`Level ${level + 1} | Progress: ${score}/${logicLevels.length} | Wrong Attempts: ${wrong}`}
+      subtitle={`You completed ${score}/${logicLevels.length} logic levels in Level ${level + 1}.`}
       buttons={
         level < logicLevels.length - 1
           ? canProceedAfterTimeUp

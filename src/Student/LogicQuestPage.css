@@ -155,25 +155,63 @@ body {
   z-index: 999;
   animation: fadeIn 0.3s ease;
 }
-.timer {
+.lq-meta-row {
+  margin: 8px auto 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-
-  margin: 8px auto 20px;
-  padding: 5px 16px;
-
-  font-size: 26px;
-  font-weight: 900;
-  color: #24508f;
-
-  background: linear-gradient(180deg, #ffffff 0%, #eefcff 100%);
-  border-radius: 25px;
-
+  flex-wrap: wrap;
   position: relative;
   top: -20px;
+}
 
+.lq-level-pill,
+.timer,
+.lq-sound-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.84);
+  color: #24508f;
+  box-shadow: 0 8px 18px rgba(31, 41, 55, 0.12);
+  backdrop-filter: blur(5px);
+}
+
+.lq-level-pill,
+.timer {
+  padding: 0 16px;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.timer {
+  background: linear-gradient(180deg, #ffffff 0%, #eefcff 100%);
+}
+
+.timer-warning {
+  background: linear-gradient(180deg, rgba(255, 238, 186, 0.98), rgba(255, 183, 77, 0.94));
+  color: #7c3f00;
+  animation: lqTimerPulse 0.8s ease-in-out infinite;
+}
+
+.lq-sound-toggle {
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  font-size: 22px;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+
+.lq-sound-toggle:hover {
+  transform: translateY(-2px) scale(1.04);
+  background: #fff7df;
+  box-shadow: 0 10px 22px rgba(31, 41, 55, 0.16);
 }
 .pattern {
   position: relative; /* 🔥 required for back button */
@@ -588,5 +626,16 @@ body {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes lqTimerPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.06);
   }
 }

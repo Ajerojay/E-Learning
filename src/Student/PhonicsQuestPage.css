@@ -35,9 +35,14 @@ body {
   background-repeat: no-repeat;
 }
 
-.phonics-page.game-container > *:not(.phonics-bg):not(.pq-back-btn) {
+.phonics-page.game-container > *:not(.phonics-bg):not(.pq-back-btn):not(.game-overlay) {
   position: relative;
   z-index: 2;
+}
+
+.phonics-page .game-overlay {
+  position: fixed;
+  z-index: 9999;
 }
 
 .phonics-page .pq-back-btn {
@@ -83,6 +88,65 @@ body {
   text-shadow: 0 2px 10px rgba(255, 255, 255, 0.85);
   position: relative;
   top: -5px;
+}
+
+.phonics-page .pq-meta-row {
+  margin-top: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.phonics-page .pq-level-pill,
+.phonics-page .pq-timer-pill,
+.phonics-page .pq-sound-toggle {
+  min-height: 42px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.82);
+  color: #334155;
+  box-shadow: 0 8px 18px rgba(31, 41, 55, 0.12);
+  backdrop-filter: blur(5px);
+}
+
+.phonics-page .pq-level-pill,
+.phonics-page .pq-timer-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.phonics-page .pq-timer-pill {
+  background: linear-gradient(180deg, rgba(227, 242, 253, 0.95), rgba(187, 222, 251, 0.9));
+  color: #1e3a5f;
+}
+
+.phonics-page .pq-timer-pill--warning {
+  background: linear-gradient(180deg, rgba(255, 238, 186, 0.98), rgba(255, 183, 77, 0.94));
+  color: #7c3f00;
+  animation: pqTimerPulse 0.8s ease-in-out infinite;
+}
+
+.phonics-page .pq-sound-toggle {
+  width: 46px;
+  height: 46px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+  font-size: 22px;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+
+.phonics-page .pq-sound-toggle:hover {
+  transform: translateY(-2px) scale(1.04);
+  background: #fff7df;
+  box-shadow: 0 10px 22px rgba(31, 41, 55, 0.16);
 }
 
 .phonics-page .sound-area {
@@ -223,132 +287,6 @@ body {
   transform: scale(1.03);
 }
 
-/* GAME POPUP OVERLAY FIX */
-.game-overlay,
-.GameOverlay,
-.game-popup-overlay,
-.phonics-page .popup-overlay,
-.phonics-page .level-overlay {
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  min-width: 100vw !important;
-  min-height: 100vh !important;
-
-  background: rgba(0, 0, 0, 0.22) !important;
-  backdrop-filter: blur(2px);
-
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-
-  z-index: 9999 !important;
-}
-
-/* GAME POPUP CARD FIX */
-.game-popup,
-.GamePopup,
-.phonics-page .level-popup {
-  position: relative !important;
-  top: auto !important;
-  left: auto !important;
-  transform: none !important;
-
-  width: min(420px, 86vw) !important;
-  background: rgba(255, 255, 255, 0.96) !important;
-
-  border-radius: 22px !important;
-  padding: 28px 30px !important;
-
-  text-align: center !important;
-  border: 2px solid rgba(255, 190, 190, 0.7) !important;
-
-  box-shadow:
-    0 12px 30px rgba(0, 0, 0, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
-
-  z-index: 10000 !important;
-  animation: popupShow 0.35s ease;
-}
-
-/* POPUP TEXT */
-.game-popup h2,
-.GamePopup h2,
-.phonics-page .level-popup h2 {
-  margin: 0 !important;
-  font-size: 28px !important;
-  font-weight: 900 !important;
-  color: #6d5650 !important;
-  line-height: 1.2 !important;
-}
-
-.game-popup p,
-.GamePopup p,
-.phonics-page .level-popup p {
-  margin: 12px 0 0 !important;
-  font-size: 18px !important;
-  font-weight: 700 !important;
-  color: #6b5b55 !important;
-}
-
-/* POPUP BUTTONS */
-.game-popup-buttons,
-.GamePopup-buttons,
-.phonics-page .level-popup-buttons {
-  display: flex !important;
-  justify-content: center !important;
-  gap: 14px !important;
-  margin-top: 24px !important;
-}
-
-.game-popup button,
-.GamePopup button,
-.phonics-page .level-popup button {
-  border: none !important;
-  outline: none !important;
-  min-width: 76px !important;
-  padding: 12px 22px !important;
-  border-radius: 14px !important;
-  font-size: 16px !important;
-  font-weight: 900 !important;
-  cursor: pointer !important;
-  transition: transform 0.18s ease !important;
-  color: white !important;
-}
-
-.game-popup button:hover,
-.GamePopup button:hover,
-.phonics-page .level-popup button:hover {
-  transform: scale(1.05) !important;
-}
-
-.game-popup button:first-of-type,
-.GamePopup button:first-of-type,
-.phonics-page .level-popup button:first-of-type {
-  background: #34c759 !important;
-  box-shadow: 0 6px 12px rgba(52, 199, 89, 0.3) !important;
-}
-
-.game-popup button:last-of-type,
-.GamePopup button:last-of-type,
-.phonics-page .level-popup button:last-of-type {
-  background: #ff4d4f !important;
-  box-shadow: 0 6px 12px rgba(255, 77, 79, 0.28) !important;
-}
-
-.game-popup button:first-of-type:hover,
-.GamePopup button:first-of-type:hover,
-.phonics-page .level-popup button:first-of-type:hover {
-  background: #2fbd54 !important;
-}
-
-.game-popup button:last-of-type:hover,
-.GamePopup button:last-of-type:hover,
-.phonics-page .level-popup button:last-of-type:hover {
-  background: #f04446 !important;
-}
-
 /* HIDE OLD UNUSED CLASSES */
 .stats,
 .header,
@@ -374,6 +312,17 @@ body {
   }
 }
 
+@keyframes pqTimerPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.06);
+  }
+}
+
 @media (max-width: 768px) {
   .phonics-page.game-container {
     padding: 28px 16px;
@@ -381,6 +330,23 @@ body {
 
   .phonics-page .pq-main-title {
     font-size: 32px;
+  }
+
+  .phonics-page .pq-meta-row {
+    gap: 8px;
+  }
+
+  .phonics-page .pq-level-pill,
+  .phonics-page .pq-timer-pill {
+    min-height: 38px;
+    padding: 0 12px;
+    font-size: 14px;
+  }
+
+  .phonics-page .pq-sound-toggle {
+    width: 42px;
+    height: 42px;
+    font-size: 20px;
   }
 
   .phonics-page .sound-circle {
