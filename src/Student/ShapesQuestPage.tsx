@@ -258,39 +258,113 @@ export default function ShapesQuestPage() {
     const alreadyPlacedShape = placedShapeIds.has(activeId);
     if (alreadyFilled || alreadyPlacedShape) return;
 
-    if (activeKind === slot.accepts) {
-      const updated = { ...placed, [slot.id]: activeId };
-      setPlaced(updated);
+   if (activeKind === slot.accepts) {
+  const updated = { ...placed, [slot.id]: activeId };
+  setPlaced(updated);
 
-      const nextProgress = Object.keys(updated).length;
-      const pctForLevel = Math.round(
-        ((levelIndex + nextProgress / total) / levels.length) * 100
+  const happyMessages = [
+    `Amazing! That's the correct ${activeKind}! 🎉`,
+    `Awesome job! You found the ${activeKind}! ⭐`,
+    `Great work little learner! 😊`,
+    `You got it right! 🌈`,
+    `Fantastic job builder! 🏠`,
+  ];
+
+  const randomHappy =
+  happyMessages[
+    Math.floor(Math.random() * happyMessages.length)
+  ];
+
+setMessage(randomHappy);
+
+speakFeedback("Great job!");
+
+  const nextProgress = Object.keys(updated).length;
+
+  const pctForLevel = Math.round(
+    ((levelIndex + nextProgress / total) / levels.length) * 100
+  );
+
+  if (nextProgress === total) {
+    if (levelIndex >= 2) {
+      setFinalCongratsOpen(true);
+
+      const finishMessages = [
+        "Amazing! You finished all levels! 🎉",
+        "You're a superstar learner! ⭐",
+        "Wonderful job! 🌈",
+        "You completed everything! 🧸",
+      ];
+
+      setMessage(
+        finishMessages[
+          Math.floor(Math.random() * finishMessages.length)
+        ]
       );
-      if (nextProgress === total) {
-        if (levelIndex >= 2) {
-          setFinalCongratsOpen(true);
-          setMessage("Amazing! You finished all levels!");
-          persistShapesProgress(100, true, wrongAttempts);
-        } else {
-          setProceedPromptLevel(levelIndex);
-          setTimerRunning(false);
-          setMessage(`Great job! Level ${levelIndex + 1} complete!`);
-          persistShapesProgress(Math.min(99, pctForLevel), false, wrongAttempts);
-        }
-      } else {
-        setMessage(`Great job! That's the correct ${activeKind}.`);
-        persistShapesProgress(Math.min(99, pctForLevel), false, wrongAttempts);
-      }
+
+      persistShapesProgress(100, true, wrongAttempts);
     } else {
-      const nextWrong = wrongAttempts + 1;
-      setWrongAttempts(nextWrong);
-      setMessage("Oops! Try again.");
-      const pctForLevel = Math.round(
-        ((levelIndex + progress / total) / levels.length) * 100
+      setProceedPromptLevel(levelIndex);
+      setTimerRunning(false);
+
+      const completeMessages = [
+        `Great job! Level ${levelIndex + 1} complete! 🎉`,
+        "Awesome work superstar! ⭐",
+        "You did amazing! 🌈",
+      ];
+
+      setMessage(
+        completeMessages[
+          Math.floor(Math.random() * completeMessages.length)
+        ]
       );
-      persistShapesProgress(Math.min(99, pctForLevel), false, nextWrong);
+
+      persistShapesProgress(
+        Math.min(99, pctForLevel),
+        false,
+        wrongAttempts
+      );
     }
-  };
+  } else {
+    persistShapesProgress(
+      Math.min(99, pctForLevel),
+      false,
+      wrongAttempts
+    );
+  }
+} else {
+  const nextWrong = wrongAttempts + 1;
+  setWrongAttempts(nextWrong);
+
+  const encourageMessages = [
+    "Great job trying! 😊",
+    "Almost there! Keep going 🌟",
+    "You can do it! 🎉",
+    "Nice try little builder! 🏠",
+    "Keep practicing superstar ⭐",
+    "That was a good try! 🌈",
+  ];
+
+ const randomEncourage =
+  encourageMessages[
+    Math.floor(Math.random() * encourageMessages.length)
+  ];
+
+setMessage(randomEncourage);
+
+speakFeedback("Try again!");
+
+  const pctForLevel = Math.round(
+    ((levelIndex + progress / total) / levels.length) * 100
+  );
+
+  persistShapesProgress(
+    Math.min(99, pctForLevel),
+    false,
+    nextWrong
+  );
+}
+};
 
   const resetCommon = () => {
     setPlaced({});
@@ -520,6 +594,35 @@ export default function ShapesQuestPage() {
     }
   };
 
+  
+  const speakFeedback = (text: string) => {
+  try {
+    if (!soundEnabled) return;
+    if (!("speechSynthesis" in window)) return;
+
+    const u = new SpeechSynthesisUtterance(text);
+
+    const voices = window.speechSynthesis.getVoices();
+
+    const voice =
+      voices.find((v) =>
+        /(female|girl|kid|child|zira|samantha|jenny)/i.test(v.name)
+      ) || voices[0];
+
+    if (voice) {
+      u.voice = voice;
+    }
+
+    u.rate = 1;
+    u.pitch = 1.4;
+    u.volume = 1;
+
+    window.speechSynthesis.speak(u);
+  } catch {
+    // ignore
+  }
+};
+
   useEffect(() => {
     if (!("speechSynthesis" in window)) return;
     const onVoicesChanged = () => setVoicesReady(true);
@@ -636,13 +739,6 @@ export default function ShapesQuestPage() {
           onClick={handleBack}
         >
           ← Back
-        </button>
-        <button
-          type="button"
-          className="sq-lesson-btn"
-          onClick={() => navigate("/lesson/shapes")}
-        >
-          ← Lesson
         </button>
       </div>
 <div className="sq-title-wrapper">
@@ -822,8 +918,8 @@ export default function ShapesQuestPage() {
             {proceedPromptLevel !== null && levelIndex < 2 && (
               <GameOverlay isOpen={proceedPromptLevel !== null}>
                 <GamePopup
-                  title="🎉 Level Complete!"
-                  subtitle={`Proceed to Level ${levelIndex + 2}?`}
+                  title="🎉 Awesome!"
+                  subtitle={`Level ${levelIndex + 1} complete! Proceed to the next level?`}
                   buttons={[
                     {
                       label: "Yes",

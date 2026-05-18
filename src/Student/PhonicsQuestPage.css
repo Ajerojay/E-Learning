@@ -6,43 +6,28 @@ body,
   margin: 0;
   padding: 0;
 }
+
 body {
-  margin: 0;
-  padding: 0;
   font-family: "Poppins", sans-serif;
   background: linear-gradient(135deg, #d0f0ff, #fce4ec);
 }
 
-.header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-
-  position: relative;
-  top: -30px;
-  
-  margin-top: 40px;   /* 👈 IMPORTANT */
-  margin-bottom: 20px;/* 👈 ito lang gagalaw sa title + level */
-}
 .phonics-page.game-container {
   position: relative;
   text-align: center;
   font-family: "Poppins", sans-serif;
   padding: 40px;
   min-height: 100vh;
-
   width: 100vw;
   max-width: none;
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
-  
   background: linear-gradient(135deg, #d0f0ff, #fce4ec);
   box-sizing: border-box;
-
   overflow-x: hidden;
   overflow-y: auto;
 }
+
 .phonics-page.game-container.phonics-bg-image {
   background-image: url("./images/phonics-bg.jpg");
   background-size: cover;
@@ -53,107 +38,6 @@ body {
 .phonics-page.game-container > *:not(.phonics-bg):not(.pq-back-btn) {
   position: relative;
   z-index: 2;
-}
-
-/* PHONICS BACKGROUND LAYERS */
-.phonics-bg {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.phonics-bg::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 12% 16%, rgba(255, 235, 59, 0.22) 0 110px, transparent 111px),
-    radial-gradient(circle at 84% 20%, rgba(255, 152, 200, 0.22) 0 120px, transparent 121px),
-    radial-gradient(circle at 20% 82%, rgba(135, 206, 250, 0.25) 0 120px, transparent 121px),
-    radial-gradient(circle at 88% 78%, rgba(187, 222, 251, 0.24) 0 130px, transparent 131px);
-}
-
-.phonics-bg::after {
-  content: "Aa  Bb  Cc  Dd  Ee  Ff";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 20px;
-  text-align: center;
-  letter-spacing: 14px;
-  font-size: 30px;
-  font-weight: 700;
-  color: rgba(92, 135, 211, 0.2);
-}
-
-.phonics-letter {
-  position: absolute;
-  font-size: 52px;
-  font-weight: 800;
-  color: rgba(255, 255, 255, 0.95);
-  text-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
-  animation: floatLetter 4s ease-in-out infinite;
-}
-
-.letter-a { top: 9%; left: 9%; color: rgba(255, 128, 171, 0.8); }
-.letter-b { top: 18%; right: 15%; color: rgba(120, 190, 255, 0.86); animation-delay: 0.6s; }
-.letter-c { bottom: 18%; left: 17%; color: rgba(255, 193, 7, 0.8); animation-delay: 1.2s; }
-.letter-d { bottom: 13%; right: 12%; color: rgba(129, 199, 132, 0.85); animation-delay: 1.8s; }
-
-.phonics-bubble {
-  position: absolute;
-  border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.55);
-  background: radial-gradient(
-    circle at 30% 30%,
-    rgba(255, 255, 255, 0.9) 0%,
-    rgba(173, 216, 255, 0.45) 60%,
-    rgba(135, 206, 250, 0.28) 100%
-  );
-  animation: pulseBubble 3.2s ease-in-out infinite;
-  box-shadow: 0 6px 14px rgba(71, 140, 222, 0.18);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #27557d;
-  font-size: 24px;
-  font-weight: 800;
-  pointer-events: auto;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.phonics-bubble:hover {
-  transform: scale(1.08);
-  box-shadow: 0 8px 18px rgba(71, 140, 222, 0.28);
-}
-
-.phonics-bubble.is-popped {
-  animation: popBubble 0.65s ease-out;
-}
-
-.bubble-1 {
-  top: 31%;
-  left: 5%;
-  width: 70px;
-  height: 70px;
-}
-
-.bubble-2 {
-  top: 12%;
-  right: 7%;
-  width: 58px;
-  height: 58px;
-  animation-delay: 0.9s;
-}
-
-.bubble-3 {
-  bottom: 9%;
-  right: 36%;
-  width: 80px;
-  height: 80px;
-  animation-delay: 1.4s;
 }
 
 .phonics-page .pq-back-btn {
@@ -176,37 +60,50 @@ body {
   transform: translateY(-1px);
 }
 
-.phonics-page .sound-area p {
-  font-size: 20px;
-  margin-top: 50px;
+.phonics-page .pq-page-title {
+  margin: 14px auto 10px;
+  margin-top: 9px !important;
+  width: fit-content;
+  max-width: min(980px, 92vw);
+  padding: 0;
+  position: relative;
+  top: -25px;
 }
 
-/* SOUND AREA */
+.phonics-page .pq-main-title {
+  font-size: 45px;
+  font-weight: 700;
+  color: #1f2937;
+  text-shadow: 0 2px 10px rgba(255, 255, 255, 0.85);
+}
+
+.phonics-page .pq-level-text {
+  font-size: 18px;
+  color: #334155;
+  text-shadow: 0 2px 10px rgba(255, 255, 255, 0.85);
+  position: relative;
+  top: -5px;
+}
+
 .phonics-page .sound-area {
   position: relative;
   width: min(1100px, 100%);
-  margin: -20px auto 0;
+  margin: 8px auto 0;
 }
 
-/* SOUND CIRCLE */
 .phonics-page .sound-circle {
   width: 150px;
   height: 150px;
   background: #e3f2fd;
   border-radius: 50%;
-  margin: 0 auto;
-
-  font-size: 80px; /* 🔥 lumaki speaker icon */
-
+  margin: -10px auto 20px;
+  font-size: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
-
   cursor: pointer;
-  box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
   transition: 0.2s;
-  margin-bottom: 20px;
-  margin-top: -10px;
 }
 
 .phonics-page .sound-circle:hover {
@@ -214,17 +111,14 @@ body {
   background: #bbdefb;
 }
 
-/* LION PIC*/
 .phonics-page .lion-guide {
   position: absolute;
   left: 55%;
   top: 10px;
   width: 220px;
-  filter: drop-shadow(0 0 12px rgba(255,255,255,0.7));
+  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.7));
 }
 
-
-/* CHOICES */
 .phonics-page .choices {
   margin-top: 140px !important;
   display: flex;
@@ -275,236 +169,7 @@ body {
   background: linear-gradient(180deg, #ffe3ee 0%, #ffc4dc 100%);
 }
 
-/* POPUP */
-.phonics-page .popup-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 40px;
-  font-weight: bold;
-  color: white;
-  z-index: 999;
-  animation: fadeIn 0.3s ease;
-}
-
-/* NEXT LEVEL POPUP CARD (NO BLUR OVERLAY) */
-.phonics-page .level-popup {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 520px;
-  max-width: 90%;
-  background: linear-gradient(135deg, #fff6c9 0%, #ffe1ef 100%);
-  border-radius: 24px;
-  padding: 32px 34px 34px;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.14);
-  z-index: 1000;
-  text-align: center;
-  animation: popupShow 0.3s ease;
-}
-
-.phonics-page .level-popup h2 {
-  margin: 0;
-  font-size: 24px;
-  color: #263238;
-  font-weight: 900;
-  line-height: 1.2;
-}
-
-.phonics-page .level-popup p {
-  margin: 10px 0 0;
-  font-size: 24px;
-  color: #263238;
-  font-weight: 900;
-  line-height: 1.25;
-}
-
-.phonics-page .level-popup-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 24px;
-  margin-top: 44px;
-}
-
-.phonics-page .level-popup button {
-  border: none;
-  outline: none;
-  min-width: 176px;
-  padding: 15px 22px;
-  border-radius: 12px;
-  font-size: 20px;
-  font-weight: 900;
-  cursor: pointer;
-  transition: transform 0.2s ease, background 0.2s ease;
-}
-
-.phonics-page .level-popup button:hover {
-  transform: scale(1.05);
-}
-
-.phonics-page .level-popup button:first-of-type {
-  background: #b7fac9;
-  color: white;
-  box-shadow: 0 6px 12px rgba(64, 180, 90, 0.18);
-}
-
-.phonics-page .level-popup button:last-of-type {
-  background: #ffd9de;
-  color: white;
-  box-shadow: 0 6px 12px rgba(220, 110, 125, 0.16);
-}
-
-.phonics-page .level-popup button:first-of-type:hover {
-  background: #a7f2bb;
-}
-
-.phonics-page .level-popup button:last-of-type:hover {
-  background: #ffcdd4;
-}
-
-.phonics-page .level-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-
-  display: flex;
-  align-items: center;     /* vertical center */
-  justify-content: center; /* horizontal center */
-
-  z-index: 999;
-}
-
-/* STATS */
-.stats {
-  margin-top: 30px;
-  font-size: 20px;
-}
-.header {
-  display: flex;
-  flex-direction: column;   /* 👈 ensures vertical order */
-  align-items: center;
-  gap: 5px;
-}
-
-.title {
-  margin: 0;
-  font-size: 64px !important;
-  font-weight: 700;
-
-  position: relative;
-  top: -20px !important;  
-}
-
-.level-text {
-  margin: 0;
-  font-size: 18px;
-  color: #666;
-
-  position: relative;
-  top: 45px;
-}
-.phonics-page .pq-main-title {
-  font-size: 45px;
-  font-weight: 700;
-  color: #1f2937;
-  text-shadow: 0 2px 10px rgba(255, 255, 255, 0.85);
-
-}
-
-.phonics-page .pq-level-text {
-  font-size: 18px;
-  color: #334155;
-  text-shadow: 0 2px 10px rgba(255, 255, 255, 0.85);
-
-  position: relative;
-  top: -5px; /* taas unti */
-
-}
-
-.phonics-page .pq-page-title {
-  margin-top: 9px !important; margin: 14px auto 10px;
-  width: fit-content;
-  max-width: min(980px, 92vw);
-  padding: 0;
-  position: relative;
-  top: -25px; /* taas unti */
-}
-/* MOBILE */
-@media (max-width: 768px) {
-  .lion-guide {
-    position: static;
-    margin-top: 10px;
-  }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-.level-popup {
-  width: 400px;        /* fixed width */
-  max-width: 90%;      /* responsive (mobile safe) */
-}
-/* POP ANIMATION */
-@keyframes popBounce {
-  0% {
-    transform: translate(-50%, -60%) scale(0.7);
-    opacity: 0;
-  }
-  60% {
-    transform: translate(-50%, -48%) scale(1.05);
-  }
-  100% {
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 1;
-  }
-}
-
-@keyframes floatLetter {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-@keyframes pulseBubble {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 0.65;
-  }
-  50% {
-    transform: scale(1.1);
-    opacity: 0.95;
-  }
-}
-
-@keyframes popBubble {
-  0% {
-    transform: scale(1);
-    opacity: 0.9;
-  }
-  35% {
-    transform: scale(1.45);
-    opacity: 0.25;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 0.9;
-  }
-}
-
-/* ColorsQuest-style panel and completion actions for phonics */
+/* PANEL */
 .phonics-page .pq-panel {
   margin: 24px auto 24px;
   width: fit-content;
@@ -513,9 +178,8 @@ body {
   background: rgba(255, 255, 255, 0.75);
   padding: 18px 24px;
   border-radius: 20px;
-  box-shadow: 0 8px 18px rgba(0,0,0,0.1);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.1);
   min-width: min(92vw, 600px);
-  
 }
 
 .phonics-page .pq-message {
@@ -559,18 +223,133 @@ body {
   transform: scale(1.03);
 }
 
-.phonics-page .sound-area {
-  margin-top: 8px;
+/* GAME POPUP OVERLAY FIX */
+.game-overlay,
+.GameOverlay,
+.game-popup-overlay,
+.phonics-page .popup-overlay,
+.phonics-page .level-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  min-width: 100vw !important;
+  min-height: 100vh !important;
+
+  background: rgba(0, 0, 0, 0.22) !important;
+  backdrop-filter: blur(2px);
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  z-index: 9999 !important;
 }
 
-.phonics-page .instruction {
-  margin-top: 99px !important;
-  color: #111827;
-  font-weight: 700;
-  font-size: 18px;
-  text-shadow: 0 2px 10px rgba(255, 255, 255, 0.85);
+/* GAME POPUP CARD FIX */
+.game-popup,
+.GamePopup,
+.phonics-page .level-popup {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  transform: none !important;
+
+  width: min(420px, 86vw) !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+
+  border-radius: 22px !important;
+  padding: 28px 30px !important;
+
+  text-align: center !important;
+  border: 2px solid rgba(255, 190, 190, 0.7) !important;
+
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+
+  z-index: 10000 !important;
+  animation: popupShow 0.35s ease;
 }
 
+/* POPUP TEXT */
+.game-popup h2,
+.GamePopup h2,
+.phonics-page .level-popup h2 {
+  margin: 0 !important;
+  font-size: 28px !important;
+  font-weight: 900 !important;
+  color: #6d5650 !important;
+  line-height: 1.2 !important;
+}
+
+.game-popup p,
+.GamePopup p,
+.phonics-page .level-popup p {
+  margin: 12px 0 0 !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: #6b5b55 !important;
+}
+
+/* POPUP BUTTONS */
+.game-popup-buttons,
+.GamePopup-buttons,
+.phonics-page .level-popup-buttons {
+  display: flex !important;
+  justify-content: center !important;
+  gap: 14px !important;
+  margin-top: 24px !important;
+}
+
+.game-popup button,
+.GamePopup button,
+.phonics-page .level-popup button {
+  border: none !important;
+  outline: none !important;
+  min-width: 76px !important;
+  padding: 12px 22px !important;
+  border-radius: 14px !important;
+  font-size: 16px !important;
+  font-weight: 900 !important;
+  cursor: pointer !important;
+  transition: transform 0.18s ease !important;
+  color: white !important;
+}
+
+.game-popup button:hover,
+.GamePopup button:hover,
+.phonics-page .level-popup button:hover {
+  transform: scale(1.05) !important;
+}
+
+.game-popup button:first-of-type,
+.GamePopup button:first-of-type,
+.phonics-page .level-popup button:first-of-type {
+  background: #34c759 !important;
+  box-shadow: 0 6px 12px rgba(52, 199, 89, 0.3) !important;
+}
+
+.game-popup button:last-of-type,
+.GamePopup button:last-of-type,
+.phonics-page .level-popup button:last-of-type {
+  background: #ff4d4f !important;
+  box-shadow: 0 6px 12px rgba(255, 77, 79, 0.28) !important;
+}
+
+.game-popup button:first-of-type:hover,
+.GamePopup button:first-of-type:hover,
+.phonics-page .level-popup button:first-of-type:hover {
+  background: #2fbd54 !important;
+}
+
+.game-popup button:last-of-type:hover,
+.GamePopup button:last-of-type:hover,
+.phonics-page .level-popup button:last-of-type:hover {
+  background: #f04446 !important;
+}
+
+/* HIDE OLD UNUSED CLASSES */
 .stats,
 .header,
 .title,
@@ -578,36 +357,68 @@ body {
   display: none;
 }
 
-@media (max-width: 768px) {
-  .pq-panel {
-    margin-top: 64px;
-    padding: 16px;
-    border-radius: 18px;
-  }
-
-  .pq-title {
-    font-size: 64px !important;
-  }
-
-  .pq-message,
-  .pq-progress {
-    font-size: 18px;
-  }
-
-  .pq-actions {
-    flex-direction: column;
-    align-items: center;
-  }
-}
-
 @keyframes popupShow {
   from {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.7);
+    transform: scale(0.75);
+  }
+
+  60% {
+    opacity: 1;
+    transform: scale(1.05);
   }
 
   to {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 768px) {
+  .phonics-page.game-container {
+    padding: 28px 16px;
+  }
+
+  .phonics-page .pq-main-title {
+    font-size: 32px;
+  }
+
+  .phonics-page .sound-circle {
+    width: 120px;
+    height: 120px;
+    font-size: 62px;
+  }
+
+  .phonics-page .lion-guide {
+    position: static;
+    margin-top: 10px;
+    width: 180px;
+  }
+
+  .phonics-page .choices {
+    margin-top: 30px !important;
+    flex-wrap: wrap;
+    gap: 18px !important;
+  }
+
+  .phonics-page .choice-btn {
+    font-size: 48px;
+    padding: 16px;
+  }
+
+  .phonics-page .pq-panel {
+    margin-top: 40px;
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .phonics-page .pq-message,
+  .phonics-page .pq-progress {
+    font-size: 18px;
+  }
+
+  .phonics-page .pq-actions {
+    flex-direction: column;
+    align-items: center;
   }
 }

@@ -20,8 +20,7 @@
   z-index: 999;
 }
 
-.sq-back-btn,
-.sq-lesson-btn {
+.sq-back-btn {
   padding: 12px 10px;
   border-radius: 20px;
   border: none;
@@ -39,13 +38,6 @@
 .sq-back-btn {
   background: #dff5d8;
   color: #111;
-}
-
-.sq-lesson-btn {
-  background: #dbe9ff;
-  margin-top: 1px;
-  color: #111;
-  margin-right: 20px;
 }
 
 .sq-title-wrapper {
@@ -502,16 +494,15 @@
 }
 
 .sq-message {
-  font-size: 18px;
-  font-weight: 800;
-  color: #3f3f46;
+  font-size: 22px;
+  font-weight: 700;
+  color: rgba(85, 70, 62, 0.95);
   margin-bottom: 6px;
 }
 
 .sq-score {
-  font-size: 14px;
-  font-weight: 700;
-  color: rgba(17, 24, 39, 0.75);
+ font-size: 18px;
+  color: #4e4e4e;
 }
 
 .sq-actions {
@@ -522,24 +513,22 @@
 }
 
 .sq-action-btn {
-  padding: 12px 22px;
-  border-radius: 25px;
+  background: #c9f7c2 !important;
+  color: white !important;
+  opacity: 1 !important;
   border: none;
-  font-weight: 900;
-  cursor: pointer;
-  background: #c8f7c5;
-  color: #1f3b1f;
-  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
-  transition: transform 0.15s ease;
-}
-
-.sq-action-btn:hover {
-  transform: scale(1.04);
 }
 
 .sq-action-btn--alt {
-  background: #ffe4b5;
-  color: #5a3e1b;
+  background: #f7d79c !important;
+  color: white !important;
+  opacity: 1 !important;
+  border: none;
+}
+.sq-action-btn:hover,
+.sq-action-btn--alt:hover {
+  opacity: 1 !important;
+  filter: brightness(1.03);
 }
 
 .sq-level-popup {
@@ -687,5 +676,42 @@
 }
 
 .sq-guide-popup button:hover {
+  transform: scale(1.05);
+}
+
+/* =========================
+   CUTE WHITE / PASTEL BUTTONS
+========================= */
+
+.sq-back-btn,
+.sq-sound-toggle,
+.sq-action-btn,
+.sq-level-popup button {
+  background: #ffffff !important;
+  color: #7a5a44 !important;
+  border: none;
+  border-radius: 20px;
+  font-weight: 800;
+  padding: 12px 22px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+  transition: all 0.2s ease;
+}
+
+/* PLAY AGAIN STYLE */
+.sq-action-btn {
+  background: #c9f7c2 !important;
+  color: white !important;
+}
+
+/* VIEW PROGRESS STYLE */
+.sq-action-btn--alt {
+  background: #f7d79c !important;
+  color: white !important;
+}
+
+.sq-back-btn:hover,
+.sq-sound-toggle:hover,
+.sq-action-btn:hover,
+.sq-level-popup button:hover {
   transform: scale(1.05);
 }

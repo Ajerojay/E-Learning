@@ -220,6 +220,33 @@ export default function LetterQuestPage() {
       // ignore
     }
   };
+  const speakFeedback = (text: string) => {
+  try {
+    if (!soundEnabled) return;
+    if (!("speechSynthesis" in window)) return;
+
+    const u = new SpeechSynthesisUtterance(text);
+
+    const voices = window.speechSynthesis.getVoices();
+
+    const voice =
+      voices.find((v) =>
+        /(female|girl|kid|child|zira|samantha|jenny)/i.test(v.name)
+      ) || voices[0];
+
+    if (voice) {
+      u.voice = voice;
+    }
+
+    u.rate = 1;
+    u.pitch = 1.4;
+    u.volume = 1;
+
+    window.speechSynthesis.speak(u);
+  } catch {
+    // ignore
+  }
+};
 
   const playKidBeep = (n: number) => {
     try {
@@ -277,99 +304,183 @@ export default function LetterQuestPage() {
     sayKid(letter, { interrupt: true, skipDedupe: true });
   };
 
-  const handleDrop = (e: any) => {
-    if (countdown !== null || timeUpOpen) return;
-    e.preventDefault();
-    const data = JSON.parse(e.dataTransfer.getData("application/json"));
-    if (!data) return;
+const handleDrop = (e: any) => {
+  if (countdown !== null || timeUpOpen) return;
 
-    const { letter, id } = data;
-    setHasPlayed(true);
-    setTimerRunning(true);
+  e.preventDefault();
 
-    // LEVEL 3
-    if (levelIndex === 2) {
-      const match = level3Remaining.find((b) => b.letter === letter);
+  const data = JSON.parse(
+    e.dataTransfer.getData("application/json")
+  );
 
-      if (match) {
-        setFeedback(`Correct! ${letter}`);
-        const updated = level3Remaining.filter((b) => b.letter !== letter);
-        setLevel3Remaining(updated);
+  if (!data) return;
 
-        if (updated.length === 0) {
-          setFinalCongratsOpen(true);
-          persistLetterProgress(
-            2,
-            level3Targets.length,
-            level3Targets.length,
-            true,
-            wrongAttempts
-          );
-        } else {
-          persistLetterProgress(
-            2,
-            level3Targets.length - updated.length,
-            level3Targets.length,
-            false,
-            wrongAttempts
-          );
-        }
-      } else {
-        const nextWrong = wrongAttempts + 1;
-        setWrongAttempts(nextWrong);
-        setFeedback("Oops! Try again.");
-        persistLetterProgress(
-          2,
-          level3Targets.length - level3Remaining.length,
-          level3Targets.length,
-          false,
-          nextWrong
-        );
-      }
-      return;
-    }
+  const { letter, id } = data;
 
-    // NORMAL LEVEL
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
+  setHasPlayed(true);
+  setTimerRunning(true);
 
-    let target = e.currentTarget.dataset.target ?? "";
-    if (!target) {
-      if (x < rect.width / 3) target = "A";
-      else if (x < (rect.width / 3) * 2) target = "B";
-      else target = "C";
-    }
+  // LEVEL 3
+  if (levelIndex === 2) {
+    const match = level3Remaining.find(
+      (b) => b.letter === letter
+    );
 
-    if (letter === target && !placedIds.includes(id)) {
-      const updated = [...placedIds, id];
-      setPlacedIds(updated);
-      setFeedback("Great job!");
-      setSelected(null);
+    if (match) {
+      const goodMessages = [
+        `Amazing! You matched ${letter}! 🌟`,
+        `Awesome job! 🎉`,
+        `You did great little learner! 😊`,
+        `Fantastic work! ⭐`,
+        `Wonderful job! 🧸`,
+      ];
 
-      persistLetterProgress(
-        levelIndex,
-        updated.length,
-        totalItems,
-        false,
-        wrongAttempts
+      const randomGood =
+        goodMessages[
+          Math.floor(Math.random() * goodMessages.length)
+        ];
+
+      setFeedback(randomGood);
+
+      speakFeedback("Great job!");
+
+      const updated = level3Remaining.filter(
+        (b) => b.letter !== letter
       );
 
-      if (updated.length === totalItems) {
-        setProceedPromptLevel(levelIndex);
+      setLevel3Remaining(updated);
+
+      if (updated.length === 0) {
+        setFinalCongratsOpen(true);
+
+        persistLetterProgress(
+          2,
+          level3Targets.length,
+          level3Targets.length,
+          true,
+          wrongAttempts
+        );
+      } else {
+        persistLetterProgress(
+          2,
+          level3Targets.length - updated.length,
+          level3Targets.length,
+          false,
+          wrongAttempts
+        );
       }
     } else {
       const nextWrong = wrongAttempts + 1;
+
       setWrongAttempts(nextWrong);
-      setFeedback("Oops! Try again.");
+
+      const encourageMessages = [
+        "Great job trying! 😊",
+        "Almost there! Keep going 🌈",
+        "You can do it superstar! ⭐",
+        "Nice try little learner! 🧸",
+        "Keep practicing! 🎉",
+      ];
+
+      const randomEncourage =
+        encourageMessages[
+          Math.floor(Math.random() * encourageMessages.length)
+        ];
+
+      setFeedback(randomEncourage);
+
+      speakFeedback("Try again!");
+
       persistLetterProgress(
-        levelIndex,
-        placedIds.length,
-        totalItems,
+        2,
+        level3Targets.length - level3Remaining.length,
+        level3Targets.length,
         false,
         nextWrong
       );
     }
-  };
+
+    return;
+  }
+
+  // NORMAL LEVEL
+  const rect = e.currentTarget.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+
+  let target = e.currentTarget.dataset.target ?? "";
+
+  if (!target) {
+    if (x < rect.width / 3) target = "A";
+    else if (x < (rect.width / 3) * 2) target = "B";
+    else target = "C";
+  }
+
+  if (letter === target && !placedIds.includes(id)) {
+    const updated = [...placedIds, id];
+
+    setPlacedIds(updated);
+
+    const goodMessages = [
+      "Great job! 🌟",
+      "Awesome work! 😊",
+      "You did it! 🎉",
+      "Fantastic job! ⭐",
+      "Amazing work little learner! 🧸",
+    ];
+
+    const randomGood =
+      goodMessages[
+        Math.floor(Math.random() * goodMessages.length)
+      ];
+
+    setFeedback(randomGood);
+
+    speakFeedback("Great job!");
+
+    setSelected(null);
+
+    persistLetterProgress(
+      levelIndex,
+      updated.length,
+      totalItems,
+      false,
+      wrongAttempts
+    );
+
+    if (updated.length === totalItems) {
+      setProceedPromptLevel(levelIndex);
+    }
+  } else {
+    const nextWrong = wrongAttempts + 1;
+
+    setWrongAttempts(nextWrong);
+
+    const encourageMessages = [
+      "Great job trying! 😊",
+      "Almost there! Keep going 🌈",
+      "You can do it superstar! ⭐",
+      "Nice try little learner! 🧸",
+      "Keep practicing! 🎉",
+    ];
+
+    const randomEncourage =
+      encourageMessages[
+        Math.floor(Math.random() * encourageMessages.length)
+      ];
+
+    setFeedback(randomEncourage);
+
+    speakFeedback("Try again!");
+
+    persistLetterProgress(
+      levelIndex,
+      placedIds.length,
+      totalItems,
+      false,
+      nextWrong
+    );
+  }
+};
 
   const handleProceed = () => {
     resetCommon();
@@ -608,9 +719,9 @@ export default function LetterQuestPage() {
           {proceedPromptLevel !== null && levelIndex < 2 && (
             <GameOverlay isOpen={proceedPromptLevel !== null}>
               <GamePopup
-                title="🎉 Level Complete!"
-                subtitle={`Proceed to Level ${levelIndex + 2}?`}
-                buttons={[
+                  title="🎉 Awesome!"
+                  subtitle={`Level ${levelIndex + 1} complete! Proceed to the next level?`}
+                  buttons={[
                   {
                     label: "Yes",
                     onClick: handleProceed,
@@ -733,7 +844,7 @@ export default function LetterQuestPage() {
           {!hasPlayed
             ? "Drag each apple into the correct basket!"
             : isFinished
-            ? "Congrats! You finished it!"
+            ? "Awesome!"
             : feedback}
         </div>
 
