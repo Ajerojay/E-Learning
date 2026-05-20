@@ -40,7 +40,7 @@ const levels = [
 
 const ANIMAL_SOUND_VOLUME = 0.35;
 const PHONICS_LEVEL_TIME = 30;
-const COUNTDOWN_INTRO_DELAY_MS = 1200;
+const LEVEL_INTRO_DELAY_MS = 1800;
 
 export default function Level1Sound() {
   const navigate = useNavigate();
@@ -51,22 +51,34 @@ export default function Level1Sound() {
   const [showNext, setShowNext] = useState(false);
   const [showNoPrompt, setShowNoPrompt] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(3);
+  const [levelIntroActive, setLevelIntroActive] = useState(true);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(PHONICS_LEVEL_TIME);
   const [timerRunning, setTimerRunning] = useState(false);
   const [timeUpOpen, setTimeUpOpen] = useState(false);
+  const [wrongThisLevel, setWrongThisLevel] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [childId, setChildId] = useState<string | null>(null);
   const [gameCode, setGameCode] = useState("phonics_sound_match");
   const [message, setMessage] = useState("Tap the sound and choose the animal!");
+  const [wrongChoice, setWrongChoice] = useState<string | null>(null);
 
   const [shuffledAnimals, setShuffledAnimals] = useState(animals);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
+  const levelIntroTimerRef = useRef<number | null>(null);
+  const wrongChoiceTimerRef = useRef<number | null>(null);
   const warnedSecondsRef = useRef<Set<number>>(new Set());
   const currentLevel = levels[level];
+
+  const clearLevelIntroTimer = () => {
+    if (levelIntroTimerRef.current !== null) {
+      window.clearTimeout(levelIntroTimerRef.current);
+      levelIntroTimerRef.current = null;
+    }
+  };
 
   const playSound = () => {
     if (!soundEnabled) return;
@@ -92,6 +104,50 @@ export default function Level1Sound() {
       window.speechSynthesis.speak(utterance);
     } catch {
       // ignore speech errors
+    }
+  };
+
+  const startCountdown = () => {
+    setLevelIntroActive(false);
+    setCountdown(3);
+    levelIntroTimerRef.current = null;
+  };
+
+  const speakLevelIntro = () => {
+    const startedAt = Date.now();
+    const startCountdownAfterMinimumIntro = () => {
+      const elapsed = Date.now() - startedAt;
+      const remainingDelay = Math.max(0, LEVEL_INTRO_DELAY_MS - elapsed);
+      levelIntroTimerRef.current = window.setTimeout(startCountdown, remainingDelay);
+    };
+
+    if (!soundEnabled || !("speechSynthesis" in window)) {
+      levelIntroTimerRef.current = window.setTimeout(startCountdown, LEVEL_INTRO_DELAY_MS);
+      return;
+    }
+
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(`Match the ${currentLevel.answer} sound.`);
+      utterance.lang = "en-US";
+      utterance.rate = 0.86;
+      utterance.pitch = 1.25;
+      utterance.volume = 1;
+      const fallbackTimer = window.setTimeout(startCountdownAfterMinimumIntro, 4200);
+      levelIntroTimerRef.current = fallbackTimer;
+
+      utterance.onend = () => {
+        window.clearTimeout(fallbackTimer);
+        startCountdownAfterMinimumIntro();
+      };
+      utterance.onerror = () => {
+        window.clearTimeout(fallbackTimer);
+        startCountdownAfterMinimumIntro();
+      };
+
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      levelIntroTimerRef.current = window.setTimeout(startCountdown, LEVEL_INTRO_DELAY_MS);
     }
   };
 
@@ -142,7 +198,10 @@ export default function Level1Sound() {
 
   useEffect(() => {
     setShuffledAnimals(shuffleArray(animals));
-    setCountdown(3);
+    setWrongChoice(null);
+    setWrongThisLevel(0);
+    setLevelIntroActive(true);
+    setCountdown(null);
     setTimeLeft(PHONICS_LEVEL_TIME);
     setTimerRunning(false);
     setTimeUpOpen(false);
@@ -162,6 +221,30 @@ export default function Level1Sound() {
 
     return () => {
       bgMusicRef.current?.pause();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!levelIntroActive) return;
+    if (showNext || showNoPrompt || timeUpOpen || isFinished) return;
+
+    setTimerRunning(false);
+
+    clearLevelIntroTimer();
+
+    speakLevelIntro();
+
+    return () => {
+      clearLevelIntroTimer();
+    };
+  }, [levelIntroActive, currentLevel.answer, showNext, showNoPrompt, timeUpOpen, isFinished, soundEnabled]);
+
+  useEffect(() => {
+    return () => {
+      clearLevelIntroTimer();
+      if (wrongChoiceTimerRef.current !== null) {
+        window.clearTimeout(wrongChoiceTimerRef.current);
+      }
     };
   }, []);
 
@@ -189,14 +272,13 @@ export default function Level1Sound() {
       return;
     }
 
-    const introDelay = countdown === 3 ? COUNTDOWN_INTRO_DELAY_MS : 0;
     const voiceTimer = window.setTimeout(() => {
       sayKid(String(countdown));
       playKidBeep(countdown);
-    }, introDelay);
+    }, 0);
     const nextTimer = window.setTimeout(
       () => setCountdown((p) => (p === null ? null : p - 1)),
-      introDelay + 850
+      850
     );
     return () => {
       window.clearTimeout(voiceTimer);
@@ -284,7 +366,7 @@ export default function Level1Sound() {
   };
 
   const handleGuess = (animal: string) => {
-    if (countdown !== null || timeUpOpen) return;
+    if (levelIntroActive || countdown !== null || timeUpOpen) return;
     if (showNext || isFinished) return;
 
     if (animal === currentLevel.answer) {
@@ -307,10 +389,24 @@ export default function Level1Sound() {
       }
     } else {
       const nextWrong = wrong + 1;
+      const nextWrongThisLevel = wrongThisLevel + 1;
       setWrong(nextWrong);
+      setWrongThisLevel(nextWrongThisLevel);
+      setWrongChoice(animal);
+      if (wrongChoiceTimerRef.current !== null) {
+        window.clearTimeout(wrongChoiceTimerRef.current);
+      }
+      wrongChoiceTimerRef.current = window.setTimeout(() => {
+        setWrongChoice(null);
+        wrongChoiceTimerRef.current = null;
+      }, 650);
       setMessage("Oops! Try again!");
-      speakFeedback("Try again!");
-      playSound();
+      if (nextWrongThisLevel % 2 === 0) {
+        speakFeedback(`The sound is ${currentLevel.answer}. Listen again.`);
+        window.setTimeout(playSound, 900);
+      } else {
+        speakFeedback("Try again!");
+      }
       const pct = Math.round((score / levels.length) * 100);
       void saveProgress(pct, false, nextWrong);
     }
@@ -324,11 +420,19 @@ export default function Level1Sound() {
 
   const replayLevel = () => {
     setTimeUpOpen(false);
-    setCountdown(3);
+    setWrongThisLevel(0);
+    setWrongChoice(null);
+    clearLevelIntroTimer();
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    setLevelIntroActive(false);
+    setCountdown(null);
     setTimeLeft(PHONICS_LEVEL_TIME);
-    setTimerRunning(false);
+    setTimerRunning(true);
     warnedSecondsRef.current = new Set();
     setMessage("Tap the sound and choose the animal!");
+    window.setTimeout(playSound, 250);
   };
 
   const handlePlayAgain = () => {
@@ -338,8 +442,11 @@ export default function Level1Sound() {
     setShowNext(false);
     setShowNoPrompt(false);
     setIsFinished(false);
+    setWrongChoice(null);
+    setWrongThisLevel(0);
     setTimeUpOpen(false);
-    setCountdown(3);
+    setLevelIntroActive(true);
+    setCountdown(null);
     setTimeLeft(PHONICS_LEVEL_TIME);
     setTimerRunning(false);
     warnedSecondsRef.current = new Set();
@@ -403,7 +510,9 @@ export default function Level1Sound() {
           {shuffledAnimals.map((a) => (
             <button
               key={a.name}
-              className={`choice-btn choice-btn-${a.name}`}
+              className={`choice-btn choice-btn-${a.name} ${
+                wrongChoice === a.name ? "choice-btn-wrong" : ""
+              }`}
               onClick={() => handleGuess(a.name)}
             >
               {a.emoji}
@@ -455,6 +564,17 @@ export default function Level1Sound() {
               },
             ]}
           />
+        </GameOverlay>
+      )}
+
+      {levelIntroActive && !timeUpOpen && !showNext && !showNoPrompt && !isFinished && (
+        <GameOverlay isOpen={levelIntroActive}>
+          <div className="game-popup">
+            <div className="game-popup-title">Listen!</div>
+            <div className="game-popup-subtitle">
+              Match the {currentLevel.answer} sound.
+            </div>
+          </div>
         </GameOverlay>
       )}
 

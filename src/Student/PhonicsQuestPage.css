@@ -213,6 +213,13 @@ body {
   box-shadow: 0 10px 18px rgba(0, 0, 0, 0.2);
 }
 
+.phonics-page .choice-btn-wrong {
+  border-color: #ef4444;
+  background: linear-gradient(180deg, #fee2e2 0%, #fecaca 100%);
+  box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.22), 0 10px 18px rgba(127, 29, 29, 0.22);
+  animation: pqWrongChoiceShake 0.46s ease-in-out;
+}
+
 .phonics-page .choice-btn-cat {
   background: linear-gradient(180deg, #ffe8a9 0%, #ffd27a 100%);
 }
@@ -320,6 +327,29 @@ body {
 
   50% {
     transform: scale(1.06);
+  }
+}
+
+@keyframes pqWrongChoiceShake {
+  0%,
+  100% {
+    transform: translateX(0) scale(1);
+  }
+
+  18% {
+    transform: translateX(-10px) rotate(-3deg) scale(1.04);
+  }
+
+  36% {
+    transform: translateX(9px) rotate(3deg) scale(1.04);
+  }
+
+  54% {
+    transform: translateX(-7px) rotate(-2deg) scale(1.03);
+  }
+
+  72% {
+    transform: translateX(5px) rotate(2deg) scale(1.02);
   }
 }
 
