@@ -1,5 +1,5 @@
 import "./ColorsQuestPage.css";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   DndContext,
@@ -10,7 +10,20 @@ import {
 import { getOrCreateActiveChildId } from "../lib/childProgress";
 import { supabase } from "../lib/supabase";
 import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
+import {
+  useLevelIntro,
+  LevelIntroOverlay,
+  COUNTDOWN_READY_SUBTITLE,
+  type LevelIntroContent,
+} from "./levelIntro";
 import bgMusic from "./bg-music-loop.mp3";
+
+const COLORS_LEVEL_INTRO: LevelIntroContent = {
+  title: "Sort the colors!",
+  subtitle: "Drag each picture into the basket that matches its color.",
+  speech:
+    "Hi friend! Drag each picture into the color basket it belongs in. You can do it!",
+};
 
 import basketRed from "./images/colors/baskets/red.png";
 import basketBlue from "./images/colors/baskets/blue.png";
@@ -214,6 +227,7 @@ export default function ColorsQuestPage() {
   const isVoiceSpeakingRef = useRef(false);
 
   const [levelIndex, setLevelIndex] = useState(0);
+  const [playSession, setPlaySession] = useState(0);
   const [items, setItems] = useState<Item[]>(LEVELS[0].items);
   const [activeColors, setActiveColors] = useState<ColorKey[]>(LEVELS[0].colors);
   const [placed, setPlaced] = useState<Record<string, ColorKey>>({});
@@ -222,7 +236,7 @@ export default function ColorsQuestPage() {
     "Drag each object into the correct color basket!"
   );
   const [wrongAttempts, setWrongAttempts] = useState(0);
-  const [countdown, setCountdown] = useState<number | null>(3);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(LEVELS[0].time);
   const [timerRunning, setTimerRunning] = useState(false);
   const [timeUpOpen, setTimeUpOpen] = useState(false);
@@ -254,6 +268,19 @@ export default function ColorsQuestPage() {
     () => LEVELS.reduce((sum, l) => sum + l.items.length, 0),
     []
   );
+
+  const startCountdown = useCallback(() => setCountdown(3), []);
+
+  const introEnabled =
+    !timeUpOpen && !finalCompleteOpen && !levelCompleteOpen && !levelSummaryOpen;
+
+  const { levelIntroActive, onLevelStart, startCountdownOnly } = useLevelIntro({
+    content: COLORS_LEVEL_INTRO,
+    soundEnabled,
+    enabled: introEnabled,
+    sessionKey: playSession,
+    onStartCountdown: startCountdown,
+  });
 
   const getHappyVoice = () => {
     if (!("speechSynthesis" in window)) return null;
@@ -381,17 +408,22 @@ export default function ColorsQuestPage() {
     setPlaced({});
     setTimeLeft(level.time);
     setTimerRunning(false);
-    setCountdown(3);
+    setCountdown(null);
     setTimeUpOpen(false);
     setLevelCompleteOpen(false);
     setFinalCompleteOpen(false);
     warnedSecondsRef.current = new Set();
     setMessage("Drag each object into the correct color basket!");
-  }, [levelIndex]);
+    onLevelStart();
+  }, [levelIndex, onLevelStart]);
+
+  useEffect(() => {
+    if (levelIntroActive) setTimerRunning(false);
+  }, [levelIntroActive]);
 
   useEffect(() => {
     // countdown before start: 3..2..1..Go!
-    if (finalCompleteOpen || timeUpOpen) return;
+    if (finalCompleteOpen || timeUpOpen || levelIntroActive) return;
     if (countdown === null) return;
 
     setTimerRunning(false);
@@ -407,7 +439,7 @@ export default function ColorsQuestPage() {
     playKidBeep(countdown);
     const t = window.setTimeout(() => setCountdown((p) => (p === null ? null : p - 1)), 850);
     return () => window.clearTimeout(t);
-  }, [countdown, finalCompleteOpen, timeUpOpen]);
+  }, [countdown, finalCompleteOpen, timeUpOpen, levelIntroActive]);
 
   useEffect(() => {
     if (!timerRunning) return;
@@ -467,7 +499,7 @@ export default function ColorsQuestPage() {
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    if (countdown !== null) return;
+    if (levelIntroActive || countdown !== null) return;
     if (timeUpOpen || finalCompleteOpen || levelCompleteOpen) return;
     const itemId = String(event.active.id);
     const overId = event.over?.id ? String(event.over.id) : null;
@@ -521,11 +553,12 @@ export default function ColorsQuestPage() {
   };
 
   const handlePlayAgain = () => {
+    setPlaySession((p) => p + 1);
     setPlaced({});
     setWrongAttempts(0);
     setCompletedItemsBase(0);
     setLevelIndex(0);
-    setCountdown(3);
+    setCountdown(null);
     setTimeLeft(LEVELS[0].time);
     setTimerRunning(false);
     setTimeUpOpen(false);
@@ -543,7 +576,7 @@ export default function ColorsQuestPage() {
 
   return (
     <div className="colors-page">
-      <button className="cq-back-btn" onClick={() => navigate("/lesson/colors")}>"
+      <button className="cq-back-btn" onClick={() => navigate("/lesson/colors")}>
         ← Back
       </button>
 
@@ -648,11 +681,16 @@ export default function ColorsQuestPage() {
         )}
       </div>
 
+      <LevelIntroOverlay
+        isOpen={levelIntroActive && introEnabled}
+        content={COLORS_LEVEL_INTRO}
+      />
+
       {countdown !== null && (
         <GameOverlay isOpen={countdown !== null}>
           <GamePopup
             title={<Countdown value={countdown} />}
-            subtitle="Get ready!"
+            subtitle={COUNTDOWN_READY_SUBTITLE}
           />
         </GameOverlay>
       )}
@@ -672,7 +710,7 @@ export default function ColorsQuestPage() {
                           setTimeUpOpen(false);
                           setPlaced({});
                           setWrongAttempts(0);
-                          setCountdown(3);
+                          setCountdown(null);
                           setTimeLeft(LEVELS[levelIndex]?.time ?? 30);
                           setTimerRunning(false);
                           warnedSecondsRef.current = new Set();
@@ -685,7 +723,7 @@ export default function ColorsQuestPage() {
                           setTimeUpOpen(false);
                           setPlaced({});
                           setWrongAttempts(0);
-                          setCountdown(3);
+                          startCountdownOnly();
                           setTimeLeft(LEVELS[levelIndex]?.time ?? 30);
                           setTimerRunning(false);
                           warnedSecondsRef.current = new Set();
@@ -704,7 +742,7 @@ export default function ColorsQuestPage() {
                           setTimeUpOpen(false);
                           setPlaced({});
                           setWrongAttempts(0);
-                          setCountdown(3);
+                          startCountdownOnly();
                           setTimeLeft(LEVELS[levelIndex]?.time ?? 30);
                           setTimerRunning(false);
                           warnedSecondsRef.current = new Set();
@@ -719,7 +757,7 @@ export default function ColorsQuestPage() {
                         setTimeUpOpen(false);
                         setPlaced({});
                         setWrongAttempts(0);
-                        setCountdown(3);
+                        startCountdownOnly();
                         setTimeLeft(LEVELS[levelIndex]?.time ?? 30);
                         setTimerRunning(false);
                         warnedSecondsRef.current = new Set();
@@ -783,7 +821,7 @@ export default function ColorsQuestPage() {
                   setLevelSummaryOpen(false);
                   setPlaced({});
                   setWrongAttempts(0);
-                  setCountdown(3);
+                  startCountdownOnly();
                   setTimeLeft(LEVELS[levelIndex]?.time ?? 30);
                   setTimerRunning(false);
                   warnedSecondsRef.current = new Set();

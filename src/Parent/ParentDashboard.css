@@ -10,6 +10,7 @@ body {
   background-color: #fbe7c6;
   font-family: "Inder", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
+  color: #2d2a35;
 }
 
 .pd-wrapper {
@@ -28,7 +29,11 @@ body {
 
 /* LEFT SIDEBAR */
 .pd-sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
   width: 260px;
+  height: 100vh;
   background: rgba(255, 228, 174, 0.92);
   border-right: 2px solid #e0c18a;
   display: flex;
@@ -36,8 +41,8 @@ body {
   align-items: stretch;
   padding: 18px 14px;
   gap: 18px;
-  z-index: 2;
-  transition: width 180ms ease;
+  z-index: 1200;
+  transition: width 180ms ease, left 180ms ease;
 }
 
 .pd-sidebar[data-collapsed="true"] {
@@ -63,7 +68,8 @@ body {
   gap: 22px;
   width: 100%;
   align-items: stretch;
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   padding-top: 8px;
 }
 
@@ -79,6 +85,7 @@ body {
   cursor: pointer;
   transition: background 150ms ease, transform 150ms ease;
   color: #2d2a35;
+  font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .pd-nav-item:hover {
@@ -108,6 +115,8 @@ body {
 .pd-nav-label {
   font-size: 18px;
   letter-spacing: 0.5px;
+  font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 400;
 }
 
 .pd-logout {
@@ -136,6 +145,43 @@ body {
   position: relative;
   z-index: 1;
   padding: 24px 40px 40px;
+  color: #2d2a35;
+  margin-left: 260px;
+  transition: margin-left 180ms ease;
+}
+
+.pd-sidebar[data-collapsed="true"] + .pd-main {
+  margin-left: 86px;
+}
+
+.pd-main h1,
+.pd-main h2,
+.pd-main h3,
+.pd-main p,
+.pd-main li,
+.pd-main span,
+.pd-main button {
+  color: #2d2a35;
+}
+
+.pd-welcome-text {
+  color: #1a4d8f;
+}
+
+.pd-card h2 {
+  color: #2c5aa0;
+}
+
+.pd-summary-line {
+  color: #1a3a5c;
+}
+
+.pd-progress-percent {
+  color: #d63031;
+}
+
+.pd-activity-text strong {
+  color: #0a4a7a;
 }
 
 /* TOP HEADER */
@@ -298,6 +344,7 @@ body {
 
   /* SIDEBAR BECOMES TOP NAV */
   .pd-sidebar {
+    position: static;
     flex-direction: row;
     align-items: center;
     justify-content: space-around;
@@ -306,6 +353,14 @@ body {
     border-right: none;
     border-bottom: 2px solid #e0c18a;
     padding: 8px 10px;
+  }
+
+  .pd-main {
+    margin-left: 0;
+  }
+
+  .pd-sidebar[data-collapsed="true"] + .pd-main {
+    margin-left: 0;
   }
 
   .pd-nav {

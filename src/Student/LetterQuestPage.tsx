@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./LetterQuestPage.css";
 import { getOrCreateActiveChildId } from "../lib/childProgress";
@@ -7,6 +7,12 @@ import {
   recordGameProgressRpc,
 } from "../lib/gameProgressDb";
 import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
+import {
+  useLevelIntro,
+  LevelIntroOverlay,
+  COUNTDOWN_READY_SUBTITLE,
+  type LevelIntroContent,
+} from "./levelIntro";
 import bgMusic from "./bg-music-loop.mp3";
 
 import bear from "./images/bear-2.png";
@@ -64,6 +70,7 @@ export default function LetterQuestPage() {
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
   const isVoiceSpeakingRef = useRef(false);
   const [levelIndex, setLevelIndex] = useState(0);
+  const [playSession, setPlaySession] = useState(0);
   const [placedIds, setPlacedIds] = useState<number[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [wrongAttempts, setWrongAttempts] = useState(0);
@@ -76,7 +83,7 @@ export default function LetterQuestPage() {
   const [finalCongratsOpen, setFinalCongratsOpen] = useState(false);
   const [timeLeft, setTimeLeft] = useState(30);
   const [timerRunning, setTimerRunning] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(3);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [voicesReady, setVoicesReady] = useState(false);
   const [timeUpOpen, setTimeUpOpen] = useState(false);
@@ -102,6 +109,29 @@ export default function LetterQuestPage() {
 
   const isFinished = finalCongratsOpen;
   const levelNames = ["Easy", "Medium", "Hard"];
+
+  const LETTER_GAME_INTRO: LevelIntroContent = {
+    title: "Match the letters!",
+    subtitle: "Match each apple to the basket with the same letter.",
+    speech:
+      "Hi friend! Match each apple to the basket with the same letter. Let's go!",
+  };
+
+  const startCountdown = useCallback(() => setCountdown(3), []);
+
+  const introEnabled =
+    !finalCongratsOpen &&
+    !timeUpOpen &&
+    proceedPromptLevel === null &&
+    !levelSummaryOpen;
+
+  const { levelIntroActive, onLevelStart, startCountdownOnly } = useLevelIntro({
+    content: LETTER_GAME_INTRO,
+    soundEnabled,
+    enabled: introEnabled,
+    sessionKey: playSession,
+    onStartCountdown: startCountdown,
+  });
 
   useEffect(() => {
     const load = async () => {
@@ -281,13 +311,14 @@ export default function LetterQuestPage() {
     setLevelSummaryOpen(false);
     setTimeLeft(30);
     setTimerRunning(false);
-    setCountdown(3);
+    setCountdown(null);
     setTimeUpOpen(false);
     warnedSecondsRef.current = new Set();
   };
 
   const resetCurrentLevel = () => {
     resetCommon();
+    onLevelStart();
     if (levelIndex === 2) {
       const next = makeLevel3Set();
       setLevel3Targets(next);
@@ -297,7 +328,7 @@ export default function LetterQuestPage() {
   };
 
   const handleDragStart = (e: any, letter: string, id: number) => {
-    if (countdown !== null || timeUpOpen) return;
+    if (levelIntroActive || countdown !== null || timeUpOpen) return;
     e.dataTransfer.setData("application/json", JSON.stringify({ letter, id }));
     setSelected(letter);
     setTimerRunning(true);
@@ -305,7 +336,7 @@ export default function LetterQuestPage() {
   };
 
 const handleDrop = (e: any) => {
-  if (countdown !== null || timeUpOpen) return;
+  if (levelIntroActive || countdown !== null || timeUpOpen) return;
 
   e.preventDefault();
 
@@ -494,6 +525,7 @@ const handleDrop = (e: any) => {
   };
 
   const handlePlayAgain = () => {
+    setPlaySession((p) => p + 1);
     resetCommon();
     setLevelIndex(0);
     const next = makeLevel3Set();
@@ -518,12 +550,18 @@ const handleDrop = (e: any) => {
   useEffect(() => {
     setTimeLeft(30);
     setTimerRunning(false);
-    setCountdown(3);
+    setCountdown(null);
     setTimeUpOpen(false);
     warnedSecondsRef.current = new Set();
-  }, [levelIndex]);
+    onLevelStart();
+  }, [levelIndex, onLevelStart]);
 
   useEffect(() => {
+    if (levelIntroActive) setTimerRunning(false);
+  }, [levelIntroActive]);
+
+  useEffect(() => {
+    if (levelIntroActive) return;
     if (countdown === null) return;
     setTimerRunning(false);
     if (countdown <= 0) {
@@ -540,11 +578,11 @@ const handleDrop = (e: any) => {
       900
     );
     return () => window.clearTimeout(t);
-  }, [countdown]);
+  }, [countdown, levelIntroActive]);
 
   useEffect(() => {
     if (!timerRunning) return;
-    if (countdown !== null) return;
+    if (levelIntroActive || countdown !== null) return;
     if (proceedPromptLevel !== null || levelSummaryOpen || timeUpOpen || isFinished)
       return;
 
@@ -642,11 +680,16 @@ const handleDrop = (e: any) => {
 
       <div className={`game-container level-${levelIndex}`}>
 
+          <LevelIntroOverlay
+            isOpen={levelIntroActive && introEnabled}
+            content={LETTER_GAME_INTRO}
+          />
+
           {countdown !== null && (
             <GameOverlay isOpen={countdown !== null}>
               <GamePopup
                 title={<Countdown value={countdown} />}
-                subtitle="Get ready!"
+                subtitle={COUNTDOWN_READY_SUBTITLE}
               />
             </GameOverlay>
           )}
@@ -774,7 +817,7 @@ const handleDrop = (e: any) => {
                 <img
                   key={i}
                   src={a.apple}
-                  draggable={countdown === null && !timeUpOpen}
+                  draggable={!levelIntroActive && countdown === null && !timeUpOpen}
                   onDragStart={(e) => handleDragStart(e, a.letter, i)}
                   className="apple apple--l3"
                   style={{
@@ -792,7 +835,7 @@ const handleDrop = (e: any) => {
                     <img
                       key={a.id}
                       src={a.img}
-                      draggable={countdown === null && !timeUpOpen}
+                      draggable={!levelIntroActive && countdown === null && !timeUpOpen}
                       onClick={() => setSelected(a.letter)}
                       onDragStart={(e) => handleDragStart(e, a.letter, a.id)}
                       className={`apple ${

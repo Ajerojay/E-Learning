@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import "./StudentAccess.css";
-import { linkChildSessionToSupabasePin } from "../lib/childProgress";
+import { linkChildSessionToSupabasePin, saveChildDeviceLabel } from "../lib/childProgress";
 
 export default function StudentAccess() {
   const [pin, setPin] = useState("");
@@ -26,6 +26,7 @@ export default function StudentAccess() {
     try {
       const ok = await linkChildSessionToSupabasePin(pin);
       if (ok) {
+        saveChildDeviceLabel();
         navigate("/student");
         return;
       }

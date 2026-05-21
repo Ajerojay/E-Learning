@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import "./LogicQuestPage.css";
 import { useNavigate } from "react-router-dom";
 import {
@@ -11,9 +11,20 @@ import lion_think from "../img/lion_think.png";
 import { supabase } from "../lib/supabase";
 import { getOrCreateActiveChildId } from "../lib/childProgress";
 import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
+import {
+  useLevelIntro,
+  LevelIntroOverlay,
+  COUNTDOWN_READY_SUBTITLE,
+  type LevelIntroContent,
+} from "./levelIntro";
 import bgMusic from "./bg-music-loop.mp3";
 
-const COUNTDOWN_INTRO_DELAY_MS = 1200;
+const LOGIC_GAME_INTRO: LevelIntroContent = {
+  title: "What comes next?",
+  subtitle: "Look at the pattern and drag the right picture into the box.",
+  speech:
+    "Hi! Look at the pattern and drag the picture that comes next into the box. You can do it!",
+};
 
 type LogicChoice = { id: string; emoji: string };
 type LogicLevel = {
@@ -131,20 +142,45 @@ export default function Level2Pattern() {
   const [showCongratsPanel, setShowCongratsPanel] = useState(false);
   const [showNoPrompt, setShowNoPrompt] = useState(false);
   const [isStarted, setIsStarted] = useState(true);
-  const [countdown, setCountdown] = useState<number | null>(3);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [message, setMessage] = useState("Drag the correct symbol into the box!");
   const [childId, setChildId] = useState<string | null>(null);
   const [gameCode, setGameCode] = useState<string | null>(null);
+  const [playSession, setPlaySession] = useState(0);
   const warnedSecondsRef = useRef<Set<number>>(new Set());
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
+  const [isFinished, setIsFinished] = useState(false);
 
   const currentLevel = logicLevels[level];
   const canProceedAfterTimeUp = false;
 
-  // ⏱ TIMER
-  const [isFinished, setIsFinished] = useState(false);
+  const startCountdown = useCallback(() => setCountdown(3), []);
+
+  const introEnabled =
+    isStarted &&
+    !popup &&
+    !isFinished &&
+    proceedPromptLevel === null &&
+    !showNoPrompt;
+
+  const { levelIntroActive, onLevelStart, startCountdownOnly } = useLevelIntro({
+    content: LOGIC_GAME_INTRO,
+    soundEnabled,
+    enabled: introEnabled,
+    sessionKey: playSession,
+    onStartCountdown: startCountdown,
+  });
+
+  useEffect(() => {
+    setDropped(null);
+    setCountdown(null);
+    setTime(30);
+    warnedSecondsRef.current = new Set();
+    onLevelStart();
+  }, [level, onLevelStart]);
+
   const sayKid = (text: string) => {
     try {
       if (!soundEnabled || !("speechSynthesis" in window)) return;
@@ -228,6 +264,7 @@ export default function Level2Pattern() {
   }, [musicEnabled]);
 
   useEffect(() => {
+    if (levelIntroActive) return;
     if (!isStarted) return;
     if (countdown === null) return;
     if (popup || isFinished || proceedPromptLevel !== null || showNoPrompt) return;
@@ -239,14 +276,13 @@ export default function Level2Pattern() {
       return;
     }
 
-    const introDelay = countdown === 3 ? COUNTDOWN_INTRO_DELAY_MS : 0;
     const voiceTimer = window.setTimeout(() => {
       sayKid(String(countdown));
       playKidBeep(countdown);
-    }, introDelay);
+    }, 0);
     const nextTimer = window.setTimeout(
       () => setCountdown((p) => (p === null ? null : p - 1)),
-      introDelay + 850
+      850
     );
 
     return () => {
@@ -254,6 +290,7 @@ export default function Level2Pattern() {
       window.clearTimeout(nextTimer);
     };
   }, [
+    levelIntroActive,
     isStarted,
     countdown,
     popup,
@@ -266,7 +303,7 @@ export default function Level2Pattern() {
   useEffect(() => {
     if (!isStarted) return;
     if (isFinished) return;
-    if (countdown !== null) return;
+    if (levelIntroActive || countdown !== null) return;
     if (popup) return;
     if (proceedPromptLevel !== null) return; // ✅ pause timer kapag level complete popup lumabas
   
@@ -353,7 +390,8 @@ export default function Level2Pattern() {
   };
 
   const handleDropChoice = (value: string) => {
-    if (!isStarted || countdown !== null || popup === "TIME_UP" || time === 0) return;
+    if (!isStarted || levelIntroActive || countdown !== null || popup === "TIME_UP" || time === 0)
+      return;
 
     setDropped(value);
 
@@ -387,7 +425,8 @@ export default function Level2Pattern() {
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    if (!isStarted || countdown !== null || popup === "TIME_UP" || time === 0) return;
+    if (!isStarted || levelIntroActive || countdown !== null || popup === "TIME_UP" || time === 0)
+      return;
 
     const dragged = String(event.active.id);
     const targetId = event.over?.id ? String(event.over.id) : null;
@@ -401,6 +440,7 @@ export default function Level2Pattern() {
   };
 
   const handleRestart = () => {
+    setPlaySession((p) => p + 1);
     setTime(30);
     setScore(0);
     setWrong(0);
@@ -411,7 +451,7 @@ export default function Level2Pattern() {
     setPopup("");
     setIsFinished(false);
     setIsStarted(true);
-    setCountdown(3);
+    setCountdown(null);
     warnedSecondsRef.current = new Set();
     setMessage("Drag the correct symbol into the box!");
   };
@@ -421,10 +461,6 @@ export default function Level2Pattern() {
     setProceedPromptLevel(null);
     setShowCongratsPanel(false);
     setPopup("");
-    setDropped(null);
-    setTime(30);
-    setCountdown(3);
-    warnedSecondsRef.current = new Set();
     setMessage("Drag the correct symbol into the box!");
   };
 
@@ -432,7 +468,7 @@ export default function Level2Pattern() {
     setPopup("");
     setDropped(null);
     setTime(30);
-    setCountdown(3);
+    startCountdownOnly();
     warnedSecondsRef.current = new Set();
     setMessage("Drag the correct symbol into the box!");
   };
@@ -498,7 +534,13 @@ export default function Level2Pattern() {
                   key={c.id}
                   id={c.id}
                   emoji={c.emoji}
-                  disabled={!isStarted || countdown !== null || time === 0 || isFinished}
+                  disabled={
+                    !isStarted ||
+                    levelIntroActive ||
+                    countdown !== null ||
+                    time === 0 ||
+                    isFinished
+                  }
                 />
               ))}
             </div>
@@ -578,11 +620,16 @@ export default function Level2Pattern() {
         </GameOverlay>
       )}
 
+      <LevelIntroOverlay
+        isOpen={levelIntroActive && introEnabled}
+        content={LOGIC_GAME_INTRO}
+      />
+
       {countdown !== null && !popup && !isFinished && (
         <GameOverlay isOpen={countdown !== null}>
           <GamePopup
             title={<Countdown value={countdown} />}
-            subtitle="Get ready!"
+            subtitle={COUNTDOWN_READY_SUBTITLE}
           />
         </GameOverlay>
       )}

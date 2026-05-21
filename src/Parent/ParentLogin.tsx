@@ -66,13 +66,14 @@ export default function ParentLogin() {
           username: data.username,
         })
       );
+      console.debug("ParentLogin: logged-in parent", { id: data.id, username: data.username });
 
       const { data: childData, error: childError } = await supabase
         .from("children_accounts")
-        .select("id, pin_code")
+        .select("id, pin_code, parent_id, child_name, first_name, last_name")
         .eq("parent_id", data.id)
         .eq("is_active", true)
-        .order("created_at", { ascending: true })
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
@@ -85,6 +86,11 @@ export default function ParentLogin() {
         if (childData.pin_code) {
           localStorage.setItem("studentPin", childData.pin_code);
         }
+        console.debug("ParentLogin: set activeChildId from login flow", {
+          id: childData.id,
+          parent_id: childData.parent_id,
+          child_name: childData.child_name || `${childData.first_name || ""} ${childData.last_name || ""}`.trim(),
+        });
       }
 
       await getOrCreateActiveChildId();

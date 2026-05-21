@@ -10,6 +10,8 @@ body {
   background-color: #fbe7c6;
   font-family: "Inder", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
+  color: #2d2a35;
+  font-weight: 400;
 }
 
 .pp-wrapper {
@@ -22,7 +24,11 @@ body {
 }
 
 .pp-sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
   width: 260px;
+  height: 100vh;
   background: rgba(255, 228, 174, 0.92);
   border-right: 2px solid #e0c18a;
   display: flex;
@@ -30,8 +36,8 @@ body {
   align-items: stretch;
   padding: 18px 14px;
   gap: 18px;
-  z-index: 2;
-  transition: width 180ms ease;
+  z-index: 1200;
+  transition: width 180ms ease, left 180ms ease;
 }
 
 .pp-sidebar[data-collapsed="true"] {
@@ -45,7 +51,8 @@ body {
   gap: 22px;
   width: 100%;
   align-items: stretch;
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   padding-top: 8px;
 }
 
@@ -61,6 +68,7 @@ body {
   cursor: pointer;
   transition: background 150ms ease, transform 150ms ease;
   color: #2d2a35;
+  font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .pp-nav-item:hover {
@@ -90,11 +98,14 @@ body {
 .pp-nav-label {
   font-size: 18px;
   letter-spacing: 0.5px;
+  font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 400;
 }
 
 .pp-logout {
   margin-top: auto;
   padding-top: 14px;
+  display: flex;
 }
 
 .pp-sidebar[data-collapsed="true"] .pp-nav-item {
@@ -113,6 +124,23 @@ body {
   position: relative;
   z-index: 1;
   padding: 24px 40px 40px;
+  margin-left: 260px;
+  transition: margin-left 180ms ease;
+  color: #2d2a35;
+}
+
+.pp-sidebar[data-collapsed="true"] + .pp-main {
+  margin-left: 86px;
+}
+
+.pp-main h1,
+.pp-main h2,
+.pp-main h3,
+.pp-main p,
+.pp-main li,
+.pp-main span,
+.pp-main button {
+  color: #2d2a35;
 }
 
 .pp-top-header {
@@ -181,6 +209,7 @@ body {
 .pp-heading-card h1 {
   font-size: 32px;
   font-weight: 700;
+  color: #1a4d8f;
 }
 
 .pp-summary-row {
@@ -215,12 +244,17 @@ body {
 .pp-child-card h2 {
   font-size: 34px;
   margin-bottom: 6px;
+  color: #0d6b5c;
 }
 
 .pp-grade {
   font-size: 28px;
   color: #7d63ff;
-  font-weight: 700;
+  font-weight: 200;
+}
+
+.pp-main .pp-grade {
+  color: #7d63ff;
 }
 
 .pp-overall-card {
@@ -253,9 +287,22 @@ body {
   position: relative;
   z-index: 1;
   font-size: 36px;
-  color: #5d5d5d;
+  color: #2d2a35;
   font-weight: 700;
 }
+
+.pp-percent,
+.pp-status,
+.pp-recommended-sub,
+.pp-recommend-card p,
+.pp-recommend-card h3,
+.pp-child-card h2,
+.pp-heading-card h1,
+.pp-subject-header h3 {
+  color: #2d2a35;
+}
+
+
 
 .pp-grid {
   display: grid;
@@ -285,6 +332,7 @@ body {
 
 .pp-subject-header h3 {
   font-size: 22px;
+  color: #2c5aa0;
 }
 
 .pp-bar {
@@ -311,10 +359,12 @@ body {
 .pp-percent {
   font-size: 18px;
   font-weight: 700;
+  color: #d63031;
 }
 
 .pp-status {
   font-size: 18px;
+  color: #0a4a7a;
 }
 
 .pp-recommended-title {
@@ -324,18 +374,24 @@ body {
   margin-bottom: 10px;
 }
 
+.pp-recommended-title span {
+  color: #1a4d8f;
+}
+
 .pp-recommended-title h2 {
   font-size: 30px;
   font-weight: 800;
+  color: #1b687d;
 }
 
 .pp-recommended-title h2 span {
-  color: #9d8cf0;
+  color: #e7a922;
 }
 
 .pp-recommended-sub {
   font-size: 18px;
   margin-bottom: 20px;
+  color: #0a4a7a;
 }
 
 .pp-recommend-card {
@@ -411,6 +467,7 @@ body {
 .pp-recommend-card h3 {
   font-size: 22px;
   margin-bottom: 12px;
+  color: #2c5aa0;
 }
 
 .pp-recommend-card p {
@@ -475,6 +532,7 @@ body {
   }
 
   .pp-sidebar {
+    position: static;
     flex-direction: row;
     align-items: center;
     justify-content: space-around;
@@ -483,6 +541,19 @@ body {
     border-right: none;
     border-bottom: 2px solid #e0c18a;
     padding: 8px 10px;
+  }
+
+  .pp-main {
+    margin-left: 0;
+    padding: 14px 16px 20px;
+  }
+
+  .pp-sidebar[data-collapsed="true"] + .pp-main {
+    margin-left: 0;
+  }
+
+  .pp-sidebar[data-collapsed="true"] + .pp-main {
+    margin-left: 0;
   }
 
   .pp-nav {
@@ -517,10 +588,6 @@ body {
 
   .pp-logout {
     margin-top: 0;
-  }
-
-  .pp-main {
-    padding: 14px 16px 20px;
   }
 
   .pp-brand {

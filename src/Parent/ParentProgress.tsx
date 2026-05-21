@@ -4,7 +4,8 @@ import { useNavigate } from "react-router-dom";
 import logo from "../../images/learnease logo-no bg.png";
 import { supabase } from "../lib/supabase";
 import {
-  getFirstName,
+  getChildDisplayFirstName,
+  getChildDisplayName,
   getOrCreateActiveChildId,
   SUBJECT_KEYS,
   type SubjectKey,
@@ -19,7 +20,8 @@ export default function ParentProgress() {
   const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(true);
   const [loading, setLoading] = useState(true);
-  const [childName, setChildName] = useState("Sofia Cruz");
+  const [childName, setChildName] = useState("Child");
+  const [childFirstName, setChildFirstName] = useState("Child");
   const [categoryRows, setCategoryRows] = useState<CategoryProgressRow[]>([]);
 
   useEffect(() => {
@@ -34,7 +36,11 @@ export default function ParentProgress() {
       }
 
       const [{ data: child }, { data: categories }] = await Promise.all([
-        supabase.from("children_accounts").select("child_name").eq("id", childId).maybeSingle(),
+        supabase
+          .from("children_accounts")
+          .select("child_name, first_name, last_name")
+          .eq("id", childId)
+          .maybeSingle(),
         supabase
           .from("v_child_category_progress")
           .select("category_code, category_score")
@@ -43,8 +49,9 @@ export default function ParentProgress() {
 
       if (cancelled) return;
 
-      if (child?.child_name) {
-        setChildName(child.child_name);
+      if (child) {
+        setChildName(getChildDisplayName(child));
+        setChildFirstName(getChildDisplayFirstName(child));
       }
 
       if (categories) {
@@ -113,8 +120,6 @@ export default function ParentProgress() {
   const overall = Math.round(
     SUBJECT_KEYS.reduce((sum, key) => sum + (safeProgress[key] || 0), 0) / SUBJECT_KEYS.length
   );
-
-  const childFirstName = getFirstName(childName);
 
   type Recommendation = {
     title: string;
@@ -327,12 +332,17 @@ export default function ParentProgress() {
             <span className="pp-nav-label">HOMEPAGE</span>
           </button>
 
-          <button type="button" className="pp-nav-item" title="Your child">
+          <button
+            type="button"
+            className="pp-nav-item"
+            title="Your child"
+            onClick={() => navigate("/parent-children")}
+          >
             <span className="pp-nav-icon" aria-hidden="true">
               {getSidebarIconSrc("child") ? (
                 <img className="pp-nav-img" src={getSidebarIconSrc("child")} alt="" />
               ) : (
-                "🧑‍🤝‍🧑"
+                "🧒"
               )}
             </span>
             <span className="pp-nav-label">YOUR CHILD</span>

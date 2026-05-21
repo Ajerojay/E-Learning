@@ -1,9 +1,14 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import "./PhonicsQuestPage.css";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { getOrCreateActiveChildId } from "../lib/childProgress";
 import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
+import {
+  useLevelIntro,
+  LevelIntroOverlay,
+  COUNTDOWN_READY_SUBTITLE,
+} from "./levelIntro";
 
 import lion from "../img/lion-.png";
 import cat from "../img/cat-arrow.png";
@@ -40,7 +45,13 @@ const levels = [
 
 const ANIMAL_SOUND_VOLUME = 0.35;
 const PHONICS_LEVEL_TIME = 30;
-const LEVEL_INTRO_DELAY_MS = 1800;
+
+const PHONICS_GAME_INTRO = {
+  title: "Listen!",
+  subtitle: "Tap the sound and choose the matching animal!",
+  speech:
+    "Hi there! Tap the speaker to hear a sound, then pick the animal that makes it. Have fun!",
+};
 
 export default function Level1Sound() {
   const navigate = useNavigate();
@@ -51,7 +62,6 @@ export default function Level1Sound() {
   const [showNext, setShowNext] = useState(false);
   const [showNoPrompt, setShowNoPrompt] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
-  const [levelIntroActive, setLevelIntroActive] = useState(true);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(PHONICS_LEVEL_TIME);
   const [timerRunning, setTimerRunning] = useState(false);
@@ -61,6 +71,7 @@ export default function Level1Sound() {
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [childId, setChildId] = useState<string | null>(null);
   const [gameCode, setGameCode] = useState("phonics_sound_match");
+  const [playSession, setPlaySession] = useState(0);
   const [message, setMessage] = useState("Tap the sound and choose the animal!");
   const [wrongChoice, setWrongChoice] = useState<string | null>(null);
 
@@ -68,17 +79,20 @@ export default function Level1Sound() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
-  const levelIntroTimerRef = useRef<number | null>(null);
   const wrongChoiceTimerRef = useRef<number | null>(null);
   const warnedSecondsRef = useRef<Set<number>>(new Set());
   const currentLevel = levels[level];
 
-  const clearLevelIntroTimer = () => {
-    if (levelIntroTimerRef.current !== null) {
-      window.clearTimeout(levelIntroTimerRef.current);
-      levelIntroTimerRef.current = null;
-    }
-  };
+  const startCountdown = useCallback(() => setCountdown(3), []);
+
+  const { levelIntroActive, onLevelStart, startCountdownOnly, cancelIntro } =
+    useLevelIntro({
+      content: PHONICS_GAME_INTRO,
+      soundEnabled,
+      enabled: !showNext && !showNoPrompt && !timeUpOpen && !isFinished,
+      sessionKey: playSession,
+      onStartCountdown: startCountdown,
+    });
 
   const playSound = () => {
     if (!soundEnabled) return;
@@ -104,50 +118,6 @@ export default function Level1Sound() {
       window.speechSynthesis.speak(utterance);
     } catch {
       // ignore speech errors
-    }
-  };
-
-  const startCountdown = () => {
-    setLevelIntroActive(false);
-    setCountdown(3);
-    levelIntroTimerRef.current = null;
-  };
-
-  const speakLevelIntro = () => {
-    const startedAt = Date.now();
-    const startCountdownAfterMinimumIntro = () => {
-      const elapsed = Date.now() - startedAt;
-      const remainingDelay = Math.max(0, LEVEL_INTRO_DELAY_MS - elapsed);
-      levelIntroTimerRef.current = window.setTimeout(startCountdown, remainingDelay);
-    };
-
-    if (!soundEnabled || !("speechSynthesis" in window)) {
-      levelIntroTimerRef.current = window.setTimeout(startCountdown, LEVEL_INTRO_DELAY_MS);
-      return;
-    }
-
-    try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(`Match the ${currentLevel.answer} sound.`);
-      utterance.lang = "en-US";
-      utterance.rate = 0.86;
-      utterance.pitch = 1.25;
-      utterance.volume = 1;
-      const fallbackTimer = window.setTimeout(startCountdownAfterMinimumIntro, 4200);
-      levelIntroTimerRef.current = fallbackTimer;
-
-      utterance.onend = () => {
-        window.clearTimeout(fallbackTimer);
-        startCountdownAfterMinimumIntro();
-      };
-      utterance.onerror = () => {
-        window.clearTimeout(fallbackTimer);
-        startCountdownAfterMinimumIntro();
-      };
-
-      window.speechSynthesis.speak(utterance);
-    } catch {
-      levelIntroTimerRef.current = window.setTimeout(startCountdown, LEVEL_INTRO_DELAY_MS);
     }
   };
 
@@ -200,13 +170,13 @@ export default function Level1Sound() {
     setShuffledAnimals(shuffleArray(animals));
     setWrongChoice(null);
     setWrongThisLevel(0);
-    setLevelIntroActive(true);
     setCountdown(null);
     setTimeLeft(PHONICS_LEVEL_TIME);
     setTimerRunning(false);
     setTimeUpOpen(false);
     warnedSecondsRef.current = new Set();
-  }, [level]);
+    onLevelStart();
+  }, [level, onLevelStart]);
 
   useEffect(() => {
     if (!bgMusicRef.current) {
@@ -225,23 +195,11 @@ export default function Level1Sound() {
   }, []);
 
   useEffect(() => {
-    if (!levelIntroActive) return;
-    if (showNext || showNoPrompt || timeUpOpen || isFinished) return;
-
-    setTimerRunning(false);
-
-    clearLevelIntroTimer();
-
-    speakLevelIntro();
-
-    return () => {
-      clearLevelIntroTimer();
-    };
-  }, [levelIntroActive, currentLevel.answer, showNext, showNoPrompt, timeUpOpen, isFinished, soundEnabled]);
+    if (levelIntroActive) setTimerRunning(false);
+  }, [levelIntroActive]);
 
   useEffect(() => {
     return () => {
-      clearLevelIntroTimer();
       if (wrongChoiceTimerRef.current !== null) {
         window.clearTimeout(wrongChoiceTimerRef.current);
       }
@@ -422,12 +380,8 @@ export default function Level1Sound() {
     setTimeUpOpen(false);
     setWrongThisLevel(0);
     setWrongChoice(null);
-    clearLevelIntroTimer();
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
-    setLevelIntroActive(false);
-    setCountdown(null);
+    cancelIntro();
+    startCountdownOnly();
     setTimeLeft(PHONICS_LEVEL_TIME);
     setTimerRunning(true);
     warnedSecondsRef.current = new Set();
@@ -436,6 +390,7 @@ export default function Level1Sound() {
   };
 
   const handlePlayAgain = () => {
+    setPlaySession((p) => p + 1);
     setWrong(0);
     setScore(0);
     setLevel(0);
@@ -445,7 +400,6 @@ export default function Level1Sound() {
     setWrongChoice(null);
     setWrongThisLevel(0);
     setTimeUpOpen(false);
-    setLevelIntroActive(true);
     setCountdown(null);
     setTimeLeft(PHONICS_LEVEL_TIME);
     setTimerRunning(false);
@@ -567,22 +521,18 @@ export default function Level1Sound() {
         </GameOverlay>
       )}
 
-      {levelIntroActive && !timeUpOpen && !showNext && !showNoPrompt && !isFinished && (
-        <GameOverlay isOpen={levelIntroActive}>
-          <div className="game-popup">
-            <div className="game-popup-title">Listen!</div>
-            <div className="game-popup-subtitle">
-              Match the {currentLevel.answer} sound.
-            </div>
-          </div>
-        </GameOverlay>
-      )}
+      <LevelIntroOverlay
+        isOpen={
+          levelIntroActive && !timeUpOpen && !showNext && !showNoPrompt && !isFinished
+        }
+        content={PHONICS_GAME_INTRO}
+      />
 
       {countdown !== null && !timeUpOpen && !showNext && !showNoPrompt && !isFinished && (
         <GameOverlay isOpen={countdown !== null}>
           <GamePopup
             title={<Countdown value={countdown} />}
-            subtitle="Get ready!"
+            subtitle={COUNTDOWN_READY_SUBTITLE}
           />
         </GameOverlay>
       )}

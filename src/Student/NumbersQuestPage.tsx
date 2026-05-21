@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./NumbersQuestPage.css";
 import { getOrCreateActiveChildId } from "../lib/childProgress";
@@ -7,6 +7,12 @@ import {
   recordGameProgressRpc,
 } from "../lib/gameProgressDb";
 import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
+import {
+  useLevelIntro,
+  LevelIntroOverlay,
+  COUNTDOWN_READY_SUBTITLE,
+  type LevelIntroContent,
+} from "./levelIntro";
 import bgMusic from "./bg-music-loop.mp3";
 
 import cloudImg from "../Student/images/cloud.png";
@@ -28,9 +34,14 @@ const levels: LevelConfig[] = [
   { name: "Hard", targetMin: 1, targetMax: 9, dropCount: 10 },
 ];
 
-const COUNTDOWN_INTRO_DELAY_MS = 1200;
-
 type DropPos = { top: number; left: number };
+
+const NUMBERS_GAME_INTRO: LevelIntroContent = {
+  title: "Count the raindrops!",
+  subtitle: "Tap the raindrops that match the number on the cloud, then press Submit.",
+  speech:
+    "Hi! Look at the number on the cloud. Tap that many raindrops, then press Submit. You can do it!",
+};
 
 const positionsByCount: Record<number, DropPos[]> = {
   5: [
@@ -74,6 +85,7 @@ export default function NumbersQuestPage() {
   const [musicEnabled, setMusicEnabled] = useState(true);
 
   const [levelIndex, setLevelIndex] = useState(0);
+  const [playSession, setPlaySession] = useState(0);
   const [target, setTarget] = useState<number>(3);
   const [selected, setSelected] = useState<number[]>([]);
   const [wrongAttempts, setWrongAttempts] = useState<number>(0);
@@ -83,7 +95,7 @@ export default function NumbersQuestPage() {
   );
   const [timeLeft, setTimeLeft] = useState(30);
   const [timerRunning, setTimerRunning] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(3);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [proceedPromptLevel, setProceedPromptLevel] = useState<number | null>(
     null
   );
@@ -95,12 +107,33 @@ export default function NumbersQuestPage() {
 
   const level = levels[levelIndex] ?? levels[0];
 
+  const startCountdown = useCallback(() => setCountdown(3), []);
+
+  const introEnabled =
+    !timeUpOpen &&
+    !isFinishedAllLevels &&
+    proceedPromptLevel === null &&
+    !levelSummaryOpen;
+
+  const { levelIntroActive, onLevelStart, startCountdownOnly } = useLevelIntro({
+    content: NUMBERS_GAME_INTRO,
+    soundEnabled,
+    enabled: introEnabled,
+    sessionKey: playSession,
+    onStartCountdown: startCountdown,
+  });
+
   const positions = useMemo(() => {
     const base = positionsByCount[level.dropCount] ?? positionsByCount[5];
     return base.slice(0, level.dropCount);
   }, [level.dropCount]);
 
   useEffect(() => {
+    if (levelIntroActive) setTimerRunning(false);
+  }, [levelIntroActive]);
+
+  useEffect(() => {
+    if (levelIntroActive) return;
     if (countdown === null) return;
     setTimerRunning(false);
     if (countdown <= 0) {
@@ -108,14 +141,13 @@ export default function NumbersQuestPage() {
       setTimerRunning(true);
       return;
     }
-    const delay = countdown === 3 ? COUNTDOWN_INTRO_DELAY_MS + 900 : 900;
-    const t = window.setTimeout(() => setCountdown((p) => (p === null ? null : p - 1)), delay);
+    const t = window.setTimeout(() => setCountdown((p) => (p === null ? null : p - 1)), 900);
     return () => window.clearTimeout(t);
-  }, [countdown]);
+  }, [countdown, levelIntroActive]);
 
   useEffect(() => {
     if (!timerRunning) return;
-    if (countdown !== null) return;
+    if (levelIntroActive || countdown !== null) return;
     if (proceedPromptLevel !== null || levelSummaryOpen || timeUpOpen) return;
 
     if (timeLeft <= 0) {
@@ -130,13 +162,21 @@ export default function NumbersQuestPage() {
 
     const t = window.setTimeout(() => setTimeLeft((p) => p - 1), 1000);
     return () => window.clearTimeout(t);
-  }, [timerRunning, timeLeft, countdown, proceedPromptLevel, levelSummaryOpen, timeUpOpen]);
+  }, [
+    timerRunning,
+    timeLeft,
+    levelIntroActive,
+    countdown,
+    proceedPromptLevel,
+    levelSummaryOpen,
+    timeUpOpen,
+  ]);
 
   useEffect(() => {
     // reset on level change
     setTimeLeft(30);
     setTimerRunning(false);
-    setCountdown(3);
+    setCountdown(null);
     setSelected([]);
     setLocked(false);
     setWrongAttempts(0);
@@ -151,7 +191,8 @@ export default function NumbersQuestPage() {
       Math.floor(Math.random() * (level.targetMax - level.targetMin + 1)) +
       level.targetMin;
     setTarget(num);
-  }, [levelIndex, level.targetMax, level.targetMin]);
+    onLevelStart();
+  }, [levelIndex, level.targetMax, level.targetMin, onLevelStart]);
 
   useEffect(() => {
     const load = async () => {
@@ -338,25 +379,21 @@ export default function NumbersQuestPage() {
   }, [musicEnabled]);
 
   useEffect(() => {
-    // 3-2-1 start countdown voice + beep
+    if (levelIntroActive) return;
     if (countdown === null) return;
     if (countdown <= 0) {
       sayKid("Go!", { interrupt: true, skipDedupe: true });
       playKidBeep(0);
       return;
     }
-    const delay = countdown === 3 ? COUNTDOWN_INTRO_DELAY_MS : 0;
-    const t = window.setTimeout(() => {
-      sayKid(String(countdown), { interrupt: true, skipDedupe: true });
-      playKidBeep(countdown);
-    }, delay);
-    return () => window.clearTimeout(t);
-  }, [countdown]);
+    sayKid(String(countdown), { interrupt: true, skipDedupe: true });
+    playKidBeep(countdown);
+  }, [countdown, levelIntroActive]);
 
   useEffect(() => {
     // 5-second warning voice + beep
     if (!timerRunning) return;
-    if (countdown !== null) return;
+    if (levelIntroActive || countdown !== null) return;
     if (proceedPromptLevel !== null || levelSummaryOpen || timeUpOpen) return;
     if (timeLeft > 5 || timeLeft <= 0) return;
     if (warnedSecondsRef.current.has(timeLeft)) return;
@@ -375,7 +412,7 @@ export default function NumbersQuestPage() {
   ]);
 
   const handleClick = (id: number) => {
-    if (countdown !== null) return;
+    if (levelIntroActive || countdown !== null) return;
     if (locked) return;
     setTimerRunning(true);
     if (selected.includes(id)) return;
@@ -387,7 +424,7 @@ export default function NumbersQuestPage() {
   };
 
   const checkAnswer = () => {
-    if (countdown !== null) return;
+    if (levelIntroActive || countdown !== null) return;
     if (locked || selected.length === 0) return;
 
     setLocked(true);
@@ -526,16 +563,21 @@ export default function NumbersQuestPage() {
         type="button"
         className="nq-submit-btn nq-submit-btn--page"
         onClick={checkAnswer}
-        disabled={selected.length === 0 || locked || countdown !== null}
+        disabled={selected.length === 0 || locked || levelIntroActive || countdown !== null}
       >
         Submit
       </button>
+
+      <LevelIntroOverlay
+        isOpen={levelIntroActive && introEnabled}
+        content={NUMBERS_GAME_INTRO}
+      />
 
       {countdown !== null && (
         <GameOverlay isOpen={countdown !== null}>
           <GamePopup
             title={<Countdown value={countdown} />}
-            subtitle="Get ready!"
+            subtitle={COUNTDOWN_READY_SUBTITLE}
           />
         </GameOverlay>
       )}
@@ -564,7 +606,7 @@ export default function NumbersQuestPage() {
                           setCorrectRounds(0);
                           generateRound();
                           setTimeLeft(30);
-                          setCountdown(3);
+                          startCountdownOnly();
                         },
                         variant: "secondary",
                       },
@@ -581,7 +623,7 @@ export default function NumbersQuestPage() {
                           setCorrectRounds(0);
                           generateRound();
                           setTimeLeft(30);
-                          setCountdown(3);
+                          startCountdownOnly();
                         },
                         variant: "secondary",
                       },
@@ -602,7 +644,7 @@ export default function NumbersQuestPage() {
                         setCorrectRounds(0);
                         generateRound();
                         setTimeLeft(30);
-                        setCountdown(3);
+                        startCountdownOnly();
                       },
                     },
                   ]
@@ -659,7 +701,7 @@ export default function NumbersQuestPage() {
                   setLevelSummaryOpen(false);
                   setCorrectRounds(0);
                   generateRound();
-                  setCountdown(3);
+                  startCountdownOnly();
                 },
                 variant: "yes",
               },
@@ -679,6 +721,7 @@ export default function NumbersQuestPage() {
               type="button"
               className="nq-action-btn nq-action-btn--play"
               onClick={() => {
+                setPlaySession((p) => p + 1);
                 setIsFinishedAllLevels(false);
                 setCorrectRounds(0);
                 setLevelIndex(0);

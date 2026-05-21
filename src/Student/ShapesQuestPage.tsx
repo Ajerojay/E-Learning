@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   DndContext,
@@ -13,6 +13,12 @@ import {
   recordGameProgressRpc,
 } from "../lib/gameProgressDb";
 import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
+import {
+  useLevelIntro,
+  LevelIntroOverlay,
+  COUNTDOWN_READY_SUBTITLE,
+  type LevelIntroContent,
+} from "./levelIntro";
 
 import gameBg from "./images/shapes-bg.jpg";
 import bearImg from "./images/bear-3.png";
@@ -173,6 +179,7 @@ export default function ShapesQuestPage() {
   const lastSpokenRef = useRef<{ text: string; at: number } | null>(null);
 
   const [levelIndex, setLevelIndex] = useState(0);
+  const [playSession, setPlaySession] = useState(0);
   const [placed, setPlaced] = useState<Record<string, string>>({});
   const [wrongAttempts, setWrongAttempts] = useState(0);
   const [message, setMessage] = useState(
@@ -186,7 +193,7 @@ export default function ShapesQuestPage() {
     null
   );
   const [levelSummaryOpen, setLevelSummaryOpen] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(3);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [voicesReady, setVoicesReady] = useState(false);
   const [timeUpOpen, setTimeUpOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -195,6 +202,29 @@ export default function ShapesQuestPage() {
 
   const level = levels[levelIndex] ?? levels[0];
   const activeShapes = level.shapes;
+
+  const SHAPES_GAME_INTRO: LevelIntroContent = {
+    title: "Build the house!",
+    subtitle: "Drag each shape to the roof, window, or door.",
+    speech:
+      "Hi! Let's build a house together. Drag each shape to the right spot. You can do it!",
+  };
+
+  const startCountdown = useCallback(() => setCountdown(3), []);
+
+  const introEnabled =
+    !finalCongratsOpen &&
+    !timeUpOpen &&
+    proceedPromptLevel === null &&
+    levelSummaryOpen === false;
+
+  const { levelIntroActive, onLevelStart, startCountdownOnly } = useLevelIntro({
+    content: SHAPES_GAME_INTRO,
+    soundEnabled,
+    enabled: introEnabled,
+    sessionKey: playSession,
+    onStartCountdown: startCountdown,
+  });
 
   const placedShapeIds = useMemo(() => new Set(Object.values(placed)), [placed]);
   const availableShapes = useMemo(
@@ -238,7 +268,7 @@ export default function ShapesQuestPage() {
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    if (countdown !== null) return;
+    if (levelIntroActive || countdown !== null) return;
     const activeId = String(event.active.id);
     const overId = event.over?.id ? String(event.over.id) : null;
 
@@ -375,7 +405,7 @@ speakFeedback("Try again!");
     setTimerRunning(false);
     setProceedPromptLevel(null);
     setLevelSummaryOpen(false);
-    setCountdown(3);
+    setCountdown(null);
     setTimeUpOpen(false);
     warnedSecondsRef.current = new Set();
   };
@@ -383,6 +413,7 @@ speakFeedback("Try again!");
   const resetCurrentLevel = () => {
     resetCommon();
     setFinalCongratsOpen(false);
+    onLevelStart();
   };
 
   const handleProceed = () => {
@@ -392,6 +423,7 @@ speakFeedback("Try again!");
   };
 
   const handlePlayAgain = () => {
+    setPlaySession((p) => p + 1);
     resetCommon();
     setFinalCongratsOpen(false);
     setLevelIndex(0);
@@ -417,10 +449,11 @@ speakFeedback("Try again!");
     setFinalCongratsOpen(false);
     setProceedPromptLevel(null);
     setLevelSummaryOpen(false);
-    setCountdown(3);
+    setCountdown(null);
     setTimeUpOpen(false);
     warnedSecondsRef.current = new Set();
-  }, [levelIndex]);
+    onLevelStart();
+  }, [levelIndex, onLevelStart]);
 
   const getOrCreateAudio = () => {
     const existing = audioRef.current;
@@ -638,6 +671,11 @@ speakFeedback("Try again!");
   }, []);
 
   useEffect(() => {
+    if (levelIntroActive) setTimerRunning(false);
+  }, [levelIntroActive]);
+
+  useEffect(() => {
+    if (levelIntroActive) return;
     if (countdown === null) return;
     setTimerRunning(false);
 
@@ -660,7 +698,7 @@ speakFeedback("Try again!");
     }, 900);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [countdown]);
+  }, [countdown, levelIntroActive]);
 
   useEffect(() => {
     // Pause background music during popups / finished / countdown
@@ -784,7 +822,7 @@ speakFeedback("Try again!");
 
           <DndContext
             onDragStart={(event) => {
-              if (countdown !== null) return;
+              if (levelIntroActive || countdown !== null) return;
               if (timeUpOpen) return;
               const kind = (
                 event.active.data.current as { kind?: ShapeKind } | null
@@ -839,17 +877,22 @@ speakFeedback("Try again!");
                   <DraggableShape
                     key={shape.id}
                     shape={shape}
-                    disabled={countdown !== null}
+                    disabled={levelIntroActive || countdown !== null}
                   />
                 ))}
               </div>
             </div>
 
+            <LevelIntroOverlay
+              isOpen={levelIntroActive && introEnabled}
+              content={SHAPES_GAME_INTRO}
+            />
+
             {countdown !== null && (
               <GameOverlay isOpen={countdown !== null}>
                 <GamePopup
                   title={<Countdown value={countdown} />}
-                  subtitle="Get ready!"
+                  subtitle={COUNTDOWN_READY_SUBTITLE}
                 />
               </GameOverlay>
             )}

@@ -6,6 +6,7 @@ import ParentLogin from "./Parent/ParentLogin";
 import ParentDashboard from "./Parent/ParentDashboard";
 import ParentSignup from "./Parent/SignUp";
 import ParentProgress from "./Parent/ParentProgress";
+import ParentChildren from "./Parent/ParentChildren";
 
 /* ADMIN */
 import AdminPage from "./Admin/AdminPage";
@@ -33,6 +34,7 @@ function App() {
 
         {/* PARENT */}
         <Route path="/parent-dashboard" element={<ParentDashboard />} />
+        <Route path="/parent-children" element={<ParentChildren />} />
         <Route path="/parent-progress" element={<ParentProgress />} />
 
         {/* ADMIN */}
