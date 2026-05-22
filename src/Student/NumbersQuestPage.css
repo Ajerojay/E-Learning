@@ -33,29 +33,33 @@ body {
 
 .nq-back-btn,
 .nq-lesson-btn {
-  padding: 12px 10px;
-  border-radius: 20px;
-  border: none;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-  width: 100px;
-  color: #111;
-}
 
-.nq-back-btn {
-  background: #dff5d8;
+  padding: 10px 18px;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  border-radius: 30px;
+  background: white;
+  color: #333;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: 0.2s;
 }
 
 .nq-lesson-btn {
-  background: #dbe9ff;
   margin-top: 1px;
   margin-right: 20px;
+}
+
+.nq-back-btn:hover,
+.nq-lesson-btn:hover {
+  background: #ff9800;
+  color: white;
+  transform: translateY(-2px);
 }
 
 .nq-title {
