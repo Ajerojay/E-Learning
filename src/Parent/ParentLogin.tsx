@@ -8,6 +8,15 @@ import { getOrCreateActiveChildId } from "../lib/childProgress";
 
 const ADMIN_USERNAME = "admin";
 const ADMIN_PASSWORD = "admin123";
+const TEACHER_USERNAME = "teacher";
+const TEACHER_PASSWORD = "teacher123";
+
+function isAndroidAppPreview() {
+  const capacitorWindow = window as Window & {
+    Capacitor?: { isNativePlatform?: () => boolean };
+  };
+  return Boolean(capacitorWindow.Capacitor?.isNativePlatform?.());
+}
 
 export default function ParentLogin() {
   const navigate = useNavigate();
@@ -34,6 +43,29 @@ export default function ParentLogin() {
     if (user === ADMIN_USERNAME && pass === ADMIN_PASSWORD) {
       localStorage.setItem("user", JSON.stringify({ role: "admin" }));
       navigate("/admin");
+      return;
+    }
+
+    // Temporary teacher login. This intentionally works without the database.
+    if (user === TEACHER_USERNAME && pass === TEACHER_PASSWORD) {
+      localStorage.setItem(
+        "user",
+        JSON.stringify({ role: "teacher", id: "temporary-teacher", username: user })
+      );
+      navigate("/teacher-dashboard");
+      return;
+    }
+
+    if (isAndroidAppPreview()) {
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          role: "parent",
+          id: "android-preview-parent",
+          username: "android-preview",
+        })
+      );
+      navigate("/parent-dashboard");
       return;
     }
 
@@ -108,13 +140,13 @@ export default function ParentLogin() {
     <div className="le-page">
       {/* LEFT */}
       <aside className="le-left">
-        <div className="le-bearWrap">
-          <img className="le-bear" src={bear} alt="LearnEase Kids logo" />
-        </div>
-
         <div className="le-brandText">
           <div className="le-brandTop">LearnEase</div>
           <div className="le-brandBottom">Kids</div>
+        </div>
+
+        <div className="le-bearWrap">
+          <img className="le-bear" src={bear} alt="LearnEase Kids logo" />
         </div>
       </aside>
 
@@ -123,6 +155,7 @@ export default function ParentLogin() {
         <div className="le-card">
           <h1 className="le-title">WELCOME PARENT!</h1>
           <p className="le-subtitle">Learning made fun and easy!</p>
+
 
           <form className="le-form" onSubmit={handleLogin}>
             {/* USERNAME */}
@@ -161,7 +194,7 @@ export default function ParentLogin() {
             </label>
 
             {/* BUTTONS */}
-            <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+            <div className="le-actions">
               <button className="le-btn" type="submit" disabled={loading}>
                 {loading ? "LOGGING IN..." : "LOGIN"}
               </button>

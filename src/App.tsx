@@ -12,6 +12,9 @@ import ParentChildren from "./Parent/ParentChildren";
 import AdminPage from "./Admin/AdminPage";
 import AdminStudents from "./Admin/AdminStudents";
 
+/* TEACHER */
+import TeacherDashboard from "./Teacher/TeacherDashboard";
+
 /* STUDENT */
 import StudentAccess from "./Student/StudentAccess";
 import StudentPage from "./Student/StudentPage";
@@ -40,6 +43,9 @@ function App() {
         {/* ADMIN */}
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/admin/students" element={<AdminStudents />} />
+
+        {/* TEACHER */}
+        <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
 
         {/* STUDENT */}
         <Route path="/student-access" element={<StudentAccess />} />
