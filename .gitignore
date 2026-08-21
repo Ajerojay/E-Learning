@@ -7,6 +7,12 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+#inigo
+.env
+.capasitor.config.json
+
+#aaddd this to superfisions
+
 node_modules
 dist
 dist-ssr
@@ -21,7 +27,6 @@ dist-ssr
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
 
 # Logs
 logs

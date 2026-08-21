@@ -1,5 +1,6 @@
 .lesson-page {
   min-height: 100vh;
+  min-height: 100dvh;
   background-repeat: no-repeat;
   background-position: center;
   background-size: cover;
@@ -166,4 +167,62 @@
 .start-quest-btn:hover {
   transform: translateY(-2px) scale(1.03);
   box-shadow: 0 12px 20px rgba(0, 0, 0, 0.25);
+}
+
+.start-quest-btn {
+  min-height: 52px;
+  animation: questButtonPulse 2.2s ease-in-out infinite;
+}
+
+@keyframes questButtonPulse {
+  50% { transform: translateY(-2px) scale(1.025); box-shadow: 0 12px 22px rgba(62, 75, 145, .28); }
+}
+
+@media (prefers-reduced-motion: reduce) { .start-quest-btn { animation: none; } }
+
+@media (max-width: 700px) {
+  .lesson-page {
+    justify-content: flex-start;
+    width: 100%;
+    padding: max(78px, env(safe-area-inset-top)) 12px max(24px, env(safe-area-inset-bottom));
+    overflow-x: hidden;
+  }
+
+  .lesson-page .back-btn {
+    position: fixed;
+    top: max(14px, env(safe-area-inset-top));
+    left: max(12px, env(safe-area-inset-left));
+    min-height: 46px;
+    padding: 9px 14px;
+    font-size: 14px;
+  }
+
+  .lesson-title {
+    max-width: 100%;
+    margin: 0 0 16px;
+    font-size: clamp(27px, 9vw, 38px);
+    text-align: center;
+  }
+
+  .tv-wrapper { width: 100%; }
+  .tv-container {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    border-width: clamp(6px, 2.5vw, 11px);
+    border-radius: 15px;
+  }
+
+  .video-title, .lesson-activity-meta { max-width: 100%; }
+  .video-title { margin-top: 12px; padding: 8px 14px; font-size: 15px; }
+  .lesson-activity-meta { margin-top: 11px; font-size: 14px; }
+  .lesson-activity-count { min-width: 2rem; height: 2rem; font-size: 15px; }
+  .start-quest-btn { min-height: 48px; margin-top: 12px; padding: 11px 20px; font-size: 15px; }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .lesson-page { padding-top: 56px; }
+  .lesson-title { margin-bottom: 7px; font-size: 25px; }
+  .tv-container { width: min(68vw, 540px); }
+  .video-title { margin-top: 7px; }.lesson-activity-meta { margin-top: 7px; }.start-quest-btn { margin-top: 7px; }
 }

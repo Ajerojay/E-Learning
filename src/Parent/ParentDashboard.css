@@ -340,6 +340,7 @@ body {
   .pd-wrapper {
     flex-direction: column;
     background-size: cover;
+    overflow: visible;
   }
 
   /* SIDEBAR BECOMES TOP NAV */
@@ -349,10 +350,12 @@ body {
     align-items: center;
     justify-content: space-around;
     width: 100%;
-    height: 70px;
+    height: auto;
+    min-height: 68px;
     border-right: none;
     border-bottom: 2px solid #e0c18a;
-    padding: 8px 10px;
+    padding: 8px 6px;
+    gap: 0;
   }
 
   .pd-main {
@@ -365,7 +368,7 @@ body {
 
   .pd-nav {
     flex-direction: row;
-    gap: 10px;
+    gap: 4px;
     width: 100%;
     justify-content: space-around;
     padding-top: 0;
@@ -375,7 +378,10 @@ body {
     flex-direction: column;
     gap: 4px;
     font-size: 12px;
-    padding: 6px;
+    padding: 6px 4px;
+    border-radius: 10px;
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .pd-nav-icon {
@@ -390,7 +396,10 @@ body {
   }
 
   .pd-nav-label {
-    font-size: 11px;
+    font-size: 10px;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+    text-align: center;
   }
 
   .pd-logout {
@@ -399,17 +408,22 @@ body {
 
   /* MAIN AREA */
   .pd-main {
-    padding: 14px 16px 20px;
+    padding: 14px 14px 22px;
+    min-height: calc(100vh - 68px);
   }
 
   /* HEADER */
   .pd-top-header {
-    margin-bottom: 18px;
+    margin-bottom: 16px;
+    padding-right: 42px;
   }
 
   .pd-brand {
+    width: 100%;
+    justify-content: center;
     font-size: 16px;
-    padding: 8px 20px;
+    padding: 8px 12px;
+    border-radius: 14px;
   }
 
   .pd-logo {
@@ -421,13 +435,24 @@ body {
     width: 34px;
     height: 34px;
     font-size: 18px;
+    right: 0;
   }
 
   /* CARDS */
   .pd-welcome,
   .pd-card {
-    padding: 16px 16px;
+    padding: 16px 14px;
     border-radius: 14px;
+  }
+
+  .pd-welcome {
+    margin-bottom: 16px;
+  }
+
+  .pd-summary {
+    min-height: 0;
+    padding-top: 18px;
+    padding-bottom: 20px;
   }
 
   .pd-welcome-text {

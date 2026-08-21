@@ -6,7 +6,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-family: "Comic Sans MS", cursive;
+  font-family: "Nunito", "Segoe UI", system-ui, sans-serif;
   position: relative;
 }
 
@@ -107,3 +107,16 @@
 .enter-btn:hover {
   background: #ff6b6b;
 }
+
+/* Child-friendly phone and Android refinements */
+.lockscreen { min-height: 100vh; min-height: 100dvh; height: auto; overflow-x: hidden; padding: max(74px, env(safe-area-inset-top)) 18px max(20px, env(safe-area-inset-bottom)); }
+.lockscreen::before, .lockscreen::after { content: ""; position: absolute; width: 180px; height: 180px; border-radius: 50%; background: rgba(255,255,255,.28); pointer-events: none; }
+.lockscreen::before { top: -70px; right: -55px; }.lockscreen::after { bottom: -80px; left: -65px; }
+.access-back-btn { position: fixed; z-index: 2; top: max(16px, env(safe-area-inset-top)); left: 16px; min-height: 44px; }
+.access-heading { text-align: center; position: relative; z-index: 1; }.access-mascot { display: block; font-size: 58px; filter: drop-shadow(0 5px 5px rgba(64,75,90,.16)); animation: access-bounce 2.4s ease-in-out infinite; }
+.access-heading .lock-title { margin: 2px 0 25px; font-size: 30px; }.access-heading p { margin: -14px 0 22px; color: #4f5867; font-size: 14px; font-weight: 700; }
+.keypad button:active { transform: scale(.92); background: #fff0a8; }.enter-btn:disabled { opacity: .45; cursor: not-allowed; }
+.temporary-pin-note { margin: 13px 0 0; padding: 7px 14px; border-radius: 999px; background: rgba(255,255,255,.55); color: #485162; font-size: 12px; position: relative; z-index: 1; }.temporary-pin-note strong { color: #6b45ad; letter-spacing: 3px; }
+@keyframes access-bounce { 50% { transform: translateY(-6px) rotate(2deg); } }
+@media (max-height: 700px) { .lockscreen { justify-content: flex-start; padding-top: 64px; overflow-y: auto; }.access-mascot { font-size: 40px; }.access-heading .lock-title { font-size: 24px; margin-bottom: 14px; }.access-heading p { margin-bottom: 12px; }.pin-dots { margin-bottom: 16px; }.keypad { grid-template-columns: repeat(3, 62px); gap: 10px; }.keypad button { width: 62px; height: 62px; font-size: 22px; }.enter-btn { margin-top: 14px; } }
+@media (prefers-reduced-motion: reduce) { .access-mascot { animation: none; } }

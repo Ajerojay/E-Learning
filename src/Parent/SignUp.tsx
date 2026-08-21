@@ -5,7 +5,7 @@ import { FaFacebook } from "react-icons/fa";
 import { IoEyeOutline, IoEyeOffOutline } from "react-icons/io5";
 
 import "./Signup.css";
-import bear from "../img/bear.jpg";
+import bear from "../../images/learnease logo-no bg.png";
 import { supabase } from "../lib/supabase";
 
 const GRADE_OPTIONS = ["Nursery", "Prep", "Kinder"] as const;
@@ -289,13 +289,13 @@ export default function ParentSignup() {
   return (
     <div className="le-page">
       <aside className="le-left1">
-        <div className="le-bearWrap">
-          <img className="le-bear" src={bear} alt="LearnEase Kids logo" />
-        </div>
-
         <div className="le-brandText">
           <div className="le-brandTop">LearnEase</div>
           <div className="le-brandBottom">Kids</div>
+        </div>
+
+        <div className="le-bearWrap">
+          <img className="le-bear" src={bear} alt="LearnEase Kids logo" />
         </div>
       </aside>
 

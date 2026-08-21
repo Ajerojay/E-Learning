@@ -8,9 +8,16 @@ import ParentSignup from "./Parent/SignUp";
 import ParentProgress from "./Parent/ParentProgress";
 import ParentChildren from "./Parent/ParentChildren";
 
+/* MOBILE APP */
+import AppSignIn from "./MobileApp/AppSignIn";
+import AppSignUp from "./MobileApp/AppSignUp";
+
 /* ADMIN */
 import AdminPage from "./Admin/AdminPage";
 import AdminStudents from "./Admin/AdminStudents";
+
+/* TEACHER */
+import TeacherDashboard from "./Teacher/TeacherDashboard";
 
 /* STUDENT */
 import StudentAccess from "./Student/StudentAccess";
@@ -32,6 +39,11 @@ function App() {
         <Route path="/" element={<ParentLogin />} />
         <Route path="/signup" element={<ParentSignup />} />
 
+        {/* MOBILE APP */}
+        <Route path="/app" element={<Navigate to="/app/signin" replace />} />
+        <Route path="/app/signin" element={<AppSignIn />} />
+        <Route path="/app/signup" element={<AppSignUp />} />
+
         {/* PARENT */}
         <Route path="/parent-dashboard" element={<ParentDashboard />} />
         <Route path="/parent-children" element={<ParentChildren />} />
@@ -40,6 +52,9 @@ function App() {
         {/* ADMIN */}
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/admin/students" element={<AdminStudents />} />
+
+        {/* TEACHER */}
+        <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
 
         {/* STUDENT */}
         <Route path="/student-access" element={<StudentAccess />} />
