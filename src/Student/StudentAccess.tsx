@@ -3,8 +3,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import "./StudentAccess.css";
 import { linkChildSessionToSupabasePin, saveChildDeviceLabel } from "../lib/childProgress";
 
-const TEMPORARY_STUDENT_PIN = "1234";
-
 export default function StudentAccess() {
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
@@ -26,13 +24,6 @@ export default function StudentAccess() {
 
     setBusy(true);
     try {
-      if (pin === TEMPORARY_STUDENT_PIN) {
-        localStorage.setItem("temporaryStudentAccess", "true");
-        localStorage.setItem("studentPin", TEMPORARY_STUDENT_PIN);
-        navigate("/student");
-        return;
-      }
-
       const ok = await linkChildSessionToSupabasePin(pin);
       if (ok) {
         saveChildDeviceLabel();
@@ -81,11 +72,7 @@ export default function StudentAccess() {
         {fromStudent ? "← Exit Student Mode" : "← Parent Login"}
       </button>
 
-      <div className="access-heading">
-        <span className="access-mascot" aria-hidden="true">🧸</span>
-        <h1 className="lock-title">Enter Your PIN</h1>
-        <p>Tap the four numbers to start learning!</p>
-      </div>
+      <h1 className="lock-title">Enter Passcode</h1>
 
       <div className="pin-dots">
         {[0, 1, 2, 3].map((i) => (
@@ -111,7 +98,6 @@ export default function StudentAccess() {
       <button type="button" className="enter-btn" onClick={() => void handleSubmit()} disabled={busy || pin.length !== 4}>
         {busy ? "Checking…" : "Enter"}
       </button>
-
     </div>
   );
 }

@@ -49,15 +49,12 @@ const PHONICS_LEVEL_TIME = 30;
 const PHONICS_GAME_INTRO = {
   title: "Listen!",
   subtitle: "Tap the sound and choose the matching animal!",
-  speech: "Tap the sound and choose the matching animal!",
-  displayMs: 4000,
+  speech:
+    "Hi there! Tap the speaker to hear a sound, then pick the animal that makes it. Have fun!",
 };
 
 export default function Level1Sound() {
   const navigate = useNavigate();
-  const [isLandscape, setIsLandscape] = useState(
-    () => window.matchMedia("(orientation: landscape)").matches
-  );
 
   const [wrong, setWrong] = useState(0);
   const [score, setScore] = useState(0);
@@ -77,8 +74,6 @@ export default function Level1Sound() {
   const [playSession, setPlaySession] = useState(0);
   const [message, setMessage] = useState("Tap the sound and choose the animal!");
   const [wrongChoice, setWrongChoice] = useState<string | null>(null);
-  const [isSoundAnimating, setIsSoundAnimating] = useState(false);
-  const [choiceAnimating, setChoiceAnimating] = useState<string | null>(null);
 
   const [shuffledAnimals, setShuffledAnimals] = useState(animals);
 
@@ -94,15 +89,13 @@ export default function Level1Sound() {
     useLevelIntro({
       content: PHONICS_GAME_INTRO,
       soundEnabled,
-      enabled: isLandscape && !showNext && !showNoPrompt && !timeUpOpen && !isFinished,
+      enabled: !showNext && !showNoPrompt && !timeUpOpen && !isFinished,
       sessionKey: playSession,
       onStartCountdown: startCountdown,
     });
 
   const playSound = () => {
-    if (!soundEnabled || !isLandscape) return;
-    setIsSoundAnimating(true);
-    setTimeout(() => setIsSoundAnimating(false), 600);
+    if (!soundEnabled) return;
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -174,28 +167,6 @@ export default function Level1Sound() {
   };
 
   useEffect(() => {
-    const orientation = window.matchMedia("(orientation: landscape)");
-    const updateOrientation = () => setIsLandscape(orientation.matches);
-    updateOrientation();
-    orientation.addEventListener("change", updateOrientation);
-    window.addEventListener("orientationchange", updateOrientation);
-    return () => {
-      orientation.removeEventListener("change", updateOrientation);
-      window.removeEventListener("orientationchange", updateOrientation);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isLandscape) {
-      audioRef.current?.pause();
-      bgMusicRef.current?.pause();
-      window.speechSynthesis?.cancel();
-      return;
-    }
-    if (musicEnabled) bgMusicRef.current?.play().catch(() => {});
-  }, [isLandscape, musicEnabled]);
-
-  useEffect(() => {
     setShuffledAnimals(shuffleArray(animals));
     setWrongChoice(null);
     setWrongThisLevel(0);
@@ -246,7 +217,7 @@ export default function Level1Sound() {
   }, [musicEnabled]);
 
   useEffect(() => {
-    if (countdown === null || !isLandscape) return;
+    if (countdown === null) return;
     if (showNext || showNoPrompt || timeUpOpen || isFinished) return;
 
     setTimerRunning(false);
@@ -271,10 +242,10 @@ export default function Level1Sound() {
       window.clearTimeout(voiceTimer);
       window.clearTimeout(nextTimer);
     };
-  }, [countdown, showNext, showNoPrompt, timeUpOpen, isFinished, isLandscape]);
+  }, [countdown, showNext, showNoPrompt, timeUpOpen, isFinished]);
 
   useEffect(() => {
-    if (!timerRunning || !isLandscape) return;
+    if (!timerRunning) return;
     if (countdown !== null) return;
     if (showNext || showNoPrompt || timeUpOpen || isFinished) return;
 
@@ -299,11 +270,10 @@ export default function Level1Sound() {
     isFinished,
     score,
     wrong,
-    isLandscape,
   ]);
 
   useEffect(() => {
-    if (!timerRunning || !isLandscape) return;
+    if (!timerRunning) return;
     if (countdown !== null) return;
     if (showNext || showNoPrompt || timeUpOpen || isFinished) return;
     if (timeLeft > 5 || timeLeft <= 0) return;
@@ -312,7 +282,7 @@ export default function Level1Sound() {
     warnedSecondsRef.current.add(timeLeft);
     sayKid(String(timeLeft));
     playKidBeep(timeLeft);
-  }, [timerRunning, countdown, timeLeft, showNext, showNoPrompt, timeUpOpen, isFinished, soundEnabled, isLandscape]);
+  }, [timerRunning, countdown, timeLeft, showNext, showNoPrompt, timeUpOpen, isFinished, soundEnabled]);
 
   useEffect(() => {
     const loadProgressContext = async () => {
@@ -354,12 +324,8 @@ export default function Level1Sound() {
   };
 
   const handleGuess = (animal: string) => {
-    if (!isLandscape) return;
     if (levelIntroActive || countdown !== null || timeUpOpen) return;
     if (showNext || isFinished) return;
-
-    setChoiceAnimating(animal);
-    setTimeout(() => setChoiceAnimating(null), 600);
 
     if (animal === currentLevel.answer) {
       const nextScore = score + 1;
@@ -443,13 +409,6 @@ export default function Level1Sound() {
 
   return (
     <div className="game-container phonics-bg-image phonics-page">
-      <div className="pq-rotate-notice" role="status">
-        <span className="pq-phone-icon" aria-hidden="true">📱</span>
-        <strong>Turn your phone sideways!</strong>
-        <p>Phonics Quest is more fun in landscape mode.</p>
-        <span className="pq-turn-arrow" aria-hidden="true">↻</span>
-      </div>
-
       <button className="pq-back-btn" onClick={() => navigate("/lesson/phonics")}>
         ← Back
       </button>
@@ -497,22 +456,9 @@ export default function Level1Sound() {
 </h2> 
 
       <div className="sound-area">
-        <div className="sound-circle-wrapper">
-          <button
-            type="button"
-            className={`sound-circle ${isSoundAnimating ? "pq-pulse-animate" : ""}`}
-            onClick={playSound}
-            aria-label="Play the animal sound"
-          >
-            🔊
-            <small>Tap me!</small>
-          </button>
-          <img
-            src={currentLevel.image}
-            className={`sound-guide-img ${isSoundAnimating ? "pq-pulse-animate" : ""}`}
-            alt="Animal guide"
-          />
-        </div>
+        <div className="sound-circle" onClick={playSound}>🔊</div>
+
+        <img src={currentLevel.image} className="lion-guide" />
 
         <div className="choices">
           {shuffledAnimals.map((a) => (
@@ -520,12 +466,10 @@ export default function Level1Sound() {
               key={a.name}
               className={`choice-btn choice-btn-${a.name} ${
                 wrongChoice === a.name ? "choice-btn-wrong" : ""
-              } ${choiceAnimating === a.name ? "pq-pulse-animate" : ""}`}
+              }`}
               onClick={() => handleGuess(a.name)}
-              aria-label={`Choose ${a.name}`}
             >
-              <span>{a.emoji}</span>
-              <small>{a.name}</small>
+              {a.emoji}
             </button>
           ))}
         </div>

@@ -1,0 +1,225 @@
+/* APP PORTRAIT HEADER + FOOTER — matches AppPhonicsQuest. */
+.colors-page .cq-rotate-notice { display: none; }
+
+@media (orientation: portrait) and (max-width: 1200px) {
+  .colors-page .cq-rotate-notice {
+    position: fixed;
+    inset: 0;
+    z-index: 20000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 28px;
+    background: linear-gradient(145deg,#e3f7ff,#fff1c8 52%,#f6ddff);
+    color: #334155;
+    text-align: center;
+  }
+  .colors-page .cq-phone-icon { font-size: 76px; animation: cqRotatePhone 1.8s ease-in-out infinite; }
+  .colors-page .cq-rotate-notice strong { margin-top: 14px; font-size: 27px; }
+  .colors-page .cq-rotate-notice p { max-width: 310px; margin: 8px 0; font-size: 16px; font-weight: 700; }
+  .colors-page .cq-turn-arrow { font-size: 42px; color: #7c5cc4; }
+}
+
+/* APP LANDSCAPE — same one-line header rhythm as AppPhonicsQuest. */
+@media (orientation: landscape) and (max-width: 1600px) {
+  .colors-page {
+    width: 100%;
+    height: 100dvh;
+    min-height: 0;
+    padding: 48px 10px 54px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    scroll-padding-block: 52px 62px;
+  }
+  .colors-page::-webkit-scrollbar { display: none; width: 0; height: 0; }
+  .colors-page .cq-back-btn {
+    position: absolute;
+    top: 7px;
+    left: 8px;
+    min-width: 76px;
+    min-height: 38px;
+    padding: 7px 12px;
+    font-size: 13px;
+    z-index: 30;
+  }
+  .colors-page .cq-title {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: min(54vw, 680px);
+    margin: 0;
+    transform: translateX(-50%);
+    overflow: hidden;
+    color: #172033;
+    font-size: clamp(22px, 3.6vw, 31px);
+    line-height: 42px;
+    text-align: center;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    z-index: 20;
+  }
+  .colors-page .cq-level-meta-row {
+    position: absolute;
+    top: 5px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0;
+    z-index: 30;
+  }
+  .colors-page .cq-level-meta,
+  .colors-page .cq-sound-buttons { display: flex; align-items: center; gap: 5px; margin: 0; }
+  .colors-page .cq-level-meta {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .colors-page .cq-level-pill,
+  .colors-page .cq-timer-pill {
+    display: grid;
+    place-items: center;
+    min-height: 38px;
+    padding: 0 9px;
+    border: 2px solid rgba(255,255,255,.72);
+    border-radius: 999px;
+    background: rgba(255,255,255,.9);
+    font-size: 11px;
+    white-space: nowrap;
+    box-shadow: 0 5px 12px rgba(49,55,70,.12);
+  }
+  .colors-page .cq-timer-pill { background: #dff2ff; }
+  .colors-page .cq-sound-toggle {
+    width: 38px;
+    height: 38px;
+    min-height: 38px;
+    padding: 0;
+    font-size: 17px;
+  }
+  .colors-page .cq-bear { display: none; }
+  .colors-page .cq-items-area {
+    min-height: 70px;
+    max-width: min(96vw, 1050px);
+    gap: clamp(5px, 1.5vw, 18px);
+    margin: -5px auto 0;
+    flex: 0 0 auto;
+    align-items: flex-start;
+  }
+  .colors-page .cq-item {
+    width: clamp(62px, 10vw, 102px);
+    min-height: 66px;
+    gap: 2px;
+  }
+  .colors-page .cq-item-emoji-only { font-size: clamp(31px, 6.2vh, 45px); }
+  .colors-page .cq-item-label { gap: 4px; font-size: clamp(9px, 1.45vw, 12px); }
+  .colors-page .cq-item-color-dot { width: 8px; height: 8px; }
+
+  /* Level 1: six objects above one horizontal row of three baskets. */
+  .colors-page .cq-items-area:has(> .cq-item:nth-child(6):last-child) {
+    flex-wrap: nowrap;
+    margin-top: 8px;
+    margin-bottom: 8px;
+  }
+  .colors-page .cq-baskets-row:has(> .cq-basket:nth-child(3):last-child) {
+    grid-template-columns: repeat(3, minmax(105px, clamp(125px, 20vw, 190px)));
+    align-items: start;
+    gap: clamp(6px, 2vw, 22px);
+    margin-top: 17px;
+  }
+  .colors-page .cq-baskets-row {
+    max-width: min(96vw, 1050px);
+    grid-template-columns: repeat(auto-fit, minmax(92px, 145px));
+    gap: 5px 10px;
+    flex: 0 0 auto;
+    align-content: start;
+    padding-bottom: 54px;
+  }
+  /* Level 2 has six baskets: keep the final Purple basket centered below. */
+  .colors-page .cq-baskets-row:has(> .cq-basket:nth-child(6):last-child) > .cq-basket:last-child {
+    grid-column: 1 / -1;
+    width: clamp(105px, 14vw, 145px);
+    justify-self: center;
+  }
+  .colors-page .cq-basket {
+    width: 100%;
+    min-height: 0;
+    grid-template-rows: clamp(96px, 25vh, 145px) auto;
+  }
+  .colors-page .cq-basket-art { max-height: clamp(96px, 25vh, 145px); }
+  .colors-page .cq-basket-title { margin: 0; font-size: clamp(11px, 1.7vw, 16px); }
+  .colors-page .cq-basket-emoji { font-size: 20px; }
+  .colors-page .cq-panel {
+    position: fixed;
+    right: 5%;
+    bottom: 4px;
+    left: 5%;
+    width: auto;
+    min-height: 44px;
+    margin: 0;
+    padding: 5px 12px;
+    border: 1px solid rgba(255,255,255,.48);
+    background: rgba(255,255,255,.48);
+    box-shadow: 0 4px 12px rgba(58,69,48,.08);
+    backdrop-filter: none;
+  }
+  .colors-page .cq-message,
+  .colors-page .cq-score { margin: 0; font-size: clamp(11px, 1.7vw, 15px); line-height: 1.15; }
+
+  /* FINAL RESULT POPUP: replaces the footer and blurs the completed board. */
+  .colors-page .cq-finish-overlay .game-overlay {
+    z-index: 12000;
+    padding: max(12px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right))
+      max(12px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+    background: rgba(35, 45, 29, .34);
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
+  }
+  .colors-page .cq-finish-overlay .game-popup {
+    width: min(88vw, 560px);
+    max-height: calc(100dvh - 24px);
+    overflow: auto;
+    padding: clamp(15px, 3vh, 25px) clamp(18px, 4vw, 34px);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 340px) {
+  .colors-page { padding-top: 43px; padding-bottom: 48px; }
+  .colors-page .cq-title { font-size: clamp(20px, 3.5vw, 27px); line-height: 37px; }
+  .colors-page .cq-items-area { min-height: 57px; margin-top: -7px; }
+  .colors-page .cq-item { min-height: 55px; }
+  .colors-page .cq-item-emoji-only { font-size: 29px; }
+  .colors-page .cq-basket { grid-template-rows: clamp(78px, 22vh, 102px) auto; }
+  .colors-page .cq-basket-art { max-height: clamp(78px, 22vh, 102px); }
+  .colors-page .cq-finish-overlay .game-popup { padding: 12px 18px; }
+}
+
+@keyframes cqRotatePhone {
+  0%,100% { transform: rotate(0deg); }
+  50% { transform: rotate(90deg); }
+}
+
+@media (orientation: portrait) and (max-width: 1200px) {
+  .colors-page .game-overlay { z-index: 10000; }
+  .colors-page { min-height: 100dvh; padding: 66px 14px 12px; display: flex; flex-direction: column; overflow-y: auto; scrollbar-width: none; }
+  .colors-page::-webkit-scrollbar { display: none; }
+  .colors-page .cq-back-btn { position: absolute; top: 10px; left: 10px; z-index: 10; padding: 12px 20px; border-radius: 999px; }
+  .colors-page .cq-title { margin: 0 auto 8px; font-size: clamp(26px, 6vw, 38px); text-align: center; }
+  .colors-page .cq-level-meta-row { position: static !important; inset: auto !important; display: grid; grid-template-columns: repeat(3,46px); justify-content: center; gap: 7px; margin: 0 auto 10px; }
+  .colors-page .cq-level-meta { display: contents; }
+  .colors-page .cq-level-pill { grid-column: 1 / -1; grid-row: 1; justify-self: center; min-height: 44px; padding: 10px 20px; border-radius: 999px; background: rgba(255,255,255,.9); }
+  .colors-page .cq-sound-buttons { display: contents; }
+  .colors-page .cq-music-toggle { grid-column: 1; grid-row: 2; }
+  .colors-page .cq-timer-pill { grid-row: 2; grid-column: 2; position: static !important; transform: none !important; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 999px; background: #dff2ff; }
+  .colors-page .cq-effects-toggle { grid-column: 3; grid-row: 2; }
+  .colors-page .cq-sound-toggle { width: 46px; height: 46px; border-radius: 999px; }
+  .colors-page .cq-items-area { flex: 0 0 auto; }
+  .colors-page .cq-baskets-row { flex: 1 1 auto; }
+  .colors-page .cq-panel { position: static; width: min(100%,620px); min-width: 0; margin: 10px auto 0; padding: 14px 12px; min-height: 75px; border-radius: 22px; background: rgba(255,255,255,.88); }
+  .colors-page .cq-message { margin: 0 0 3px; font-size: clamp(18px,4vw,22px); }
+  .colors-page .cq-score { margin: 0; font-size: clamp(15px,3.4vw,18px); }
+}

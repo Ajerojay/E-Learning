@@ -1,0 +1,222 @@
+﻿.lesson-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  font-family: system-ui, -apple-system, "Segoe UI", "Nunito", "Comic Sans MS",
+    cursive, sans-serif;
+}
+
+.back-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+
+  padding: 10px 18px;
+  font-size: 16px;
+  font-weight: bold;
+
+  border: none;
+  border-radius: 30px;
+
+  background: white;
+  color: #333;
+
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+
+  cursor: pointer;
+  transition: 0.2s;
+
+  z-index: 10;
+}
+
+.back-btn:hover {
+  background: #ff9800;
+  color: white;
+  transform: translateY(-2px);
+}
+
+.lesson-title {
+  font-size: 40px;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.tv-container {
+  width: 650px;
+  height: 370px;
+
+  background: black;
+  border: 15px solid #333;
+  border-radius: 20px;
+
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tv-container iframe,
+.tv-container video {
+  width: 100%;
+  height: 100%;
+}
+
+.no-video {
+  color: white;
+  text-align: center;
+  font-size: 20px;
+}
+
+.tv-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.video-title {
+  margin-top: 16px;
+  padding: 10px 22px;
+
+  background: linear-gradient(135deg, #ffb347, #ffcc33);
+  color: #2b2b2b;
+
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+
+  border-radius: 999px;
+
+  box-shadow:
+    0 6px 15px rgba(0, 0, 0, 0.25),
+    inset 0 2px 5px rgba(255, 255, 255, 0.4);
+
+  text-align: center;
+  max-width: 650px;
+
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.video-title:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow:
+    0 10px 20px rgba(0, 0, 0, 0.3),
+    inset 0 2px 5px rgba(255, 255, 255, 0.5);
+}
+
+.lesson-activity-meta {
+  margin-top: 14px;
+  margin-bottom: 0;
+  max-width: 650px;
+  padding: 0 12px;
+
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #2b2b2b;
+  text-align: center;
+}
+
+.lesson-activity-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 10px;
+  margin-right: 8px;
+  vertical-align: middle;
+
+  background: linear-gradient(135deg, #7b6cf6, #55c6b8);
+  color: white;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 18px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.start-quest-btn {
+  margin-top: 14px;
+  padding: 12px 24px;
+
+  border: none;
+  border-radius: 14px;
+
+  background: linear-gradient(135deg, #7b6cf6, #55c6b8);
+  color: white;
+
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+
+  cursor: pointer;
+
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.18);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.start-quest-btn:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.25);
+}
+
+.start-quest-btn {
+  min-height: 52px;
+  animation: questButtonPulse 2.2s ease-in-out infinite;
+}
+
+@keyframes questButtonPulse {
+  50% { transform: translateY(-2px) scale(1.025); box-shadow: 0 12px 22px rgba(62, 75, 145, .28); }
+}
+
+@media (prefers-reduced-motion: reduce) { .start-quest-btn { animation: none; } }
+
+@media (max-width: 700px) {
+  .lesson-page {
+    justify-content: flex-start;
+    width: 100%;
+    padding: max(78px, env(safe-area-inset-top)) 12px max(24px, env(safe-area-inset-bottom));
+    overflow-x: hidden;
+  }
+
+  .lesson-page .back-btn {
+    position: fixed;
+    top: max(14px, env(safe-area-inset-top));
+    left: max(12px, env(safe-area-inset-left));
+    min-height: 46px;
+    padding: 9px 14px;
+    font-size: 14px;
+  }
+
+  .lesson-title {
+    max-width: 100%;
+    margin: 0 0 16px;
+    font-size: clamp(27px, 9vw, 38px);
+    text-align: center;
+  }
+
+  .tv-wrapper { width: 100%; }
+  .tv-container {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    border-width: clamp(6px, 2.5vw, 11px);
+    border-radius: 15px;
+  }
+
+  .video-title, .lesson-activity-meta { max-width: 100%; }
+  .video-title { margin-top: 12px; padding: 8px 14px; font-size: 15px; }
+  .lesson-activity-meta { margin-top: 11px; font-size: 14px; }
+  .lesson-activity-count { min-width: 2rem; height: 2rem; font-size: 15px; }
+  .start-quest-btn { min-height: 48px; margin-top: 12px; padding: 11px 20px; font-size: 15px; }
+}
+

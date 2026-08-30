@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Baby, Eye, EyeOff, UserRoundPlus } from "lucide-react";
 import "./AppAuth.css";
 import logo from "../../images/learnease logo-no bg.png";
+// ===== SUPABASE DATABASE CONNECTION (same client used by the web app) =====
 import { supabase } from "../lib/supabase";
 
 const GRADE_OPTIONS = ["Nursery", "Prep", "Kinder"] as const;
@@ -114,6 +115,7 @@ export default function AppSignUp() {
     try {
       setLoading(true);
 
+      // ===== SUPABASE DATABASE: CHECK IF USERNAME ALREADY EXISTS =====
       const { data: existingUser, error: checkError } = await supabase
         .from("parents_accounts")
         .select("id")
@@ -131,6 +133,7 @@ export default function AppSignUp() {
         return;
       }
 
+      // ===== SUPABASE DATABASE: CREATE THE PARENT ACCOUNT =====
       const { data: createdParent, error: insertError } = await supabase
         .from("parents_accounts")
         .insert([{ username: cleanUsername, password: cleanPassword }])
@@ -155,6 +158,7 @@ export default function AppSignUp() {
         is_active: true,
       };
 
+      // ===== SUPABASE DATABASE: CREATE AND LINK THE CHILD PROFILE + PIN =====
       let { error: childInsertError } = await supabase
         .from("children_accounts")
         .insert([childPayload]);

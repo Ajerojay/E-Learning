@@ -1,0 +1,130 @@
+/* APP PORTRAIT HEADER + FOOTER — matches AppPhonicsQuest. */
+.cq-page--mobile-app .cq-rotate-notice { display:none; }
+
+@media (orientation: portrait) and (max-width: 1200px) {
+  .cq-page--mobile-app .cq-rotate-notice { position:fixed; inset:0; z-index:40000; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:28px; background:linear-gradient(145deg,#e3f7ff,#fff1c8 52%,#e4f8d7); color:#334155; text-align:center; }
+  .cq-page--mobile-app .cq-phone-icon { font-size:76px; animation:cqLetterRotatePhone 1.8s ease-in-out infinite; }
+  .cq-page--mobile-app .cq-rotate-notice strong { margin-top:14px; font-size:27px; }
+  .cq-page--mobile-app .cq-rotate-notice p { max-width:310px; margin:8px 0; font-size:16px; font-weight:700; }
+  .cq-page--mobile-app .cq-turn-arrow { font-size:42px; color:#4f8b5f; }
+  .cq-page .game-overlay { z-index: 10000; }
+  .cq-page { min-height: 100dvh; padding: 66px 14px 12px; display: flex; flex-direction: column; overflow-y: auto; scrollbar-width: none; }
+  .cq-page::-webkit-scrollbar { display: none; }
+  .cq-page .cq-back-btn { position: absolute; top: 10px; left: 10px; z-index: 10; padding: 12px 20px; border-radius: 999px; }
+  .cq-page .cq-title { margin: 0 auto 8px; font-size: clamp(26px,6vw,38px); text-align: center; }
+  .cq-page .cq-level-meta-row { position: static !important; inset: auto !important; display: grid; grid-template-columns: repeat(3,46px); justify-content: center; gap: 7px; margin: 0 auto 10px; }
+  .cq-page .cq-level-meta { display: contents; }
+  .cq-page .cq-level-pill { grid-column: 1 / -1; grid-row: 1; justify-self: center; min-height: 44px; padding: 10px 20px; border-radius: 999px; background: rgba(255,255,255,.9); }
+  .cq-page .cq-sound-buttons { display: contents; }
+  .cq-page .cq-music-toggle { grid-column: 1; grid-row: 2; }
+  .cq-page .cq-timer-pill { grid-row: 2; grid-column: 2; position: static !important; transform: none !important; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 999px; background: #dff2ff; }
+  .cq-page .cq-effects-toggle { grid-column: 3; grid-row: 2; }
+  .cq-page .cq-sound-toggle { width: 46px; height: 46px; border-radius: 999px; }
+  .cq-page > .game-container { flex: 1 1 auto; min-height: 390px; height: auto; overflow: hidden; }
+  /* Keep the falling apples in the playable area and keep all baskets visible. */
+  .cq-page .apple { width: clamp(58px, 15vw, 82px); z-index: 7; }
+  .cq-page .apple--l3 { width: clamp(52px, 13vw, 72px); }
+  .cq-page .bear { left: 50%; bottom: 74px; width: clamp(130px, 34vw, 190px); transform: translateX(-50%); z-index: 2; }
+  .cq-page .basket-set { left: 50%; bottom: 4px; width: min(94%, 430px); transform: translateX(-50%); z-index: 5; }
+  .cq-page .basket-img { width: 100%; max-width: 430px; }
+  .cq-page .level3-baskets { width: 100%; gap: 5px; padding: 0; flex-wrap: nowrap; align-items: flex-end; }
+  .cq-page .letter-basket-zone { flex: 1 1 0; min-width: 0; display: grid; place-items: end center; }
+  .cq-page .level3-baskets .basket-img { width: 100%; max-width: 96px; object-fit: contain; }
+  .cq-page .cq-panel { position: static; width: min(100%,620px); min-width: 0; margin: 10px auto 0; padding: 14px 12px; min-height: 75px; border-radius: 22px; background: rgba(255,255,255,.88); }
+  .cq-page .cq-message { font-size: clamp(18px,4vw,22px); }
+  .cq-page .cq-score { font-size: clamp(15px,3.4vw,18px); }
+}
+
+/* Touch drag follows the child's finger in Android WebView. */
+.cq-page--mobile-app .apple--touch-dragging {
+  opacity: 0 !important;
+  animation: none !important;
+  transition: none !important;
+}
+
+.cq-page--mobile-app .letter-drag-preview { position:fixed; z-index:20000; pointer-events:none; object-fit:contain; transform:scale(1.08); filter:drop-shadow(0 12px 12px rgba(0,0,0,.25)); user-select:none; }
+
+.cq-page--mobile-app .apple {
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+  user-select: none;
+}
+
+/* Popups and 3-2-1 freeze the apples; falling resumes only during gameplay. */
+.cq-page--mobile-app .game-container.apples-paused .apple {
+  animation-play-state: paused !important;
+}
+
+/* Finished state is a centered popup; GameOverlay supplies blur + dimming. */
+.cq-page--mobile-app.cq-page--finished > .cq-panel { display: none; }
+.cq-page--mobile-app.cq-page--finished .game-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30000;
+  padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+  display: grid;
+  place-items: center;
+  background: rgba(31, 42, 35, .38);
+  -webkit-backdrop-filter: blur(7px);
+  backdrop-filter: blur(7px);
+}
+.cq-page--mobile-app.cq-page--finished .game-popup {
+  width: min(92vw, 560px);
+  max-height: min(84dvh, 520px);
+  overflow: auto;
+}
+
+/* APP LANDSCAPE ONLY — responsive phones and tablets. */
+@media (orientation: landscape) and (max-width:1600px) {
+  .cq-page--mobile-app { width:100%; height:100dvh; min-height:0; padding:48px 10px 62px; overflow:hidden; scrollbar-width:none; }
+  .cq-page--mobile-app::-webkit-scrollbar { display:none; }
+  .cq-page .cq-back-btn { position:fixed; top:7px; left:8px; min-width:76px; min-height:38px; padding:7px 12px; font-size:13px; }
+  .cq-page .cq-title { position:absolute; top:0; left:0; width:100%; height:48px; transform:none; margin:0; padding:0 245px 0 88px; overflow:hidden; font-size:clamp(22px,3.6vw,31px); line-height:42px; text-align:center; white-space:nowrap; text-overflow:ellipsis; }
+  .cq-page .cq-level-meta-row { position:fixed; top:7px; right:10px; z-index:20; display:flex; align-items:center; flex-wrap:nowrap; margin:0; gap:5px; }
+  .cq-page .cq-level-meta,.cq-page .cq-sound-buttons { display:contents; }
+  .cq-page .cq-level-pill,.cq-page .cq-timer-pill { display:flex; align-items:center; justify-content:center; min-height:38px; padding:0 9px; border-radius:999px; font-size:11px; font-weight:800; box-shadow:0 5px 12px rgba(0,0,0,.09); }
+  .cq-page .cq-level-pill { background:rgba(255,255,255,.96); }
+  .cq-page .cq-timer-pill { background:#dff2ff; }
+  .cq-page .cq-sound-toggle { width:38px; height:38px; min-height:38px; padding:0; font-size:17px; }
+  .cq-page--mobile-app > .game-container { flex:0 0 auto; width:min(100%,1050px); height:calc(100dvh - 110px); min-height:340px; margin:0 auto; overflow:hidden; transform:none; }
+  .cq-page--mobile-app .apple { width:clamp(56px,7.5vw,84px); z-index:8; }
+  .cq-page--mobile-app .apple--l3 { width:clamp(56px,7.5vw,84px); }
+  /* Compact landscape staging: bear and baskets stay above the footer. */
+  .cq-page--mobile-app .bear { left:clamp(14%,calc(50% - 250px),28%); bottom:92px; width:clamp(82px,12vw,132px); z-index:3; }
+  .cq-page--mobile-app .basket-set { left:54%; bottom:-13px; width:clamp(245px,38vw,390px); transform:translateX(-50%); z-index:6; }
+  .cq-page--mobile-app .basket-img { width:100%; max-width:390px; object-fit:contain; }
+  .cq-page--mobile-app .level3-baskets { width:100%; flex-wrap:nowrap; gap:4px; padding:0; align-items:flex-end; }
+  .cq-page--mobile-app .letter-basket-zone { flex:1 1 0; min-width:0; display:grid; place-items:end center; }
+  .cq-page--mobile-app .level3-baskets .basket-img { width:100%; max-width:88px; }
+  /* Level 3 uses four separate basket images; align their floor with the
+     combined A/B/C basket artwork used by Levels 1 and 2. */
+  .cq-page--mobile-app .game-container.level-2 .basket-set { left:54%; bottom:45px; width:clamp(330px,48vw,510px); }
+  .cq-page--mobile-app .game-container.level-2 .level3-baskets { gap:clamp(4px,1vw,12px); }
+  .cq-page--mobile-app .game-container.level-2 .level3-baskets .basket-img { max-width:112px; }
+  .cq-page--mobile-app .game-container.level-2 .apple--l3 { width:clamp(56px,7.5vw,84px); }
+  .cq-page .cq-panel { position:absolute; right:6%; bottom:5px; left:6%; width:auto; min-height:48px; margin:0; padding:6px 12px; }
+  .cq-page .cq-message,.cq-page .cq-score { margin:0; line-height:1.15; font-size:clamp(12px,1.8vw,16px); }
+}
+
+@media (orientation: landscape) and (min-height:650px) {
+  .cq-page--mobile-app > .game-container { height:calc(100dvh - 110px); transform:none; }
+  .cq-page--mobile-app .bear { width:clamp(110px,13vw,155px); }
+  .cq-page--mobile-app .basket-set { width:clamp(300px,40vw,440px); }
+}
+
+/* Extra-short phones retain the same design and scroll only when necessary. */
+@media (orientation: landscape) and (max-height:390px) {
+  .cq-page--mobile-app > .game-container { min-height:310px; }
+  .cq-page--mobile-app .bear { bottom:70px; width:78px; }
+  .cq-page--mobile-app .basket-set { bottom:-7px; width:235px; }
+  .cq-page--mobile-app .game-container.level-2 .basket-set { bottom:36px; width:310px; }
+  .cq-page--mobile-app .game-container.level-2 .level3-baskets .basket-img { max-width:70px; }
+  .cq-page--mobile-app .apple,
+  .cq-page--mobile-app .game-container.level-2 .apple--l3 { width:54px; }
+}
+
+@keyframes cqLetterRotatePhone {
+  0%,100% { transform:rotate(0deg); }
+  50% { transform:rotate(90deg); }
+}

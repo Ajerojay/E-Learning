@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, KeyRound, LogIn } from "lucide-react";
 import "./AppAuth.css";
 import logo from "../../images/learnease logo-no bg.png";
+// ===== SUPABASE DATABASE CONNECTION (same client used by the web app) =====
 import { supabase } from "../lib/supabase";
 import { getOrCreateActiveChildId } from "../lib/childProgress";
 
@@ -37,6 +38,7 @@ export default function AppSignIn() {
 
     try {
       setLoading(true);
+      // ===== SUPABASE DATABASE: VERIFY PARENT USERNAME AND PASSWORD =====
       const { data, error: loginError } = await supabase
         .from("parents_accounts")
         .select("*")
@@ -65,6 +67,7 @@ export default function AppSignIn() {
         })
       );
 
+      // ===== SUPABASE DATABASE: LOAD THE PARENT'S ACTIVE CHILD AND PIN =====
       const { data: childData, error: childError } = await supabase
         .from("children_accounts")
         .select("id, pin_code")

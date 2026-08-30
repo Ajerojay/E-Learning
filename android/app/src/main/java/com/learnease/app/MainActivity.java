@@ -4,8 +4,12 @@ import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.content.pm.ActivityInfo;
 import android.view.View;
 import android.view.WindowManager;
+import android.webkit.JavascriptInterface;
+import android.speech.tts.TextToSpeech;
+import java.util.Locale;
 
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -14,10 +18,67 @@ import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+    private TextToSpeech textToSpeech;
+    private volatile boolean textToSpeechReady = false;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Exposes safe orientation controls to the local Capacitor web app.
+        bridge.getWebView().addJavascriptInterface(new OrientationBridge(), "AndroidOrientation");
+        bridge.getWebView().addJavascriptInterface(new TextToSpeechBridge(), "AndroidTts");
+        textToSpeech = new TextToSpeech(this, status -> {
+            if (status == TextToSpeech.SUCCESS) {
+                textToSpeech.setLanguage(Locale.US);
+                textToSpeechReady = true;
+            }
+        });
         updateImmersiveMode();
+    }
+
+    public class TextToSpeechBridge {
+        @JavascriptInterface
+        public void speak(String text, float rate, float pitch, boolean interrupt) {
+            if (text == null || text.trim().isEmpty()) return;
+            runOnUiThread(() -> {
+                if (!textToSpeechReady || textToSpeech == null) return;
+                textToSpeech.setSpeechRate(Math.max(0.55f, Math.min(rate, 1.6f)));
+                textToSpeech.setPitch(Math.max(0.7f, Math.min(pitch, 1.8f)));
+                textToSpeech.speak(text,
+                        interrupt ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD,
+                        null,
+                        "learnease-" + System.nanoTime());
+            });
+        }
+
+        @JavascriptInterface public void cancel() {
+            runOnUiThread(() -> { if (textToSpeech != null) textToSpeech.stop(); });
+        }
+
+        @JavascriptInterface public boolean isReady() { return textToSpeechReady; }
+    }
+
+    public class OrientationBridge {
+        @JavascriptInterface
+        public void allowGameRotation() {
+            runOnUiThread(() -> setRequestedOrientation(
+                    ActivityInfo.SCREEN_ORIENTATION_FULL_USER
+            ));
+        }
+
+
+        @JavascriptInterface
+        public void lockLandscape() {
+            runOnUiThread(() -> setRequestedOrientation(
+                    ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            ));
+        }
+
+        @JavascriptInterface
+        public void lockPortrait() {
+            runOnUiThread(() -> setRequestedOrientation(
+                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            ));
+        }
     }
 
     private void updateImmersiveMode() {
@@ -79,5 +140,14 @@ public class MainActivity extends BridgeActivity {
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         updateImmersiveMode();
+    }
+
+    @Override
+    public void onDestroy() {
+        if (textToSpeech != null) {
+            textToSpeech.stop();
+            textToSpeech.shutdown();
+        }
+        super.onDestroy();
     }
 }

@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 
+// ===== SUPABASE DATABASE: SHARED QUEST GAME LOOKUP =====
 /** First published game in a learning category (same pattern as Logic / Phonics pages). */
 export async function loadPrimaryGameCodeForCategory(
   categoryCode: string
@@ -30,6 +31,7 @@ export async function loadPrimaryGameCodeForCategory(
   return games[0].game_code;
 }
 
+// ===== SUPABASE DATABASE: SHARED QUEST PROGRESS SAVE RPC =====
 export async function recordGameProgressRpc(
   childId: string,
   gameCode: string,

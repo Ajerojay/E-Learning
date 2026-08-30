@@ -57,6 +57,7 @@ export function getLocalUser(): LocalUser | null {
   }
 }
 
+// ===== SUPABASE DATABASE: STUDENT PIN LOGIN =====
 /** Validates PIN against Supabase and sets `activeChildId` + `studentPin` for the student session. */
 export async function linkChildSessionToSupabasePin(pin: string): Promise<boolean> {
   const trimmed = pin.trim();

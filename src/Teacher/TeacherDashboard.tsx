@@ -68,9 +68,21 @@ export default function TeacherDashboard() {
   }, [toast]);
 
   const showAction = (message: string) => setToast(message);
-  const today = new Intl.DateTimeFormat("en-US", {
-    weekday: "long", month: "long", day: "numeric",
-  }).format(new Date());
+const currentDate = new Date();
+
+const today = new Intl.DateTimeFormat("en-US", {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+}).format(currentDate);
+
+// 0 = Sunday, 6 = Saturday
+const isWeekend =
+  currentDate.getDay() === 0 || currentDate.getDay() === 6;
+
+const greetingMessage = isWeekend
+  ? "🎉 It's the weekend! There are no classes today."
+  : "Here's what's happening in your classroom today.";
 
   const logout = () => {
     localStorage.removeItem("user");
@@ -143,9 +155,23 @@ export default function TeacherDashboard() {
 
         <section className="td-dashboard-card">
           <div className="td-greeting">
-            <div><h1>Good Morning, Teacher Maria! <span className="td-wave">👋</span></h1><p>Here’s what’s happening in your classroom today.</p><span className="td-date">📅 {today}</span></div>
-            <div className="td-cloud" aria-hidden="true">☁️</div>
-          </div>
+  <div>
+    <h1>
+      Good Morning, Teacher Maria!{" "}
+      <span className="td-wave">
+        {isWeekend ? "🌴" : "👋"}
+      </span>
+    </h1>
+
+    <p>{greetingMessage}</p>
+
+    <span className="td-date">📅 {today}</span>
+  </div>
+
+  <div className="td-cloud" aria-hidden="true">
+    {isWeekend ? "🏖️" : "☁️"}
+  </div>
+</div>
 
           <div className="td-stats">
             {stats.map((stat) => (
@@ -162,16 +188,59 @@ export default function TeacherDashboard() {
 
           <div className="td-panels">
             <section className="td-panel td-schedule">
-              <h2><CalendarDays size={22} />Today’s Schedule</h2>
-              <div className="td-panel-body">
-                {schedule.map(({ time, name, color, Icon }) => (
-                  <div className="td-schedule-row" key={time} onClick={() => showAction(`${name} at ${time}`)}>
-                    <strong>{time}</strong><i style={{ backgroundColor: color }} /><span>{name}</span><Icon size={16} />
-                  </div>
-                ))}
-                <div className="td-reading-bear" aria-hidden="true">🧸📖</div>
-              </div>
-            </section>
+  <h2>
+    <CalendarDays size={22} />
+    {isWeekend ? "Weekend" : "Today's Schedule"}
+  </h2>
+
+  <div className="td-panel-body">
+    {isWeekend ? (
+      <div
+        style={{
+          textAlign: "center",
+          padding: "40px 20px",
+        }}
+      >
+        <h2 style={{ marginBottom: "10px" }}>🎉 No Classes Today</h2>
+
+        <p>
+          Enjoy your weekend! Classes will resume on Monday.
+        </p>
+
+        <div
+          style={{
+            fontSize: "60px",
+            marginTop: "20px",
+          }}
+        >
+          🧸🌞
+        </div>
+      </div>
+    ) : (
+      <>
+        {schedule.map(({ time, name, color, Icon }) => (
+          <div
+            className="td-schedule-row"
+            key={time}
+            onClick={() => showAction(`${name} at ${time}`)}
+          >
+            <strong>{time}</strong>
+            <i style={{ backgroundColor: color }} />
+            <span>{name}</span>
+            <Icon size={16} />
+          </div>
+        ))}
+
+        <div
+          className="td-reading-bear"
+          aria-hidden="true"
+        >
+          🧸📖
+        </div>
+      </>
+    )}
+  </div>
+</section>
 
             <section className="td-panel td-activity">
               <h2><Star size={22} fill="#ffc93d" />Recent Student Activity</h2>

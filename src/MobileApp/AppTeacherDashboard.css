@@ -1,0 +1,143 @@
+.app-teacher-dashboard {
+  min-height: 100dvh;
+  overflow-x: hidden;
+  background: #f8f4e9;
+}
+
+.app-teacher-dashboard .td-page {
+  min-height: 100dvh;
+  display: block;
+}
+
+.app-teacher-dashboard .td-sidebar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: auto;
+  z-index: 80;
+  width: auto;
+  height: calc(72px + env(safe-area-inset-bottom));
+  padding: 8px 10px env(safe-area-inset-bottom);
+  border: 0;
+  background: rgba(255, 249, 218, 0.97);
+  box-shadow: 0 -8px 22px rgba(73, 69, 42, 0.12);
+  box-sizing: border-box;
+}
+
+.app-teacher-dashboard .td-sidebar .td-sun,
+.app-teacher-dashboard .td-sidebar .td-bear { display: none; }
+
+.app-teacher-dashboard .td-sidebar nav {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.app-teacher-dashboard .td-sidebar nav::-webkit-scrollbar { display: none; }
+
+.app-teacher-dashboard .td-sidebar nav button {
+  flex: 0 0 72px;
+  min-width: 72px;
+  height: 54px;
+  margin: 0;
+  padding: 6px 4px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.app-teacher-dashboard .td-sidebar nav button span {
+  display: block;
+  max-width: 100%;
+  font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-teacher-dashboard .td-main {
+  min-width: 0;
+  min-height: 100dvh;
+  padding: 0 0 calc(86px + env(safe-area-inset-bottom));
+}
+
+.app-teacher-dashboard .td-header {
+  min-height: 72px;
+  padding: max(10px, env(safe-area-inset-top)) 14px 8px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.app-teacher-dashboard .td-brand { padding: 8px 12px; }
+.app-teacher-dashboard .td-brand img { width: 36px; height: 36px; object-fit: contain; }
+.app-teacher-dashboard .td-brand strong { font-size: clamp(15px, 4vw, 20px); }
+.app-teacher-dashboard .td-header-actions { gap: 7px; }
+.app-teacher-dashboard .td-notifications { width: 44px; height: 44px; }
+
+.app-teacher-dashboard .td-profile {
+  min-width: 0;
+  max-width: 185px;
+  padding: 7px 9px;
+}
+
+.app-teacher-dashboard .td-profile > span:nth-child(2) { min-width: 0; }
+.app-teacher-dashboard .td-profile strong,
+.app-teacher-dashboard .td-profile small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.app-teacher-dashboard .td-popover {
+  position: fixed;
+  top: calc(max(10px, env(safe-area-inset-top)) + 62px);
+  right: 12px;
+  width: min(330px, calc(100vw - 24px));
+  box-sizing: border-box;
+}
+
+.app-teacher-dashboard .td-dashboard-card {
+  width: calc(100% - 24px);
+  margin: 8px auto 0;
+  padding: clamp(16px, 4vw, 25px);
+  border-radius: 25px;
+  box-sizing: border-box;
+}
+
+.app-teacher-dashboard .td-greeting h1 { font-size: clamp(22px, 5.7vw, 34px); }
+.app-teacher-dashboard .td-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.app-teacher-dashboard .td-stat { min-width: 0; padding: 15px 12px; }
+.app-teacher-dashboard .td-stat h2 { font-size: clamp(13px, 3.4vw, 17px); }
+.app-teacher-dashboard .td-stat div strong { font-size: clamp(27px, 8vw, 40px); }
+.app-teacher-dashboard .td-panels { grid-template-columns: 1fr; gap: 14px; }
+.app-teacher-dashboard .td-panel { min-width: 0; }
+.app-teacher-dashboard .td-schedule-row { grid-template-columns: 72px 10px minmax(0, 1fr) 20px; }
+
+.app-teacher-dashboard .td-profile-modal {
+  width: min(92vw, 480px);
+  max-height: 86dvh;
+  overflow-y: auto;
+}
+
+@media (max-width: 520px) {
+  .app-teacher-dashboard .td-brand strong { display: none; }
+  .app-teacher-dashboard .td-profile { max-width: 150px; }
+  .app-teacher-dashboard .td-profile small { display: none; }
+  .app-teacher-dashboard .td-greeting .td-cloud,
+  .app-teacher-dashboard .td-date { display: none; }
+  .app-teacher-dashboard .td-stats { grid-template-columns: 1fr; }
+}
+
+@media (min-width: 900px) {
+  .app-teacher-dashboard .td-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .app-teacher-dashboard .td-panels { grid-template-columns: 1fr 1fr; }
+}

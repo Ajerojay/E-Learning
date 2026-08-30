@@ -22,19 +22,16 @@
 }
 
 .le-bearWrap {
-  width: 250px;
-  height: 205px;
+  width: 200px;
+  height: 200px;
   border-radius: 16px;
   display: grid;
   place-items: center;
 }
 
 .le-bear {
-  width: 100%;
-  max-width: 250px;
+  max-width: 100%;
   height: auto;
-  display: block;
-  object-fit: contain;
 }
 
 .le-brandText {
@@ -173,39 +170,12 @@
 @media (max-width: 640px) {
   .le-page {
     flex-direction: column;
-    justify-content: flex-start;
-    gap: 10px;
-    padding: 16px 14px 24px;
-    overflow-x: hidden;
+    gap: 24px;
+    padding: 20px;
   }
 
   .le-left1 {
     width: 100%;
-    gap: 8px;
-  }
-
-  .le-brandTop {
-    font-size: 40px;
-    line-height: 1;
-  }
-
-  .le-brandBottom {
-    font-size: 30px;
-    line-height: 1;
-  }
-
-  .le-bearWrap {
-    width: min(72vw, 250px);
-    height: auto;
-  }
-
-  .le-bear {
-    max-width: min(72vw, 250px);
-  }
-
-  .le-right {
-    width: 100%;
-    max-width: none;
   }
 
   .le-field-grid {
@@ -213,52 +183,7 @@
   }
 
   .le-card1 {
-    max-width: 430px;
-    padding: 24px 16px;
-    border-radius: 18px;
-  }
-
-  .le-title1 {
-    font-size: 28px;
-    line-height: 1.1;
-  }
-
-  .le-subtitle1 {
-    margin-bottom: 18px;
-    font-size: 14px;
-  }
-
-  .le-form1 {
-    gap: 16px;
-  }
-
-  .le-signup-section {
-    padding: 16px 14px;
-    gap: 12px;
-  }
-
-  .le-section-head {
-    align-items: flex-start;
-  }
-
-  .le-input,
-  .le-select {
-    height: 46px;
-    font-size: 15px;
-    border-radius: 14px;
-  }
-
-  .le-btn1 {
-    max-width: none;
-    min-height: 50px;
-  }
-
-  .le-socialLogin {
-    display: none;
-  }
-
-  .le-submit-hint {
-    font-size: 12px;
+    padding: 24px 20px;
   }
 }
 

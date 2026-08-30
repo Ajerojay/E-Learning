@@ -27,11 +27,6 @@ export default function StudentPage() {
 
   useEffect(() => {
     const loadChildName = async () => {
-      if (localStorage.getItem("temporaryStudentAccess") === "true") {
-        setChildFirstName("Little Learner");
-        return;
-      }
-
       const childId = await getOrCreateActiveChildId();
       if (!childId) return;
 
@@ -87,24 +82,23 @@ export default function StudentPage() {
 
       {/* BACK BUTTON */}
       <button
-        className="student-back-btn"
+        className="back-btn"
         onClick={() =>
           navigate("/student-access", { state: { fromStudent: true } })
         }
       >
-        <span className="student-back-arrow" aria-hidden="true">←</span>
-        <span className="student-back-label">Back</span>
+        ← Back
       </button>
 
       {/* HEADER */}
-      <header className="student-top-header">
-        <div className="student-brand">
-          <img src={logo} alt="LearnEase bear" className="student-logo" />
-          <span className="student-brand-text">LearnEase Kids</span>
+      <header className="pd-top-header">
+        <div className="pd-brand">
+          <img src={logo} alt="logo" className="pd-logo" />
+          <span className="pd-brand-text">LearnEase Kids</span>
         </div>
         <button
           type="button"
-          className="student-music-toggle"
+          className="music-toggle-btn"
           onClick={() => setMusicEnabled((prev) => !prev)}
           aria-label={musicEnabled ? "Mute music" : "Unmute music"}
           title={musicEnabled ? "Mute Music" : "Unmute Music"}
@@ -113,26 +107,19 @@ export default function StudentPage() {
         </button>
       </header>
 
-      <section className="student-welcome">
-        <span className="welcome-sparkle" aria-hidden="true">✨</span>
-        <h1 className="student-title">Hi, {childFirstName}! 👋</h1>
-        <p>What would you like to learn today?</p>
-      </section>
+      <h1 className="student-title">Hi {childFirstName}!</h1>
 
       {/* GRID */}
       <div className="lesson-grid">
         {lessons.map((item, index) => (
-          <button
+          <div
             key={index}
-            type="button"
             className={`cloud-card ${item.key}`}
             onClick={() => navigate(`/lesson/${item.key}`)}
-            aria-label={`Open ${item.name} lesson`}
           >
             <div className="cloud-icon">{item.icon}</div>
             <div className="cloud-text">{item.name}</div>
-            <span className="lesson-go" aria-hidden="true">Play →</span>
-          </button>
+          </div>
         ))}
       </div>
 

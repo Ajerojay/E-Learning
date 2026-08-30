@@ -14,8 +14,6 @@ export type LevelIntroContent = {
   title: string;
   subtitle: string;
   speech: string;
-  /** Optional exact overlay duration for games that require fixed timing. */
-  displayMs?: number;
 };
 
 export function getKidFriendlyVoice(): SpeechSynthesisVoice | null {
@@ -50,8 +48,7 @@ export function getIntroMinDisplayMs(text: string): number {
 export function speakKidLevelIntro(
   text: string,
   soundEnabled: boolean,
-  onDone: () => void,
-  fixedDisplayMs?: number
+  onDone: () => void
 ): () => void {
   let cancelled = false;
   let speechDone = !soundEnabled;
@@ -61,15 +58,10 @@ export function speakKidLevelIntro(
   let safetyTimer: number | null = null;
   let utterance: SpeechSynthesisUtterance | null = null;
 
-  const minDisplayMs = fixedDisplayMs ?? getIntroMinDisplayMs(text);
+  const minDisplayMs = getIntroMinDisplayMs(text);
 
   const tryComplete = () => {
-    if (cancelled || !minDisplayDone || (!fixedDisplayMs && !speechDone)) return;
-    if (fixedDisplayMs) {
-      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-      onDone();
-      return;
-    }
+    if (cancelled || !speechDone || !minDisplayDone) return;
     pauseTimer = window.setTimeout(() => {
       if (!cancelled) onDone();
     }, POST_INTRO_PAUSE_MS);
@@ -224,8 +216,7 @@ export function useLevelIntro({
     cleanupRef.current = speakKidLevelIntro(
       content.speech,
       soundEnabled,
-      beginCountdown,
-      content.displayMs
+      beginCountdown
     );
 
     return () => {
@@ -238,7 +229,6 @@ export function useLevelIntro({
     introFinished,
     soundEnabled,
     content.speech,
-    content.displayMs,
     beginCountdown,
   ]);
 

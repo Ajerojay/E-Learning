@@ -53,6 +53,8 @@ export default function LessonPage() {
     logic: "Logic",
   };
 
+  const hasPublishedVideo = Boolean(!loading && lessonVideoUrl);
+
   useEffect(() => {
     const fetchLessonVideo = async () => {
       if (!category) return;
@@ -136,7 +138,7 @@ export default function LessonPage() {
           <p className="video-title">{lessonTitle}</p>
         )}
 
-        {category === "phonics" && (
+        {hasPublishedVideo && category === "phonics" && (
           <>
             <p className="lesson-activity-meta">
               listening choices — tap the speaker, then pick the animal!
@@ -146,12 +148,12 @@ export default function LessonPage() {
               className="start-quest-btn"
               onClick={() => navigate("/student/PhonicsQuestPage")}
             >
-              🔊 Start Phonics Quest
+              Start Phonics Activity
             </button>
           </>
         )}
 
-        {category === "colors" && (
+        {hasPublishedVideo && category === "colors" && (
           <button
             type="button"
             className="start-quest-btn"
@@ -161,7 +163,7 @@ export default function LessonPage() {
           </button>
         )}
 
-        {category === "logic" && (
+        {hasPublishedVideo && category === "logic" && (
           <>
             <p className="lesson-activity-meta">
               logic choices — drag the correct symbol into the box!
@@ -180,7 +182,7 @@ export default function LessonPage() {
           </>
         )}
 
-        {category === "numbers" && (
+        {hasPublishedVideo && category === "numbers" && (
           <button
             type="button"
             className="start-quest-btn"
@@ -190,7 +192,7 @@ export default function LessonPage() {
           </button>
         )}
 
-        {category === "letters" && (
+        {hasPublishedVideo && category === "letters" && (
           <>
             <p className="lesson-activity-meta">
               match each apple to the right letter basket!
@@ -205,7 +207,7 @@ export default function LessonPage() {
           </>
         )}
 
-        {category === "shapes" && (
+        {hasPublishedVideo && category === "shapes" && (
           <>
             <p className="lesson-activity-meta">
               drag shapes into the right spots to build the house!
