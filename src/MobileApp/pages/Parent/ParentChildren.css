@@ -1,4 +1,4 @@
-﻿/* Your Children page â€” matches parent dashboard mockup */
+﻿/* Your Children page - matches parent dashboard mockup */
 
 .pc-page-title {
   text-align: center;
@@ -300,6 +300,67 @@
   font-size: 18px;
   font-weight: 600;
   color: #444;
+}
+
+@media (max-width: 768px) {
+  .pc-page-title {
+    margin-bottom: 14px;
+    padding: 14px 12px;
+  }
+
+  .pc-page-title h1 {
+    font-size: clamp(25px, 7vw, 32px);
+  }
+
+  .pc-top-row {
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .pc-profile-card,
+  .pc-summary-card {
+    padding: 16px;
+  }
+
+  .pc-profile-card {
+    gap: 12px;
+  }
+
+  .pc-avatar {
+    width: 64px;
+    height: 64px;
+    font-size: 34px;
+  }
+
+  .pc-profile-name {
+    font-size: 24px;
+  }
+
+  .pc-profile-grade,
+  .pc-summary-line {
+    font-size: 16px;
+  }
+
+  .pc-main-card {
+    padding: 16px 14px 18px;
+    margin-bottom: 14px;
+  }
+
+  .pc-section-heading {
+    margin-bottom: 10px;
+    padding: 7px 12px;
+    font-size: 14px;
+  }
+
+  .pc-section-divider {
+    margin: 14px 0;
+  }
+
+  .pc-detail-item,
+  .pc-achievements-empty,
+  .pc-settings-row {
+    font-size: 15px;
+  }
 }
 
 /* PIN manage modal */

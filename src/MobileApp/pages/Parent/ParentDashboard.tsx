@@ -83,7 +83,7 @@ export default function ParentDashboard() {
 
       <section className="pd-card pd-summary">
         <div className="pd-card-header">
-          <span className="pd-icon">ðŸ“</span>
+          <span className="pd-icon">&#128205;</span>
           <h2>Quick Summary</h2>
         </div>
 
@@ -103,7 +103,7 @@ export default function ParentDashboard() {
         <div className="pd-divider" />
 
         <div className="pd-card-header pd-activity-header">
-          <span className="pd-icon">ðŸŽ¨</span>
+          <span className="pd-icon">&#127912;</span>
           <h2>Recent Activity</h2>
         </div>
         <p className="pd-activity-text">

@@ -21,7 +21,7 @@
   border-radius: 25px;
   font-size: 14px;
   font-weight: bold;
-  color: #333; /* ðŸ”¥ FIX: make text visible */
+  color: #333;
   cursor: pointer;
   box-shadow: 0 6px 12px rgba(0,0,0,0.25);
   transition: 0.2s;
@@ -75,7 +75,7 @@
   border: none;
   font-size: 26px;
   font-weight: bold;
-  color: #333; /* ðŸ”¥ FIX: visible numbers */
+  color: #333;
   background: white;
   box-shadow: 0 6px 12px rgba(0,0,0,0.2);
   cursor: pointer;

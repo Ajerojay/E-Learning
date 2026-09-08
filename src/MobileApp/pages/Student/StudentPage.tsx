@@ -3,7 +3,7 @@ import logo from "../../../img/bear.jpg";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "../../../lib/supabase";
-import { getChildDisplayFirstName, getOrCreateActiveChildId } from "../../../lib/childProgress";
+import { getOrCreateActiveChildId } from "../../../lib/childProgress";
 import bgMusic from "./bg-music-loop.mp3";
 
 import { FaFont, FaShapes, FaPuzzlePiece } from "react-icons/fa";
@@ -27,22 +27,18 @@ export default function StudentPage() {
 
   useEffect(() => {
     const loadChildName = async () => {
-      if (localStorage.getItem("temporaryStudentAccess") === "true") {
-        setChildFirstName("Little Learner");
-        return;
-      }
-
       const childId = await getOrCreateActiveChildId();
       if (!childId) return;
 
       const { data } = await supabase
         .from("children_accounts")
-        .select("child_name, first_name")
+        .select("first_name")
         .eq("id", childId)
         .maybeSingle();
 
-      if (data) {
-        setChildFirstName(getChildDisplayFirstName(data));
+      const firstName = data?.first_name?.trim();
+      if (firstName) {
+        setChildFirstName(firstName);
       }
     };
 
@@ -92,7 +88,7 @@ export default function StudentPage() {
           navigate("/student-access", { state: { fromStudent: true } })
         }
       >
-        <span className="student-back-arrow" aria-hidden="true">â†</span>
+        <span className="student-back-arrow" aria-hidden="true">&#8592;</span>
         <span className="student-back-label">Back</span>
       </button>
 
@@ -109,13 +105,13 @@ export default function StudentPage() {
           aria-label={musicEnabled ? "Mute music" : "Unmute music"}
           title={musicEnabled ? "Mute Music" : "Unmute Music"}
         >
-          {musicEnabled ? "ðŸŽµ" : "ðŸ”‡"}
+          {musicEnabled ? "\u{1F3B5}" : "\u{1F507}"}
         </button>
       </header>
 
       <section className="student-welcome">
-        <span className="welcome-sparkle" aria-hidden="true">âœ¨</span>
-        <h1 className="student-title">Hi, {childFirstName}! ðŸ‘‹</h1>
+        <span className="welcome-sparkle" aria-hidden="true">&#10024;</span>
+        <h1 className="student-title">Hi, {childFirstName}! &#128400;</h1>
         <p>What would you like to learn today?</p>
       </section>
 
@@ -131,7 +127,7 @@ export default function StudentPage() {
           >
             <div className="cloud-icon">{item.icon}</div>
             <div className="cloud-text">{item.name}</div>
-            <span className="lesson-go" aria-hidden="true">Play â†’</span>
+            <span className="lesson-go" aria-hidden="true">Play &#8594;</span>
           </button>
         ))}
       </div>

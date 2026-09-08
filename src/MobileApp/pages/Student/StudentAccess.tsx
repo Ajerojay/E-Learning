@@ -4,9 +4,6 @@ import "./StudentAccess.css";
 // ===== SUPABASE DATABASE: PIN validation helper shared by web and Android app =====
 import { linkChildSessionToSupabasePin, saveChildDeviceLabel } from "../../../lib/childProgress";
 
-// TEMPORARY DEVELOPMENT FALLBACK ONLY. Remove when database-only PIN access is required.
-const TEMPORARY_STUDENT_PIN = "1234";
-
 export default function StudentAccess() {
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
@@ -28,12 +25,7 @@ export default function StudentAccess() {
 
     setBusy(true);
     try {
-      if (pin === TEMPORARY_STUDENT_PIN) {
-        localStorage.setItem("temporaryStudentAccess", "true");
-        localStorage.setItem("studentPin", TEMPORARY_STUDENT_PIN);
-        navigate("/student");
-        return;
-      }
+      localStorage.removeItem("temporaryStudentAccess");
 
       // ===== SUPABASE DATABASE: VERIFY PIN IN children_accounts =====
       const ok = await linkChildSessionToSupabasePin(pin);
@@ -81,11 +73,11 @@ export default function StudentAccess() {
         className="access-back-btn"
         onClick={() => navigate("/")}
       >
-        {fromStudent ? "â† Exit Student Mode" : "â† Parent Login"}
+        {fromStudent ? "\u2190 Exit Student Mode" : "\u2190 Parent Login"}
       </button>
 
       <div className="access-heading">
-        <span className="access-mascot" aria-hidden="true">ðŸ§¸</span>
+        <span className="access-mascot" aria-hidden="true">&#129528;</span>
         <h1 className="lock-title">Enter Your PIN</h1>
         <p>Tap the four numbers to start learning!</p>
       </div>
@@ -108,11 +100,11 @@ export default function StudentAccess() {
 
         <button type="button" className="empty" aria-hidden="true" />
         <button type="button" onClick={() => handleInput("0")}>0</button>
-        <button type="button" onClick={handleDelete}>âŒ«</button>
+        <button type="button" onClick={handleDelete}>⌫</button>
       </div>
 
       <button type="button" className="enter-btn" onClick={() => void handleSubmit()} disabled={busy || pin.length !== 4}>
-        {busy ? "Checkingâ€¦" : "Enter"}
+        {busy ? "Checking\u2026" : "Enter"}
       </button>
 
     </div>

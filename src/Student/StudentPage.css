@@ -2,7 +2,7 @@
   min-height: 100vh;
   background: url("./images/Homehub-bg.png") no-repeat center center;
   background-size: cover;
-  font-family: "Comic Sans MS", cursive;
+  font-family: "Comic Sans MS", "Comic Neue", "Nunito", cursive, sans-serif;
   text-align: center;
   position: relative;
 }

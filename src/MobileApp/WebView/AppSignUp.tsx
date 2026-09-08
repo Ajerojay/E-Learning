@@ -2,9 +2,9 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Baby, Eye, EyeOff, UserRoundPlus } from "lucide-react";
 import "./AppAuth.css";
-import logo from "../../images/learnease logo-no bg.png";
+import logo from "../../../images/learnease logo-no bg.png";
 // ===== SUPABASE DATABASE CONNECTION (same client used by the web app) =====
-import { supabase } from "../lib/supabase";
+import { supabase } from "../../lib/supabase";
 
 const GRADE_OPTIONS = ["Nursery", "Prep", "Kinder"] as const;
 const PRESCHOOL_MIN_AGE = 3;

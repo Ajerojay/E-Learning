@@ -101,12 +101,12 @@ export default function ParentProgress() {
   };
 
   const subjects: { key: SubjectKey; label: string; icon: string }[] = [
-    { key: "colors", label: "Colors", icon: "ðŸŽ¨" },
-    { key: "shapes", label: "Shapes", icon: "ðŸ”º" },
-    { key: "letters", label: "Letters", icon: "ðŸ”¤" },
-    { key: "numbers", label: "Numbers", icon: "ðŸ”¢" },
-    { key: "phonics", label: "Phonics", icon: "ðŸ—£ï¸" },
-    { key: "logic", label: "Logic", icon: "ðŸ§©" },
+    { key: "colors", label: "Colors", icon: "\u{1F3A8}" },
+    { key: "shapes", label: "Shapes", icon: "\u{1F532}" },
+    { key: "letters", label: "Letters", icon: "\u{1F524}" },
+    { key: "numbers", label: "Numbers", icon: "\u{1F522}" },
+    { key: "phonics", label: "Phonics", icon: "\u{1F5E3}\uFE0F" },
+    { key: "logic", label: "Logic", icon: "\u{1F9E9}" },
   ];
 
   const safeProgress = useMemo(() => {
@@ -150,13 +150,13 @@ export default function ParentProgress() {
       onlineTitle: "SCREEN TIME",
       onlineAction: "No activity yet",
       onlineDesc: "There is no recommended screen-time activity at the moment.",
-      onlineButton: "â€”",
+      onlineButton: "\u2014",
       onlineRoute: "",
       offlineTitle: "PARENT TIME",
       offlineAction: "No activity yet",
       offlineDesc:
         "There is no recommended parent-guided activity at the moment.",
-      offlineButton: "â€”",
+      offlineButton: "\u2014",
     };
 
     if (score <= 0) return baseNoActivity;
@@ -168,8 +168,8 @@ export default function ParentProgress() {
       ...baseNoActivity,
       title: "",
       status: `Current Status: ${statusPrefix} (${score}%)`,
-      onlineButton: "â–¶ Play Now",
-      offlineButton: "âœ… Mark as done",
+      onlineButton: "\u25B6 Play Now",
+      offlineButton: "\u2705 Mark as done",
     };
 
     switch (key) {
@@ -302,13 +302,13 @@ export default function ParentProgress() {
           offlineTitle: "PARENT TIME (10m)",
           offlineAction: "Pattern at Home",
           offlineDesc:
-            "Create simple patterns with toys (car, car, blockâ€¦) and ask her what comes next.",
+            "Create simple patterns with toys (car, car, block\u2026) and ask her what comes next.",
         };
     }
   };
 
   return (
-    <div className="pp-wrapper">
+    <div className="pp-wrapper pp-mobile-parent">
       <aside
         className="pp-sidebar"
         data-collapsed={sidebarCollapsed ? "true" : "false"}
@@ -326,7 +326,7 @@ export default function ParentProgress() {
               {getSidebarIconSrc("home") ? (
                 <img className="pp-nav-img" src={getSidebarIconSrc("home")} alt="" />
               ) : (
-                "ðŸ "
+                "\u{1F3E0}"
               )}
             </span>
             <span className="pp-nav-label">HOMEPAGE</span>
@@ -342,7 +342,7 @@ export default function ParentProgress() {
               {getSidebarIconSrc("child") ? (
                 <img className="pp-nav-img" src={getSidebarIconSrc("child")} alt="" />
               ) : (
-                "ðŸ§’"
+                "\u{1F476}"
               )}
             </span>
             <span className="pp-nav-label">YOUR CHILD</span>
@@ -357,7 +357,7 @@ export default function ParentProgress() {
                   alt=""
                 />
               ) : (
-                "ðŸ“ˆ"
+                "\u{1F4C8}"
               )}
             </span>
             <span className="pp-nav-label">PROGRESS</span>
@@ -380,7 +380,7 @@ export default function ParentProgress() {
                   alt=""
                 />
               ) : (
-                "ðŸšª"
+                "\u{1F6AA}"
               )}
             </span>
             <span className="pp-nav-label">LOGOUT</span>
@@ -394,17 +394,17 @@ export default function ParentProgress() {
             <img src={logo} alt="LearnEase Kids logo" className="pp-logo" />
             <span className="pp-brand-text">LearnEase Kids</span>
           </div>
-          <button className="pp-bell-icon">ðŸ””</button>
+          <button className="pp-bell-icon">&#128276;</button>
         </header>
 
         <main className="pp-content">
           <section className="pp-heading-card">
-            <h1>Your Childrenâ€™s Progress</h1>
+            <h1>Your Children&apos;s Progress</h1>
           </section>
 
           <section className="pp-summary-row">
             <div className="pp-child-card">
-              <div className="pp-avatar">ðŸ¦„</div>
+              <div className="pp-avatar">&#129528;</div>
               <div>
                 <h2>{childName}</h2>
                 <p className="pp-grade">Kinder</p>
@@ -451,7 +451,7 @@ export default function ParentProgress() {
 
           <section className="pp-recommended">
             <div className="pp-recommended-title">
-              <span>â­</span>
+              <span>&#11088;</span>
               <h2>
                 RECOMMENDED FOR <span>{childName.toUpperCase()}</span>
               </h2>
@@ -477,7 +477,7 @@ export default function ParentProgress() {
 
                   <div className="pp-recommend-actions">
                     <div className="pp-recommend-box">
-                      <p className="pp-mini-title">ðŸ“± {rec.onlineTitle}</p>
+                      <p className="pp-mini-title">&#128241; {rec.onlineTitle}</p>
                       <strong>{rec.onlineAction}</strong>
                       <p>{rec.onlineDesc}</p>
 
@@ -491,7 +491,7 @@ export default function ParentProgress() {
                     </div>
 
                     <div className="pp-recommend-box">
-                      <p className="pp-mini-title">ðŸ  {rec.offlineTitle}</p>
+                      <p className="pp-mini-title">&#127968; {rec.offlineTitle}</p>
                       <strong>{rec.offlineAction}</strong>
                       <p>{rec.offlineDesc}</p>
                       <button disabled={score <= 0 || loading}>{rec.offlineButton}</button>

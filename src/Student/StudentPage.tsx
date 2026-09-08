@@ -3,7 +3,7 @@ import logo from "../img/bear.jpg";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { getChildDisplayFirstName, getOrCreateActiveChildId } from "../lib/childProgress";
+import { getOrCreateActiveChildId } from "../lib/childProgress";
 import bgMusic from "./bg-music-loop.mp3";
 
 import { FaFont, FaShapes, FaPuzzlePiece } from "react-icons/fa";
@@ -32,12 +32,13 @@ export default function StudentPage() {
 
       const { data } = await supabase
         .from("children_accounts")
-        .select("child_name, first_name")
+        .select("first_name")
         .eq("id", childId)
         .maybeSingle();
 
-      if (data) {
-        setChildFirstName(getChildDisplayFirstName(data));
+      const firstName = data?.first_name?.trim();
+      if (firstName) {
+        setChildFirstName(firstName);
       }
     };
 

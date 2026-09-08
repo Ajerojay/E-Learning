@@ -1,4 +1,4 @@
-﻿import LessonPage from "./pages/Student/LessonPage";
+﻿import LessonPage from "../pages/Student/LessonPage";
 import "./AppLessonPage.css";
 
 // SUPABASE DATABASE: LessonPage loads video_lessons and lesson-videos storage.

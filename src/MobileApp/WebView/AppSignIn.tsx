@@ -2,10 +2,10 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, KeyRound, LogIn } from "lucide-react";
 import "./AppAuth.css";
-import logo from "../../images/learnease logo-no bg.png";
+import logo from "../../../images/learnease logo-no bg.png";
 // ===== SUPABASE DATABASE CONNECTION (same client used by the web app) =====
-import { supabase } from "../lib/supabase";
-import { getOrCreateActiveChildId } from "../lib/childProgress";
+import { supabase } from "../../lib/supabase";
+import { getOrCreateActiveChildId } from "../../lib/childProgress";
 
 const ADMIN_USERNAME = "admin";
 const ADMIN_PASSWORD = "admin123";

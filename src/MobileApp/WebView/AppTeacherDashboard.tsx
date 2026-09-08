@@ -1,4 +1,4 @@
-﻿import TeacherDashboard from "./pages/Teacher/TeacherDashboard";
+﻿import TeacherDashboard from "../../Teacher/TeacherDashboard";
 import "./AppTeacherDashboard.css";
 
 /** Mobile/tablet shell that keeps the web teacher dashboard untouched. */

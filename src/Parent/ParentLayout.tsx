@@ -30,16 +30,38 @@ export default function ParentLayout({ activeNav, children }: ParentLayoutProps)
   const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(true);
 
+  React.useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 768px)");
+
+    const syncMobileNav = () => {
+      if (mediaQuery.matches) {
+        setSidebarCollapsed(true);
+      }
+    };
+
+    syncMobileNav();
+    mediaQuery.addEventListener("change", syncMobileNav);
+
+    return () => mediaQuery.removeEventListener("change", syncMobileNav);
+  }, []);
+
   const navClass = (id: ParentNavId) =>
     `pd-nav-item${activeNav === id ? " pd-active" : ""}`;
+
+  const isMobileLayout = () =>
+    typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
 
   return (
     <div className="pd-wrapper">
       <aside
         className="pd-sidebar"
         data-collapsed={sidebarCollapsed ? "true" : "false"}
-        onMouseEnter={() => setSidebarCollapsed(false)}
-        onMouseLeave={() => setSidebarCollapsed(true)}
+        onMouseEnter={() => {
+          if (!isMobileLayout()) setSidebarCollapsed(false);
+        }}
+        onMouseLeave={() => {
+          if (!isMobileLayout()) setSidebarCollapsed(true);
+        }}
       >
         <nav className="pd-nav">
           <button

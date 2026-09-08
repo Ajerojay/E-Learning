@@ -1,4 +1,4 @@
-﻿import ShapesQuestPage from "./pages/Student/ShapesQuestPage";
+﻿import ShapesQuestPage from "../pages/Student/ShapesQuestPage";
 import "./AppShapesQuestPage.css";
 
 // SUPABASE DATABASE: saves progress through gameProgressDb.ts / record_game_attempt RPC.

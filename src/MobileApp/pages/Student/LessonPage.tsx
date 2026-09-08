@@ -115,7 +115,7 @@ export default function LessonPage() {
       }}
     >
       <button className="back-btn" onClick={() => navigate("/student")}>
-        â† Back
+        &#8592; Back
       </button>
 
       <h1 className="lesson-title">{formattedCategory} Lesson</h1>
@@ -141,14 +141,14 @@ export default function LessonPage() {
         {category === "phonics" && (
           <>
             <p className="lesson-activity-meta">
-              listening choices â€” tap the speaker, then pick the animal!
+              listening choices &mdash; tap the speaker, then pick the animal!
             </p>
             <button
               type="button"
               className="start-quest-btn"
               onClick={() => navigate("/student/PhonicsQuestPage")}
             >
-              ðŸ”Š Start Phonics Quest
+              &#128266; Start Phonics Quest
             </button>
           </>
         )}
@@ -166,7 +166,7 @@ export default function LessonPage() {
         {category === "logic" && (
           <>
             <p className="lesson-activity-meta">
-              logic choices â€” drag the correct symbol into the box!
+              logic choices &mdash; drag the correct symbol into the box!
             </p>
             <button
               type="button"

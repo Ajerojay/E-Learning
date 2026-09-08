@@ -303,16 +303,16 @@ export default function ParentSignup() {
         <div className="le-card1">
           <h1 className="le-title1">Create your account</h1>
           <p className="le-subtitle1">
-            For preschoolers (Nursery, Prep, and Kinder) â€” parent login first, then your
+            For preschoolers (Nursery, Prep, and Kinder) &mdash; parent login first, then your
             child&apos;s profile.
           </p>
 
           <form className="le-form1" onSubmit={handleSubmit} noValidate>
-            {/* â€”â€”â€” Parent (first) â€”â€”â€” */}
+            {/* Parent (first) */}
             <section className="le-signup-section" aria-labelledby="parent-section-title">
               <div className="le-section-head">
                 <span className="le-section-icon le-section-icon--parent" aria-hidden="true">
-                  ðŸ‘¤
+                  &#128100;
                 </span>
                 <div>
                   <h2 id="parent-section-title" className="le-section-title">
@@ -371,21 +371,21 @@ export default function ParentSignup() {
                       <div className="le-passHints">
                         <p className="invalid">Weak password</p>
                         <p className={checks.length ? "valid" : "invalid"}>
-                          {checks.length ? "âœ”" : "âœ–"} Min. 8 characters
+                          {checks.length ? "\u2714" : "\u2716"} Min. 8 characters
                         </p>
                         <p className={checks.uppercase ? "valid" : "invalid"}>
-                          {checks.uppercase ? "âœ”" : "âœ–"} One uppercase letter
+                          {checks.uppercase ? "\u2714" : "\u2716"} One uppercase letter
                         </p>
                         <p className={checks.number ? "valid" : "invalid"}>
-                          {checks.number ? "âœ”" : "âœ–"} One number
+                          {checks.number ? "\u2714" : "\u2716"} One number
                         </p>
                         <p className={checks.special ? "valid" : "invalid"}>
-                          {checks.special ? "âœ”" : "âœ–"} Special char (!@#$%^&*)
+                          {checks.special ? "\u2714" : "\u2716"} Special char (!@#$%^&*)
                         </p>
                       </div>
                     )}
                   </div>
-                  {allPassed && <p className="le-field-hint">âœ” Strong password</p>}
+                  {allPassed && <p className="le-field-hint">\u2714 Strong password</p>}
                 </div>
 
                 <div className="le-field">
@@ -426,22 +426,22 @@ export default function ParentSignup() {
                       confirmTyping &&
                       !passwordsMatch && (
                         <div className="le-passHints">
-                          <p className="invalid">âœ– Passwords do not match</p>
+                          <p className="invalid">\u2716 Passwords do not match</p>
                         </div>
                       )}
                   </div>
                   {confirmTyping && passwordsMatch && (
-                    <p className="le-field-hint">âœ” Passwords matched</p>
+                    <p className="le-field-hint">\u2714 Passwords matched</p>
                   )}
                 </div>
               </div>
             </section>
 
-            {/* â€”â€”â€” Child (second) â€”â€”â€” */}
+            {/* Child (second) */}
             <section className="le-signup-section" aria-labelledby="child-section-title">
               <div className="le-section-head">
                 <span className="le-section-icon le-section-icon--child" aria-hidden="true">
-                  ðŸ§’
+                  &#128118;
                 </span>
                 <div>
                   <h2 id="child-section-title" className="le-section-title">
@@ -502,7 +502,7 @@ export default function ParentSignup() {
                   />
                   {childBirthday && !childAgeValid && (
                     <p className="le-field-hint le-field-hint--error">
-                      Child must be {PRESCHOOL_MIN_AGE}â€“{PRESCHOOL_MAX_AGE} years old
+                      Child must be {PRESCHOOL_MIN_AGE}&ndash;{PRESCHOOL_MAX_AGE} years old
                       (preschool).
                     </p>
                   )}
@@ -559,7 +559,7 @@ export default function ParentSignup() {
                       inputMode="numeric"
                       autoComplete="off"
                       maxLength={4}
-                      placeholder="â€¢â€¢â€¢â€¢"
+                      placeholder="\u2022\u2022\u2022\u2022"
                       value={childPin}
                       onChange={(e) => handlePinChange(e.target.value, setChildPin)}
                       required
@@ -587,7 +587,7 @@ export default function ParentSignup() {
                       inputMode="numeric"
                       autoComplete="off"
                       maxLength={4}
-                      placeholder="â€¢â€¢â€¢â€¢"
+                      placeholder="\u2022\u2022\u2022\u2022"
                       value={confirmChildPin}
                       onFocus={() => setActiveField("pinConfirm")}
                       onBlur={() => {
@@ -614,12 +614,12 @@ export default function ParentSignup() {
                       confirmChildPin.length > 0 &&
                       !pinsMatch && (
                         <div className="le-passHints">
-                          <p className="invalid">âœ– PINs do not match</p>
+                          <p className="invalid">\u2716 PINs do not match</p>
                         </div>
                       )}
                   </div>
                   {pinConfirmTyping && pinsMatch && (
-                    <p className="le-field-hint">âœ” PINs matched</p>
+                    <p className="le-field-hint">\u2714 PINs matched</p>
                   )}
                 </div>
               </div>
@@ -631,7 +631,7 @@ export default function ParentSignup() {
               disabled={loading || !canSubmit}
               aria-disabled={loading || !canSubmit}
             >
-              {loading ? "Creating accountâ€¦" : "Create account"}
+              {loading ? "Creating account\u2026" : "Create account"}
             </button>
 
             {!canSubmit && !loading && (
@@ -675,7 +675,7 @@ export default function ParentSignup() {
         >
           <div className="le-success-modal">
             <div className="le-success-icon" aria-hidden="true">
-              âœ“
+              &#10003;
             </div>
             <h2 id="signup-success-title" className="le-success-title">
               Successfully registered!

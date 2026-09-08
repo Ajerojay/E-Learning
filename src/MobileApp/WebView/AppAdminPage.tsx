@@ -1,4 +1,4 @@
-﻿import AdminPage from "./pages/Admin/AdminPage";
+﻿import AdminPage from "../pages/Admin/AdminPage";
 import "./AppAdminPage.css";
 
 /** Mobile-only presentation shell for the admin dashboard. */

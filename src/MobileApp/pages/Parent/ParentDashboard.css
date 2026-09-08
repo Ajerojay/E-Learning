@@ -259,6 +259,215 @@ body {
   font-weight: 700;
 }
 
+/* Mobile parent navigation: keep the existing actions in a fixed top bar. */
+@media (max-width: 768px) {
+  .pd-wrapper {
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .pd-sidebar {
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: calc(72px + env(safe-area-inset-top));
+    min-height: 0;
+    padding: env(safe-area-inset-top) 8px 6px;
+    background: rgba(255, 228, 174, 0.97);
+    border-right: 0;
+    border-bottom: 2px solid #e0c18a;
+    box-shadow: 0 4px 14px rgba(92, 67, 37, 0.16);
+  }
+
+  .pd-sidebar[data-collapsed="true"] {
+    width: 100%;
+    padding-inline: 8px;
+  }
+
+  .pd-nav,
+  .pd-sidebar[data-collapsed="true"] .pd-nav {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 4px;
+  }
+
+  .pd-nav-item,
+  .pd-sidebar[data-collapsed="true"] .pd-nav-item {
+    min-width: 0;
+    min-height: 58px;
+    padding: 4px 2px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 1px;
+    border-radius: 12px;
+    text-align: center;
+    transform: none;
+  }
+
+  .pd-nav-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 23px;
+  }
+
+  .pd-nav-img {
+    width: 28px;
+    height: 28px;
+  }
+
+  .pd-nav-label,
+  .pd-sidebar[data-collapsed="true"] .pd-nav-label {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 9px;
+    line-height: 1.1;
+    letter-spacing: 0;
+  }
+
+  .pd-logout,
+  .pd-sidebar[data-collapsed="true"] .pd-logout {
+    margin-top: 0;
+    padding-top: 4px;
+  }
+
+  .pd-main,
+  .pd-sidebar[data-collapsed="true"] + .pd-main {
+    width: 100%;
+    min-width: 0;
+    margin-left: 0;
+    padding: calc(88px + env(safe-area-inset-top)) 14px 24px;
+  }
+
+  .pd-top-header {
+    margin-bottom: 16px;
+  }
+
+  .pd-brand {
+    max-width: calc(100% - 48px);
+    padding: 8px 18px;
+    font-size: 18px;
+  }
+
+  .pd-logo {
+    width: 36px;
+    height: 36px;
+  }
+
+  .pd-bell-icon {
+    right: 0;
+    width: 38px;
+    height: 38px;
+    font-size: 19px;
+  }
+
+  .pd-content {
+    overflow: visible;
+    padding-top: 0;
+  }
+
+  .pd-welcome,
+  .pd-card {
+    padding: 18px 16px;
+  }
+}
+
+/* The Capacitor parent pages must use the top navigation even when the WebView
+   reports a desktop-sized CSS viewport in portrait mode. */
+.pd-mobile-parent .pd-sidebar {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: calc(72px + env(safe-area-inset-top));
+  min-height: 0;
+  padding: env(safe-area-inset-top) 8px 6px;
+  background: rgba(255, 228, 174, 0.97);
+  border-right: 0;
+  border-bottom: 2px solid #e0c18a;
+  box-shadow: 0 4px 14px rgba(92, 67, 37, 0.16);
+}
+
+.pd-mobile-parent .pd-sidebar[data-collapsed="true"] {
+  width: 100%;
+  padding-inline: 8px;
+}
+
+.pd-mobile-parent .pd-nav {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 4px;
+}
+
+.pd-mobile-parent .pd-nav-item,
+.pd-mobile-parent .pd-sidebar[data-collapsed="true"] .pd-nav-item {
+  min-width: 0;
+  min-height: 58px;
+  padding: 4px 2px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1px;
+  border-radius: 12px;
+  text-align: center;
+  transform: none;
+}
+
+.pd-mobile-parent .pd-nav-icon {
+  width: 32px;
+  height: 32px;
+  font-size: 23px;
+}
+
+.pd-mobile-parent .pd-nav-img {
+  width: 28px;
+  height: 28px;
+}
+
+.pd-mobile-parent .pd-nav-label,
+.pd-mobile-parent .pd-sidebar[data-collapsed="true"] .pd-nav-label {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9px;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+.pd-mobile-parent .pd-logout,
+.pd-mobile-parent .pd-sidebar[data-collapsed="true"] .pd-logout {
+  margin-top: 0;
+  padding-top: 4px;
+}
+
+.pd-mobile-parent .pd-main,
+.pd-mobile-parent .pd-sidebar[data-collapsed="true"] + .pd-main {
+  width: 100%;
+  min-width: 0;
+  margin-left: 0;
+  padding: calc(88px + env(safe-area-inset-top)) 14px 24px;
+}
+
+.pd-mobile-parent .pd-content {
+  overflow: visible;
+  padding-top: 0;
+}
+
 .pd-card {
   margin-bottom: 20px;
 }
@@ -335,31 +544,46 @@ body {
 /* RESPONSIVE FIXES */
 /* ============================= */
 
+@media (max-width: 980px) {
+  .pd-main {
+    padding: 22px 24px 28px;
+  }
+
+  .pd-brand {
+    padding-inline: 24px;
+  }
+}
+
 @media (max-width: 768px) {
 
   .pd-wrapper {
     flex-direction: column;
     background-size: cover;
-    overflow: visible;
+    overflow-x: hidden;
+    background-attachment: scroll;
   }
 
   /* SIDEBAR BECOMES TOP NAV */
   .pd-sidebar {
-    position: static;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
     flex-direction: row;
     align-items: center;
     justify-content: space-around;
     width: 100%;
-    height: auto;
-    min-height: 68px;
+    height: 70px;
     border-right: none;
     border-bottom: 2px solid #e0c18a;
-    padding: 8px 6px;
-    gap: 0;
+    padding: 8px 10px;
+    border-radius: 0;
+    box-shadow: 0 2px 0 rgba(77, 64, 47, 0.12);
   }
 
   .pd-main {
     margin-left: 0;
+    padding-top: 88px;
   }
 
   .pd-sidebar[data-collapsed="true"] + .pd-main {
@@ -368,7 +592,7 @@ body {
 
   .pd-nav {
     flex-direction: row;
-    gap: 4px;
+    gap: 10px;
     width: 100%;
     justify-content: space-around;
     padding-top: 0;
@@ -378,10 +602,8 @@ body {
     flex-direction: column;
     gap: 4px;
     font-size: 12px;
-    padding: 6px 4px;
-    border-radius: 10px;
-    flex: 1 1 0;
-    min-width: 0;
+    padding: 6px;
+    justify-content: center;
   }
 
   .pd-nav-icon {
@@ -396,10 +618,7 @@ body {
   }
 
   .pd-nav-label {
-    font-size: 10px;
-    line-height: 1.1;
-    overflow-wrap: anywhere;
-    text-align: center;
+    display: none;
   }
 
   .pd-logout {
@@ -408,22 +627,18 @@ body {
 
   /* MAIN AREA */
   .pd-main {
-    padding: 14px 14px 22px;
-    min-height: calc(100vh - 68px);
+    padding: 14px 16px 20px;
   }
 
   /* HEADER */
   .pd-top-header {
-    margin-bottom: 16px;
+    margin-bottom: 18px;
     padding-right: 42px;
   }
 
   .pd-brand {
-    width: 100%;
-    justify-content: center;
     font-size: 16px;
-    padding: 8px 12px;
-    border-radius: 14px;
+    padding: 8px 20px;
   }
 
   .pd-logo {
@@ -435,24 +650,13 @@ body {
     width: 34px;
     height: 34px;
     font-size: 18px;
-    right: 0;
   }
 
   /* CARDS */
   .pd-welcome,
   .pd-card {
-    padding: 16px 14px;
+    padding: 16px 16px;
     border-radius: 14px;
-  }
-
-  .pd-welcome {
-    margin-bottom: 16px;
-  }
-
-  .pd-summary {
-    min-height: 0;
-    padding-top: 18px;
-    padding-bottom: 20px;
   }
 
   .pd-welcome-text {
@@ -473,6 +677,59 @@ body {
 
   .pd-progress-bar {
     height: 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  .pd-main {
+    padding: 12px 12px 16px;
+  }
+
+  .pd-sidebar {
+    height: 62px;
+    padding: 6px 8px;
+  }
+
+  .pd-nav {
+    gap: 6px;
+  }
+
+  .pd-nav-item {
+    min-width: 0;
+    padding: 4px 6px;
+  }
+
+  .pd-nav-label {
+    font-size: 9px;
+    letter-spacing: 0.18px;
+  }
+
+  .pd-top-header {
+    padding-right: 32px;
+    margin-bottom: 14px;
+  }
+
+  .pd-brand {
+    font-size: 13px;
+    padding: 7px 12px;
+  }
+
+  .pd-brand-text {
+    font-size: 13px;
+  }
+
+  .pd-bell-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+  }
+
+  .pd-welcome-text {
+    font-size: 20px;
+  }
+
+  .pd-card h2 {
+    font-size: 16px;
   }
 }
 

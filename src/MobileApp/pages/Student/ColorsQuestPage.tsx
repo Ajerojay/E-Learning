@@ -669,8 +669,19 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
     setLevelIndex((p) => Math.min(p + 1, LEVELS.length - 1));
   };
 
+  const completedBasketColors = useMemo(() => {
+    const completed = new Set<ColorKey>();
+    for (const color of activeColors) {
+      const colorItems = items.filter((item) => item.color === color);
+      if (colorItems.length > 0 && groupedPlaced[color].length >= colorItems.length) {
+        completed.add(color);
+      }
+    }
+    return completed;
+  }, [activeColors, groupedPlaced, items]);
+
   return (
-    <div className="colors-page" ref={pageRef}>
+    <div className="colors-page" data-level={levelIndex + 1} ref={pageRef}>
       {mobileApp && !isLandscape && (
         <div className="cq-rotate-notice" role="status" aria-live="polite">
           <span className="cq-phone-icon" aria-hidden="true">ðŸ“±</span>
@@ -745,7 +756,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
         </div>
 
         <div className="cq-baskets-row">
-          {activeColors.map((c) => (
+          {activeColors.filter((c) => !completedBasketColors.has(c)).map((c) => (
             <Basket
               key={c}
               id={c}

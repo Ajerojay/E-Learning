@@ -30,16 +30,38 @@ export default function ParentLayout({ activeNav, children }: ParentLayoutProps)
   const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(true);
 
+  React.useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 768px)");
+
+    const syncMobileNav = () => {
+      if (mediaQuery.matches) {
+        setSidebarCollapsed(true);
+      }
+    };
+
+    syncMobileNav();
+    mediaQuery.addEventListener("change", syncMobileNav);
+
+    return () => mediaQuery.removeEventListener("change", syncMobileNav);
+  }, []);
+
   const navClass = (id: ParentNavId) =>
     `pd-nav-item${activeNav === id ? " pd-active" : ""}`;
 
+  const isMobileLayout = () =>
+    typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
+
   return (
-    <div className="pd-wrapper">
+    <div className="pd-wrapper pd-mobile-parent">
       <aside
         className="pd-sidebar"
         data-collapsed={sidebarCollapsed ? "true" : "false"}
-        onMouseEnter={() => setSidebarCollapsed(false)}
-        onMouseLeave={() => setSidebarCollapsed(true)}
+        onMouseEnter={() => {
+          if (!isMobileLayout()) setSidebarCollapsed(false);
+        }}
+        onMouseLeave={() => {
+          if (!isMobileLayout()) setSidebarCollapsed(true);
+        }}
       >
         <nav className="pd-nav">
           <button
@@ -52,7 +74,7 @@ export default function ParentLayout({ activeNav, children }: ParentLayoutProps)
               {getSidebarIconSrc("home") ? (
                 <img className="pd-nav-img" src={getSidebarIconSrc("home")} alt="" />
               ) : (
-                "ðŸ "
+                "\u{1F3E0}"
               )}
             </span>
             <span className="pd-nav-label">HOMEPAGE</span>
@@ -68,7 +90,7 @@ export default function ParentLayout({ activeNav, children }: ParentLayoutProps)
               {getSidebarIconSrc("child") ? (
                 <img className="pd-nav-img" src={getSidebarIconSrc("child")} alt="" />
               ) : (
-                "ðŸ§’"
+                "\u{1F476}"
               )}
             </span>
             <span className="pd-nav-label">YOUR CHILD</span>
@@ -84,7 +106,7 @@ export default function ParentLayout({ activeNav, children }: ParentLayoutProps)
               {getSidebarIconSrc("progress") ? (
                 <img className="pd-nav-img" src={getSidebarIconSrc("progress")} alt="" />
               ) : (
-                "ðŸ“ˆ"
+                "\u{1F4C8}"
               )}
             </span>
             <span className="pd-nav-label">PROGRESS</span>
@@ -106,7 +128,7 @@ export default function ParentLayout({ activeNav, children }: ParentLayoutProps)
               {getSidebarIconSrc("logout") ? (
                 <img className="pd-nav-img" src={getSidebarIconSrc("logout")} alt="" />
               ) : (
-                "ðŸšª"
+                "\u{1F6AA}"
               )}
             </span>
             <span className="pd-nav-label">LOGOUT</span>
@@ -121,7 +143,7 @@ export default function ParentLayout({ activeNav, children }: ParentLayoutProps)
             <span className="pd-brand-text">LearnEase Kids</span>
           </div>
           <button type="button" className="pd-bell-icon" aria-label="Notifications">
-            ðŸ””
+            &#128276;
           </button>
         </header>
 

@@ -168,7 +168,7 @@ export default function ParentChildren() {
   if (loading) {
     return (
       <ParentLayout activeNav="child">
-        <p className="pc-loading">Loading your child&apos;s profileâ€¦</p>
+        <p className="pc-loading">Loading your child&apos;s profile&hellip;</p>
       </ParentLayout>
     );
   }
@@ -182,7 +182,7 @@ export default function ParentChildren() {
       <div className="pc-top-row">
         <article className="pc-profile-card">
           <div className="pc-avatar" aria-hidden="true">
-            ðŸ¦„
+            &#129528;
           </div>
           <div>
             <h2 className="pc-profile-name">{displayName}</h2>
@@ -196,7 +196,7 @@ export default function ParentChildren() {
           </p>
           <p className="pc-summary-line pc-summary-line--progress">
             <span className="pc-star" aria-hidden="true">
-              â­
+              &#11088;
             </span>
             Overall Progress:{" "}
             <span className="pc-progress-value">{overallProgress}%</span>
@@ -210,13 +210,13 @@ export default function ParentChildren() {
           <ul className="pc-detail-list">
             <li className="pc-detail-item">
               <span className="pc-detail-icon" aria-hidden="true">
-                ðŸŽ‰
+                &#127881;
               </span>
               Birthday: {birthdayText}
             </li>
             <li className="pc-detail-item">
               <span className="pc-detail-icon" aria-hidden="true">
-                â³
+                &#9203;
               </span>
               Age: {ageText}
             </li>
@@ -238,7 +238,7 @@ export default function ParentChildren() {
             </ul>
           ) : (
             <p className="pc-achievements-empty">
-              No achievements yet â€” play a lesson to earn the first one!
+              No achievements yet &mdash; play a lesson to earn the first one!
             </p>
           )}
         </div>
@@ -251,7 +251,7 @@ export default function ParentChildren() {
           <p className="pc-settings-row">
             <span className="pc-settings-label">PIN Login:</span>
             <span className="pc-pin-dots" aria-label="PIN hidden">
-              â— â— â— â—
+              &#9679; &#9679; &#9679; &#9679;
             </span>
             <button
               type="button"
@@ -393,7 +393,7 @@ export default function ParentChildren() {
                 disabled={pinSaving}
                 onClick={() => void handleSavePin()}
               >
-                {pinSaving ? "Savingâ€¦" : "Save PIN"}
+                {pinSaving ? "Saving\u2026" : "Save PIN"}
               </button>
             </div>
           </div>

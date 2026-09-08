@@ -532,7 +532,10 @@ body {
   }
 
   .pp-sidebar {
-    position: static;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
     flex-direction: row;
     align-items: center;
     justify-content: space-around;
@@ -541,11 +544,13 @@ body {
     border-right: none;
     border-bottom: 2px solid #e0c18a;
     padding: 8px 10px;
+    border-radius: 0;
+    box-shadow: 0 2px 0 rgba(77, 64, 47, 0.12);
   }
 
   .pp-main {
     margin-left: 0;
-    padding: 14px 16px 20px;
+    padding: 88px 16px 20px;
   }
 
   .pp-sidebar[data-collapsed="true"] + .pp-main {

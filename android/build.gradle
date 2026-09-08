@@ -24,6 +24,16 @@ allprojects {
     }
 }
 
+subprojects { subproject ->
+    afterEvaluate {
+        def androidExtension = extensions.findByName('android')
+        if (androidExtension != null) {
+            androidExtension.compileOptions.sourceCompatibility = JavaVersion.VERSION_17
+            androidExtension.compileOptions.targetCompatibility = JavaVersion.VERSION_17
+        }
+    }
+}
+
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
