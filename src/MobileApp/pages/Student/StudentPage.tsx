@@ -1,9 +1,11 @@
 ﻿import "./StudentPage.css";
 import logo from "../../../img/bear.jpg";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "../../../lib/supabase";
 import { getOrCreateActiveChildId } from "../../../lib/childProgress";
+import { getStudentGameAccess } from "../../../lib/studentGameAccess";
+import { isActivityOpen } from "../../../lib/activityConfig";
 import bgMusic from "./bg-music-loop.mp3";
 
 import { FaFont, FaShapes, FaPuzzlePiece } from "react-icons/fa";
@@ -12,7 +14,9 @@ import { GiSoundWaves } from "react-icons/gi";
 
 export default function StudentPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [childFirstName, setChildFirstName] = useState("Child");
+  const [allowedGames, setAllowedGames] = useState<string[]>([]);
   const [musicEnabled, setMusicEnabled] = useState(true);
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
 
@@ -29,6 +33,7 @@ export default function StudentPage() {
     const loadChildName = async () => {
       const childId = await getOrCreateActiveChildId();
       if (!childId) return;
+      setAllowedGames(getStudentGameAccess(childId));
 
       const { data } = await supabase
         .from("children_accounts")
@@ -113,11 +118,12 @@ export default function StudentPage() {
         <span className="welcome-sparkle" aria-hidden="true">&#10024;</span>
         <h1 className="student-title">Hi, {childFirstName}! &#128400;</h1>
         <p>What would you like to learn today?</p>
+        {location.state?.blockedGame && <p className="student-access-note">That activity is currently locked by your teacher.</p>}
       </section>
 
       {/* GRID */}
       <div className="lesson-grid">
-        {lessons.map((item, index) => (
+        {lessons.filter(item => allowedGames.includes(item.key) && isActivityOpen(item.key as import("../../../lib/childProgress").SubjectKey)).map((item, index) => (
           <button
             key={index}
             type="button"

@@ -1,6 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import "./App.css";
+import { getOrCreateActiveChildId, type SubjectKey } from "./lib/childProgress";
+import { isStudentGameAllowed } from "./lib/studentGameAccess";
+import { isActivityOpen } from "./lib/activityConfig";
 
 /* PARENT */
 const ParentLogin = lazy(() => import("./Parent/ParentLogin"));
@@ -48,6 +51,19 @@ const NumbersQuestPage = lazy(() => import("./Student/NumbersQuestPage"));
 const LetterQuestPage = lazy(() => import("./Student/LetterQuestPage"));
 const ShapesQuestPage = lazy(() => import("./Student/ShapesQuestPage"));
 
+function StudentGameGuard({ category, children }: { category: SubjectKey; children: ReactNode }) {
+  const [allowed, setAllowed] = useState<boolean | null>(null);
+  useEffect(() => {
+    let active = true;
+    void getOrCreateActiveChildId().then(childId => {
+      if (active) setAllowed(isActivityOpen(category) && (!childId || isStudentGameAllowed(childId, category)));
+    });
+    return () => { active = false; };
+  }, [category]);
+  if (allowed === null) return <div className="app-route-loading">Checking activity access…</div>;
+  return allowed ? <>{children}</> : <Navigate to="/student" replace state={{ blockedGame: category }} />;
+}
+
 function App() {
   const mobileApp = isMobileApp();
 
@@ -65,12 +81,12 @@ function App() {
         <Route path="/app" element={<Navigate to="/app/signin" replace />} />
         <Route path="/app/signin" element={<AppSignIn />} />
         <Route path="/app/signup" element={<AppSignUp />} />
-        <Route path="/app/phonics-quest" element={<AppPhonicsQuestPage />} />
-        <Route path="/app/logic-quest" element={<AppLogicQuestPage />} />
-        <Route path="/app/colors-quest" element={<AppColorsQuestPage />} />
-        <Route path="/app/shapes-quest" element={<AppShapesQuestPage />} />
-        <Route path="/app/numbers-quest" element={<AppNumbersQuestPage />} />
-        <Route path="/app/letters-quest" element={<AppLetterQuestPage />} />
+        <Route path="/app/phonics-quest" element={<StudentGameGuard category="phonics"><AppPhonicsQuestPage /></StudentGameGuard>} />
+        <Route path="/app/logic-quest" element={<StudentGameGuard category="logic"><AppLogicQuestPage /></StudentGameGuard>} />
+        <Route path="/app/colors-quest" element={<StudentGameGuard category="colors"><AppColorsQuestPage /></StudentGameGuard>} />
+        <Route path="/app/shapes-quest" element={<StudentGameGuard category="shapes"><AppShapesQuestPage /></StudentGameGuard>} />
+        <Route path="/app/numbers-quest" element={<StudentGameGuard category="numbers"><AppNumbersQuestPage /></StudentGameGuard>} />
+        <Route path="/app/letters-quest" element={<StudentGameGuard category="letters"><AppLetterQuestPage /></StudentGameGuard>} />
         
         {/* PARENT */}
         <Route path="/parent-dashboard" element={mobileApp ? <AppParentDashboard /> : <ParentDashboard />} />
@@ -88,15 +104,15 @@ function App() {
         <Route path="/student-access" element={mobileApp ? <AppStudentAccess /> : <StudentAccess />} />
         <Route path="/student" element={mobileApp ? <AppStudentPage /> : <StudentPage />} />
         <Route path="/lesson/:category" element={mobileApp ? <AppLessonPage /> : <LessonPage />} />
-        <Route path="/quest/colors" element={mobileApp ? <AppColorsQuestPage /> : <ColorsQuestPage />} />
-        <Route path="/student/PhonicsQuestPage" element={mobileApp ? <AppPhonicsQuestPage /> : <SoundGame />} />
-        <Route path="/student/sound" element={mobileApp ? <AppPhonicsQuestPage /> : <SoundGame />} />
-        <Route path="/student/LogicQuestPage" element={mobileApp ? <AppLogicQuestPage /> : <LogicGame />} />
-        <Route path="/student/pattern" element={mobileApp ? <AppLogicQuestPage /> : <LogicGame />} />
-        <Route path="/quest/number" element={mobileApp ? <AppNumbersQuestPage /> : <NumbersQuestPage />} />
+        <Route path="/quest/colors" element={<StudentGameGuard category="colors">{mobileApp ? <AppColorsQuestPage /> : <ColorsQuestPage />}</StudentGameGuard>} />
+        <Route path="/student/PhonicsQuestPage" element={<StudentGameGuard category="phonics">{mobileApp ? <AppPhonicsQuestPage /> : <SoundGame />}</StudentGameGuard>} />
+        <Route path="/student/sound" element={<StudentGameGuard category="phonics">{mobileApp ? <AppPhonicsQuestPage /> : <SoundGame />}</StudentGameGuard>} />
+        <Route path="/student/LogicQuestPage" element={<StudentGameGuard category="logic">{mobileApp ? <AppLogicQuestPage /> : <LogicGame />}</StudentGameGuard>} />
+        <Route path="/student/pattern" element={<StudentGameGuard category="logic">{mobileApp ? <AppLogicQuestPage /> : <LogicGame />}</StudentGameGuard>} />
+        <Route path="/quest/number" element={<StudentGameGuard category="numbers">{mobileApp ? <AppNumbersQuestPage /> : <NumbersQuestPage />}</StudentGameGuard>} />
         <Route path="/quest/numbers" element={<Navigate to="/quest/number" replace />} />
-        <Route path="/quest/letter" element={mobileApp ? <AppLetterQuestPage /> : <LetterQuestPage />} />
-        <Route path="/quest/shapes" element={mobileApp ? <AppShapesQuestPage /> : <ShapesQuestPage />} />
+        <Route path="/quest/letter" element={<StudentGameGuard category="letters">{mobileApp ? <AppLetterQuestPage /> : <LetterQuestPage />}</StudentGameGuard>} />
+        <Route path="/quest/shapes" element={<StudentGameGuard category="shapes">{mobileApp ? <AppShapesQuestPage /> : <ShapesQuestPage />}</StudentGameGuard>} />
 
         {/* ⚠️ ALWAYS LAST */}
         <Route path="*" element={<Navigate to="/" replace />} />

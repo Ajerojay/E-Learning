@@ -71,7 +71,6 @@ export async function linkChildSessionToSupabasePin(pin: string): Promise<boolea
     .limit(1)
     .maybeSingle();
 
-  console.log("linkChildSessionToSupabasePin: pin lookup result:", { pin: trimmed, row, error });
 
   if (error) {
     console.error("PIN lookup:", error.message);

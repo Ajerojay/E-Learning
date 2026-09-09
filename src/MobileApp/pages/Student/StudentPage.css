@@ -22,3 +22,4 @@
 @media (max-width: 370px) { .student-brand-text { display: none; }.student-welcome p { font-size: 13px; }.lesson-grid { gap: 20px 10px; }.cloud-card { min-height: 130px; } }
 @media (prefers-reduced-motion: reduce) { .student-page *, .student-page *::before, .student-page *::after { animation: none !important; transition-duration: .01ms !important; } }
 
+.student-access-note{max-width:520px;margin:10px auto 0!important;padding:10px 14px;border-radius:14px;background:#fff1d6;color:#855b13;font-weight:800}

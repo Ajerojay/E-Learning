@@ -66,7 +66,7 @@ export default function ParentLogin() {
       );
       if (teacherError) console.error("Teacher login error:", teacherError.message);
       const teacher = Array.isArray(teacherRows) ? teacherRows[0] : teacherRows;
-      if (teacher) {
+        if (teacher) {
         localStorage.setItem("user", JSON.stringify({ ...teacher, role: "teacher" }));
         navigate("/teacher-dashboard");
         return;

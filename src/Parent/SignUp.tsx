@@ -260,7 +260,7 @@ export default function ParentSignup() {
         childInsertError = fallbackError;
         if (!fallbackError) {
           console.warn(
-            "Child profile saved without extended fields. Run supabase/migrations/20250521_children_profile_fields.sql in Supabase."
+            "The child profile was saved, but some optional details could not be added. Please contact the system administrator."
           );
         }
       }

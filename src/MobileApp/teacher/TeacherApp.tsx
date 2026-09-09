@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Activity, Award, BarChart3, Bell, BookOpen, CalendarDays, Camera,
-  Check, ChevronDown, CircleAlert, Download, FilePlus2,
+  Check, ChevronDown, CircleAlert, FilePlus2,
   HeartPulse, Home, LogOut, Mail, Menu, MoreHorizontal,
   Pencil, Plus, Search, Settings, ShieldCheck, Star, Trash2, Upload,
   UserRound, Users, Video, X, Send, Trophy,
@@ -10,8 +10,11 @@ import {
 import logo from "../../../images/learnease logo-no bg.png";
 import { supabase } from "../../lib/supabase";
 import { buildChildAchievements, type ChildActivityRow, type ChildCategoryProgressRow } from "../../lib/childProgress";
+import { SUBJECT_KEYS, type SubjectKey } from "../../lib/childProgress";
+import { getStudentGameAccess, saveStudentGameAccess } from "../../lib/studentGameAccess";
+import { getActivityConfig, saveActivityConfig, type ActivityConfig } from "../../lib/activityConfig";
 
-type PageKey = "dashboard" | "students" | "lessons" | "activities" | "attendance" | "health" | "rewards" | "reports" | "settings";
+type PageKey = "dashboard" | "students" | "lessons" | "activities" | "attendance" | "health" | "rewards" | "settings";
 type Notify = (text: string) => void;
 
 const navItems = [
@@ -22,7 +25,6 @@ const navItems = [
   { key: "attendance", label: "Attendance", icon: CalendarDays },
   { key: "health", label: "Health Monitoring", icon: HeartPulse },
   { key: "rewards", label: "Rewards", icon: Award },
-  { key: "reports", label: "Reports & Analytics", icon: BarChart3 },
   { key: "settings", label: "Profile & Settings", icon: Settings },
 ] as const;
 
@@ -167,7 +169,7 @@ function Dashboard({ go, notify }: { go: (key: PageKey) => void; notify: Notify 
       </div>
     </section>
     <section className="ta-quick-section">
-      <header><div><h2>Quick Access</h2><p>Open a teacher management page</p></div><span>8 tools</span></header>
+      <header><div><h2>Quick Access</h2><p>Open a teacher management page</p></div><span>{quickAccess.length} tools</span></header>
       <div className="ta-quick-grid">{quickAccess.map(({ key, label, icon: Icon }, index) => <button onClick={() => go(key)} key={key}><i className={`tone-${index % 4}`}><Icon /></i><span><b>{label}</b><small>Open page</small></span><strong>›</strong></button>)}</div>
     </section>
     <section className="ta-hero"><div><span>KINDERGARTEN · SUNFLOWER</span><h1>Good Morning, Teacher Maria! 👋</h1><p>Here’s what’s happening in your classroom today.</p><small><CalendarDays />{date}<b><i /> Class is active</b></small></div><div>🌈<i>☁️</i></div></section>
@@ -262,7 +264,7 @@ function Students({ notify }: { notify: Notify }) {
       if (error) {
         console.error("Teacher student roster error:", error.message);
         setStudents([]);
-        setLoadError("Could not load student accounts from Supabase.");
+        setLoadError("Unable to load student records. Please try again.");
       } else {
         setStudents((data ?? []).map((row, index) => {
           const fullName = `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim();
@@ -317,9 +319,9 @@ function Students({ notify }: { notify: Notify }) {
     notify(enrolled ? `${student.name} restored to the class` : `${student.name} has been unenrolled`);
   };
 
-  return <><Heading eyebrow="CLASSROOM ROSTER" title="Students Management" detail="Live student accounts from your Supabase database."/>
+  return <><Heading eyebrow="CLASSROOM ROSTER" title="Students Management" detail="Manage learner profiles, enrollment, and classroom activity."/>
     <section className="ta-card ta-tools"><label><Search /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search learner by name…" /></label><div>{["All", "Online", "Offline", "Unenrolled"].map(value => <button className={filter === value ? "active" : ""} onClick={() => setFilter(value)} key={value}>{value}</button>)}</div></section>
-    {loading && <section className="ta-student-state"><span className="ta-loader"/><h3>Loading student accounts…</h3><p>Connecting to Supabase.</p></section>}
+    {loading && <section className="ta-student-state"><span className="ta-loader"/><h3>Loading student records…</h3><p>Retrieving the latest class information.</p></section>}
     {!loading && loadError && <section className="ta-student-state error"><CircleAlert/><h3>Unable to load roster</h3><p>{loadError}</p></section>}
     {!loading && !loadError && shown.length === 0 && <section className="ta-student-state"><Users/><h3>No student accounts found</h3><p>Students registered by parents will appear here automatically.</p></section>}
     {!loading && !loadError && <section className="ta-students">{shown.map(student => <article key={student.id}><div className="ta-pupil-head"><i>{student.avatar}</i><span className={student.status.toLowerCase()}>{student.status === "Offline" ? studentPresenceLabel(student) : student.status}</span><button className="ta-student-more" aria-label={`More actions for ${student.name}`} onClick={() => setStudentMenu(studentMenu === student.id ? null : student.id)}><MoreHorizontal /></button>{studentMenu === student.id && <div className="ta-student-menu"><button onClick={() => { setProfile(student); setStudentMenu(null); }}><UserRound/> View details</button><button onClick={() => { void openAchievements(student); setStudentMenu(null); }}><Trophy/> Achievements</button><button onClick={() => { setEnrollmentPrompt({ student, enroll: !student.enrolled }); setStudentMenu(null); }} className={student.enrolled ? "danger" : "restore"}>{student.enrolled ? <Trash2/> : <Check/>}{student.enrolled ? "Unenroll student" : "Restore enrollment"}</button></div>}</div><h3>{student.name}</h3><p>{student.age === null ? "Age not provided" : `Age ${student.age}`} · {student.section}</p><div className="ta-pupil-stats"><span><Star /><b>{student.stars}</b><small>Total Stars</small></span><span><CalendarDays /><b>{student.rate}%</b><small>Attendance</small></span></div><div className="ta-progress"><i style={{ width: `${student.rate}%` }} /></div><footer><button onClick={() => setProfile(student)}><UserRound /> Profile</button><button onClick={() => notify(`Reward panel opened for ${student.name}`)}><Award /> Reward</button><button aria-label={`View ${student.name} achievements`} title="Achievements" onClick={() => void openAchievements(student)}><Trophy /></button></footer></article>)}</section>}
@@ -348,7 +350,7 @@ function Lessons({ notify }: { notify: Notify }) {
   const fetchLessons = async () => {
     setLoading(true); setLoadError("");
     const { data, error } = await supabase.from("video_lessons").select("id,title,description,category,video_path,is_published").eq("is_published", true).order("created_at", { ascending: false });
-    if (error) { console.error("Teacher lessons error:", error.message); setLoadError("Could not load lessons from Supabase."); setLessons([]); }
+    if (error) { console.error("Teacher lessons error:", error.message); setLoadError("Unable to load video lessons. Please try again."); setLessons([]); }
     else setLessons((data ?? []) as LessonRecord[]);
     setLoading(false);
   };
@@ -421,7 +423,7 @@ function Lessons({ notify }: { notify: Notify }) {
 
   return <><Heading eyebrow="CURRICULUM LIBRARY" title="Lessons & Videos" detail="Manage one lesson for each of the six learning games."><button className="ta-primary" onClick={openNew}><Upload /> Upload New Lesson</button></Heading>
     <div className="ta-tabs">{["All", ...lessonCategories].map(value => <button className={tab === value ? "active" : ""} onClick={() => setTab(value)} key={value}>{value}</button>)}</div>
-    {loading && <section className="ta-student-state"><span className="ta-loader"/><h3>Loading video lessons…</h3><p>Connecting to Supabase.</p></section>}
+    {loading && <section className="ta-student-state"><span className="ta-loader"/><h3>Loading video lessons…</h3><p>Retrieving the latest learning content.</p></section>}
     {!loading && loadError && <section className="ta-student-state error"><CircleAlert/><h3>Unable to load lessons</h3><p>{loadError}</p></section>}
     {!loading && !loadError && visible.length === 0 && <section className="ta-student-state"><Video/><h3>No video lessons yet</h3><p>Use Upload New Lesson to add the first lesson in this category.</p></section>}
     {!loading && !loadError && <section className="ta-lessons">{visible.map(lesson => { const uiCategory = categoryFromDb(lesson.category); return <article key={lesson.id}><div className="ta-thumb"><span>{lessonIcons[uiCategory] ?? lessonIcons.Others}</span><b>VIDEO</b><button disabled={previewLoading} onClick={() => void previewLesson(lesson)}>{previewLoading ? "…" : "▶"}</button></div><div><span><i>{uiCategory}</i><em>Published</em></span><h3>{lesson.title}</h3><p>{lesson.description || `${uiCategory} lesson video`}</p><small><Activity /> Attached: {uiCategory === "Others" ? "Custom lesson" : `${uiCategory} Quest`}</small><footer><button onClick={() => openEdit(lesson)}><Pencil /> Edit</button><button onClick={() => void archiveLesson(lesson)}><Trash2 /> Delete</button></footer></div></article>; })}</section>}
@@ -439,16 +441,82 @@ function Activities({ notify }: { notify: Notify }) {
     ["\u{1F3E0}", "Build the House", "Shapes", 88],
     ["\u{1F522}", "Count the Raindrops", "Numbers", 81],
   ] as const;
-  const [open, setOpen] = useState(games.map(() => true));
+  const [configs, setConfigs] = useState<Record<SubjectKey, ActivityConfig>>(() => Object.fromEntries(SUBJECT_KEYS.map(key => [key, getActivityConfig(key)])) as Record<SubjectKey, ActivityConfig>);
+  const [previewGame, setPreviewGame] = useState<number | null>(null);
+  const [configureGame, setConfigureGame] = useState<number | null>(null);
+  const [draftConfig, setDraftConfig] = useState<ActivityConfig | null>(null);
+  const [accessOpen, setAccessOpen] = useState(false);
+  const [students, setStudents] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedStudent, setSelectedStudent] = useState("");
+  const [allowed, setAllowed] = useState<SubjectKey[]>([...SUBJECT_KEYS]);
+  const openStudentAccess = async () => {
+    const { data, error } = await supabase.from("children_accounts").select("id, child_name, first_name, last_name").eq("is_active", true).order("created_at", { ascending: false });
+    if (error) { notify("Unable to load students"); return; }
+    const roster = (data ?? []).map(row => ({ id: String(row.id), name: row.child_name?.trim() || `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim() || "Unnamed learner" }));
+    setStudents(roster);
+    const firstId = roster[0]?.id || "";
+    setSelectedStudent(firstId);
+    setAllowed(firstId ? getStudentGameAccess(firstId) : []);
+    setAccessOpen(true);
+  };
+  const chooseStudent = (id: string) => { setSelectedStudent(id); setAllowed(getStudentGameAccess(id)); };
+  const toggleAllowed = (key: SubjectKey) => setAllowed(current => current.includes(key) ? current.filter(item => item !== key) : [...current, key]);
+  const toggleGlobal = (key: SubjectKey) => {
+    const next = { ...configs[key], open: !configs[key].open };
+    saveActivityConfig(key, next);
+    setConfigs(current => ({ ...current, [key]: next }));
+  };
+  const openConfigure = (index: number, key: SubjectKey) => { setConfigureGame(index); setDraftConfig({ ...configs[key], levels: [...configs[key].levels] }); };
+  const saveConfigure = (key: SubjectKey) => {
+    if (!draftConfig) return;
+    saveActivityConfig(key, draftConfig);
+    setConfigs(current => ({ ...current, [key]: draftConfig }));
+    setConfigureGame(null); setDraftConfig(null); notify("Activity settings saved");
+  };
   return <><Heading eyebrow="GAMIFIED LEARNING" title="Activities & Quizzes" detail="Manage the six learning games, rewards, scores, and availability."/>
-    <section className="ta-activity-summary"><div><Activity/><span><b>6 Learning Games</b><small>Colors, Letters, Logic, Phonics, Shapes, and Numbers</small></span></div><em>All modules connected</em></section>
-    <section className="ta-quests">{games.map(([icon, name, category, rate], index) => <article key={name}><i>{icon}</i><div className="ta-quest-name"><span>{category} · 3 Levels</span><h3>{name}</h3><small>Easy, Medium, and Hard</small></div><button aria-label={`${open[index] ? "Close" : "Open"} ${name}`} className={`ta-toggle ${open[index] ? "on" : ""}`} onClick={() => setOpen(open.map((x, i) => i === index ? !x : x))}><i /></button><div className="ta-completion"><span>Class completion <b>{rate}%</b></span><i><em style={{ width: `${rate}%` }} /></i></div><div className="ta-quest-data"><span>Passing score<b>75%</b></span><span>Star reward<b>⭐ 15</b></span><span>Status<b>{open[index] ? "Open" : "Closed"}</b></span></div><footer><button onClick={() => notify(`${name} preview opened`)}>Preview</button><button onClick={() => notify(`${name} settings opened`)}><Settings /> Configure</button></footer></article>)}</section></>;
+    <section className="ta-activity-summary"><div><Activity/><span><b>6 Learning Games</b><small>Colors, Letters, Logic, Phonics, Shapes, and Numbers</small></span></div><button className="ta-secondary" onClick={() => void openStudentAccess()}><Users/> Manage Student Access</button></section>
+    <section className="ta-quests">{games.map(([icon, name, category, rate], index) => { const key = category.toLowerCase() as SubjectKey; const config = configs[key]; return <article key={name}><i>{icon}</i><div className="ta-quest-name"><span>{category} · {config.levels.length} Levels</span><h3>{name}</h3><small>{config.levels.join(", ") || "No levels enabled"}</small></div><button aria-label={`${config.open ? "Close" : "Open"} ${name}`} className={`ta-toggle ${config.open ? "on" : ""}`} onClick={() => toggleGlobal(key)}><i /></button><div className="ta-completion"><span>Class completion <b>{rate}%</b></span><i><em style={{ width: `${rate}%` }} /></i></div><div className="ta-quest-data"><span>Passing score<b>{config.passingScore}%</b></span><span>Star reward<b>⭐ {config.starReward}</b></span><span>Status<b>{config.open ? "Open" : "Closed"}</b></span></div><footer><button onClick={() => setPreviewGame(index)}>Preview</button><button onClick={() => openConfigure(index, key)}><Settings /> Configure</button></footer></article>; })}</section>
+    <div className="ta-grid-2 ta-page-summary"><section className="ta-card ta-chart"><header><span><BarChart3 /></span><div><h2>Average Quiz Scores</h2><p>By learning module</p></div><b>84% average</b></header><div>{[["Colors",92],["Shapes",78],["Letters",86],["Numbers",81],["Phonics",88],["Logic",74]].map(([n,v]) => <span key={n}><b>{v}%</b><i><em style={{ height: `${v}%` }}/></i><small>{n}</small></span>)}</div></section><section className="ta-card ta-donut-card"><header><span className="purple"><Activity /></span><div><h2>Module Completion</h2><p>Whole-class progress</p></div></header><div className="ta-donut"><b>76%</b><small>Completed</small></div><ul><li>🟣 Completed <b>76%</b></li><li>🔵 In progress <b>18%</b></li><li>⚪ Not started <b>6%</b></li></ul></section></div>
+    {accessOpen && <div className="ta-overlay" onMouseDown={() => setAccessOpen(false)}><section className="ta-modal ta-access-modal" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setAccessOpen(false)}><X/></button><div className="ta-access-title"><i><Users/></i><span><h2>Student Game Access</h2><p>Choose which activities this learner can open.</p></span></div>{students.length === 0 ? <div className="ta-access-empty">No enrolled students found.</div> : <><label className="ta-access-student">Student<select value={selectedStudent} onChange={event => chooseStudent(event.target.value)}>{students.map(student => <option value={student.id} key={student.id}>{student.name}</option>)}</select></label><div className="ta-access-games">{games.map(([icon, name, category]) => { const key = category.toLowerCase() as SubjectKey; const enabled = allowed.includes(key); return <button className={enabled ? "enabled" : ""} onClick={() => toggleAllowed(key)} key={key}><i>{icon}</i><span><b>{category}</b><small>{name}</small></span><em>{enabled ? "Allowed" : "Locked"}</em></button>; })}</div><button className="ta-primary ta-full" onClick={() => { saveStudentGameAccess(selectedStudent, allowed); setAccessOpen(false); notify("Student game access saved"); }}><ShieldCheck/> Save Student Access</button></>}</section></div>}
+    {previewGame !== null && (() => { const [icon, name, category] = games[previewGame]; const config = configs[category.toLowerCase() as SubjectKey]; return <div className="ta-overlay" onMouseDown={() => setPreviewGame(null)}><section className="ta-modal ta-game-preview" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setPreviewGame(null)}><X/></button><i>{icon}</i><small>ACTIVITY PREVIEW</small><h2>{name}</h2><p>{config.instructions}</p><div><span><b>{config.passingScore}%</b>Passing score</span><span><b>⭐ {config.starReward}</b>Reward</span><span><b>{config.timeLimit ? `${config.timeLimit} min` : "No limit"}</b>Time</span></div><h3>Available Levels</h3><ul>{config.levels.map(level => <li key={level}><Check/> {level}</li>)}</ul></section></div>; })()}
+    {configureGame !== null && draftConfig && (() => { const [, name, category] = games[configureGame]; const key = category.toLowerCase() as SubjectKey; return <div className="ta-overlay" onMouseDown={() => setConfigureGame(null)}><form className="ta-modal ta-config-form" onMouseDown={event => event.stopPropagation()} onSubmit={event => { event.preventDefault(); saveConfigure(key); }}><button type="button" className="ta-close" onClick={() => setConfigureGame(null)}><X/></button><h2>Configure {name}</h2><p>These settings apply to the whole class.</p><div className="ta-config-pair"><label>Passing score<input type="number" min="1" max="100" value={draftConfig.passingScore} onChange={event => setDraftConfig({ ...draftConfig, passingScore: Number(event.target.value) })}/></label><label>Star reward<input type="number" min="0" max="999" value={draftConfig.starReward} onChange={event => setDraftConfig({ ...draftConfig, starReward: Number(event.target.value) })}/></label></div><label>Time limit (minutes)<input type="number" min="0" max="180" value={draftConfig.timeLimit} onChange={event => setDraftConfig({ ...draftConfig, timeLimit: Number(event.target.value) })}/><small>Use 0 for no time limit.</small></label><label>Instructions<textarea value={draftConfig.instructions} onChange={event => setDraftConfig({ ...draftConfig, instructions: event.target.value })}/></label><fieldset><legend>Available levels</legend>{["Easy", "Medium", "Hard"].map(level => <label key={level}><input type="checkbox" checked={draftConfig.levels.includes(level)} onChange={() => setDraftConfig({ ...draftConfig, levels: draftConfig.levels.includes(level) ? draftConfig.levels.filter(item => item !== level) : [...draftConfig.levels, level] })}/>{level}</label>)}</fieldset><label className="ta-config-open"><input type="checkbox" checked={draftConfig.open} onChange={event => setDraftConfig({ ...draftConfig, open: event.target.checked })}/><span><b>Activity open</b><small>Students can launch this game.</small></span></label><button className="ta-primary ta-full" type="submit"><ShieldCheck/> Save Configuration</button></form></div>; })()}
+  </>;
 }
 
 function Attendance({ notify }: { notify: Notify }) {
-  const [rows, setRows] = useState(pupils.map((p, i) => ({ ...p, today: i === 2 ? "Absent" : i === 4 ? "Late" : "Present" })));
+  const [rows, setRows] = useState<Array<{ id: string; name: string; section: string; avatar: string; rate: number; today: string }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  useEffect(() => {
+    let active = true;
+    const loadAttendanceRoster = async () => {
+      setLoading(true);
+      setLoadError("");
+      const { data, error } = await supabase.from("children_accounts").select("id, child_name, first_name, last_name, grade_level, is_active").order("created_at", { ascending: false });
+      if (!active) return;
+      if (error) {
+        console.error("Teacher attendance roster error:", error.message);
+        setRows([]);
+        setLoadError("Unable to load the student roster. Please try again.");
+      } else {
+        setRows((data ?? []).map((student, index) => {
+          const fullName = `${student.first_name ?? ""} ${student.last_name ?? ""}`.trim();
+          return { id: String(student.id), name: student.child_name?.trim() || fullName || "Unnamed learner", section: student.grade_level?.trim() || "Preschool", avatar: index % 2 === 0 ? "🧒" : "👧", rate: 0, today: "Present" };
+        }));
+      }
+      setLoading(false);
+    };
+    void loadAttendanceRoster();
+    return () => { active = false; };
+  }, []);
   const present = rows.filter(x => x.today === "Present").length;
-  return <><Heading eyebrow="DAILY ROLL CALL" title="Attendance" detail="Record attendance and flag learners who need support."><div className="ta-heading-actions"><label><CalendarDays /><input type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></label><button className="ta-secondary" onClick={() => setRows(rows.map(x => ({ ...x, today: "Present" })))}><Check /> Mark All Present</button></div></Heading><section className="ta-att-summary"><div className="ta-ring"><b>{Math.round(present / rows.length * 100)}%</b></div><div><h2>Present Today</h2><p>{present} of {rows.length} learners checked in</p></div>{["Present", "Late", "Absent", "Excused"].map(s => <span className={s.toLowerCase()} key={s}><b>{rows.filter(x => x.today === s).length}</b>{s}</span>)}</section><div className="ta-grid-att"><section className="ta-card ta-roll"><header><span><CalendarDays /></span><div><h2>Class Attendance List</h2><p>Tap a status to update</p></div></header>{rows.map((p, index) => <div className="ta-roll-row" key={p.name}><i>{p.avatar}</i><span><b>{p.name}</b><small>Sunflower</small></span><div>{["Present", "Late", "Absent", "Excused"].map(s => <button className={`${s.toLowerCase()} ${p.today === s ? "active" : ""}`} onClick={() => setRows(rows.map((x, i) => i === index ? { ...x, today: s } : x))} key={s}>{s}</button>)}</div></div>)}<button className="ta-primary ta-save" onClick={() => notify("Attendance saved and submitted")}><ShieldCheck /> Save & Submit Attendance</button></section><aside className="ta-card ta-alerts"><header><span className="orange"><CircleAlert /></span><div><h2>Attendance Alerts</h2><p>3+ recent absences</p></div></header>{pupils.filter(p => p.rate < 90).map(p => <div key={p.name}><i>{p.avatar}</i><span><b>{p.name}</b><small>{p.rate}% attendance</small></span><button onClick={() => notify(`Alert sent to ${p.name}'s parent`)}><Mail /></button></div>)}</aside></div></>;
+  const attendanceRate = rows.length ? Math.round(present / rows.length * 100) : 0;
+  return <><Heading eyebrow="DAILY ROLL CALL" title="Attendance" detail="Record attendance and review the class attendance summary in one place."><div className="ta-heading-actions"><label><CalendarDays /><input type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></label><button className="ta-secondary" disabled={loading || rows.length === 0} onClick={() => setRows(rows.map(x => ({ ...x, today: "Present" })))}><Check /> Mark All Present</button></div></Heading>
+    {loading && <section className="ta-student-state"><CalendarDays/><h3>Loading attendance roster…</h3><p>Retrieving students from Student Management.</p></section>}
+    {!loading && loadError && <section className="ta-student-state error"><CircleAlert/><h3>Unable to load attendance</h3><p>{loadError}</p></section>}
+    {!loading && !loadError && rows.length === 0 && <section className="ta-student-state"><Users/><h3>No student accounts found</h3><p>Students added to Student Management will appear here automatically.</p></section>}
+    {!loading && !loadError && rows.length > 0 && <><section className="ta-att-summary"><div className="ta-ring"><b>{attendanceRate}%</b></div><div><h2>Present Today</h2><p>{present} of {rows.length} learners checked in</p></div>{["Present", "Late", "Absent", "Excused"].map(s => <span className={s.toLowerCase()} key={s}><b>{rows.filter(x => x.today === s).length}</b>{s}</span>)}</section><div className="ta-grid-att"><section className="ta-card ta-roll"><header><span><CalendarDays /></span><div><h2>Class Attendance List</h2><p>Tap a status to update</p></div></header>{rows.map((p, index) => <div className="ta-roll-row" key={p.id}><i>{p.avatar}</i><span><b>{p.name}</b><small>{p.section}</small></span><div>{["Present", "Late", "Absent", "Excused"].map(s => <button className={`${s.toLowerCase()} ${p.today === s ? "active" : ""}`} onClick={() => setRows(rows.map((x, i) => i === index ? { ...x, today: s } : x))} key={s}>{s}</button>)}</div></div>)}<button className="ta-primary ta-save" onClick={() => notify("Attendance saved and submitted")}><ShieldCheck /> Save & Submit Attendance</button></section><aside className="ta-card ta-alerts"><header><span className="orange"><CircleAlert /></span><div><h2>Attendance Alerts</h2><p>Learners needing follow-up</p></div></header><div className="ta-alert-empty"><Check/><span><b>No attendance alerts yet</b><small>Alerts will appear after attendance history is recorded.</small></span></div></aside></div><section className="ta-card ta-trend"><header><span className="green"><CalendarDays /></span><div><h2>Attendance Trend</h2><p>Last 7 school days</p></div></header><svg viewBox="0 0 700 170" preserveAspectRatio="none"><path d="M0 130 L110 92 L220 105 L330 58 L440 72 L550 36 L700 48 L700 170 L0 170Z"/><polyline points="0,130 110,92 220,105 330,58 440,72 550,36 700,48"/></svg></section></>}
+  </>;
 }
 
 function Health({ notify }: { notify: Notify }) {
@@ -459,10 +527,6 @@ function Health({ notify }: { notify: Notify }) {
 function Rewards({ notify }: { notify: Notify }) {
   const ranked = [...pupils].sort((a,b) => b.stars-a.stars).slice(0,5);
   return <><Heading eyebrow="POSITIVE REINFORCEMENT" title="Rewards & Gamification" detail="Celebrate effort through stars, badges, and certificates."><button className="ta-primary" onClick={() => notify("Custom badge creator opened")}><Plus /> Create Badge</button></Heading><div className="ta-grid-2"><section className="ta-card ta-ranking"><header><span className="yellow"><Award /></span><div><h2>Class Leaderboard</h2><p>Top stars this month</p></div></header>{ranked.map((p,i) => <div key={p.name}><strong>{i+1}</strong><i>{p.avatar}</i><span><b>{p.name}</b><small>Sunflower</small></span><em>⭐ {p.stars}</em><button onClick={() => notify(`Special star awarded to ${p.name}`)}><Plus /></button></div>)}</section><section className="ta-card ta-badges"><header><span className="purple"><Star /></span><div><h2>Badge Library</h2><p>Tap a badge to award it</p></div></header><div>{[["🎨","Color Master"],["🔢","Math Wizard"],["📅","Perfect Attendance"],["🧭","Super Explorer"],["📚","Reading Star"],["💛","Kind Helper"]].map(([i,n]) => <button onClick={() => notify(`${n} selected`)} key={n}><i>{i}</i><b>{n}</b><small>Tap to award</small></button>)}</div></section></div><section className="ta-card ta-reward-history"><header><span><Star /></span><div><h2>Star Distribution History</h2><p>Recent teacher-issued rewards</p></div><button className="ta-secondary" onClick={() => notify("Certificate creator opened")}><Award /> Issue Certificate</button></header>{[["Sofia Reyes", "+10", "Excellent reading"],["Liam Cruz", "+15", "Colors Quest Level 2"],["Noah Garcia", "+5", "Great participation"]].map(([n,s,r]) => <div key={n}><i>⭐</i><span><b>{n}</b><small>{r}</small></span><strong>{s} stars</strong><em>Today</em></div>)}</section></>;
-}
-
-function Reports({ notify }: { notify: Notify }) {
-  return <><Heading eyebrow="DATA & INSIGHTS" title="Reports & Analytics" detail="Turn classroom activity into clear, useful progress reports."><button className="ta-primary" onClick={() => notify("PDF report exported")}><Download /> Export Report</button></Heading><section className="ta-card ta-filters">{["Report Type", "Date Range", "Student", "Module"].map((x,i) => <label key={x}>{x}<select><option>{["Weekly Summary","This Week","All Students","All Modules"][i]}</option><option>Monthly Academic Progress</option></select></label>)}<div>Export as <button>PDF</button><button>Excel</button><button>CSV</button></div></section><div className="ta-grid-2"><section className="ta-card ta-chart"><header><span><BarChart3 /></span><div><h2>Average Quiz Scores</h2><p>By learning module</p></div><b>84% average</b></header><div>{[["Colors",92],["Shapes",78],["Letters",86],["Numbers",81],["Phonics",88],["Logic",74]].map(([n,v]) => <span key={n}><b>{v}%</b><i><em style={{ height: `${v}%` }}/></i><small>{n}</small></span>)}</div></section><section className="ta-card ta-donut-card"><header><span className="purple"><Activity /></span><div><h2>Module Completion</h2><p>Whole-class progress</p></div></header><div className="ta-donut"><b>76%</b><small>Completed</small></div><ul><li>🟣 Completed <b>76%</b></li><li>🔵 In progress <b>18%</b></li><li>⚪ Not started <b>6%</b></li></ul></section></div><section className="ta-card ta-trend"><header><span className="green"><CalendarDays /></span><div><h2>Attendance Trend</h2><p>Last 7 school days</p></div></header><svg viewBox="0 0 700 170" preserveAspectRatio="none"><path d="M0 130 L110 92 L220 105 L330 58 L440 72 L550 36 L700 48 L700 170 L0 170Z"/><polyline points="0,130 110,92 220,105 330,58 440,72 550,36 700,48"/></svg></section></>;
 }
 
 function ProfileSettings({ notify, logout }: { notify: Notify; logout: () => void }) {
@@ -481,5 +545,5 @@ export default function TeacherApp() {
   const notify: Notify = text => { setToast(text); window.setTimeout(() => setToast(""), 2400); };
   const go = (key: PageKey) => { setPage(key); setMenu(false); setProfile(false); setAlerts(false); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const logout = () => { localStorage.removeItem("user"); navigate("/"); };
-  return <div className="teacher-app"><aside className={`ta-sidebar ${menu ? "open" : ""}`}><div className="ta-logo"><img src={logo}/><span><b>LearnEase</b><small>Teacher Portal</small></span><button onClick={() => setMenu(false)}><X/></button></div><nav>{navItems.map(({key,label,icon:Icon}) => <button className={page===key?"active":""} onClick={() => go(key)} key={key}><i><Icon/></i><b>{label}</b></button>)}</nav><div className="ta-side-profile"><i>👩🏻‍🏫</i><span><b>Maria Santos</b><small>Kindergarten Teacher</small></span><button onClick={logout}><LogOut/></button></div></aside>{menu && <button className="ta-backdrop" onClick={() => setMenu(false)}/>}<main><header className="ta-top"><button className="ta-menu" onClick={() => setMenu(true)}><Menu/></button><div className="ta-mobile-logo"><img src={logo}/><b>LearnEase Kids</b></div><span className="ta-current"><CurrentIcon/><b>{current.label}</b></span><div className="ta-top-actions"><div><button className="ta-bell" onClick={() => {setAlerts(!alerts);setProfile(false)}}><Bell/><b>3</b></button>{alerts && <section className="ta-pop ta-alert-pop"><h3>Notifications</h3>{[["⚠️","Attendance alert","Emma has 3 recent absences"],["🎨","Quest completed","Liam finished Colors Level 2"],["⭐","New achievement","Sofia earned Reading Star"]].map(([i,t,d]) => <button onClick={() => notify(t)} key={t}><i>{i}</i><span><b>{t}</b><small>{d}</small></span></button>)}</section>}</div><div><button className="ta-top-profile" onClick={() => {setProfile(!profile);setAlerts(false)}}><i>👩🏻‍🏫</i><span><b>Teacher Maria</b><small>Sunflower Class</small></span><ChevronDown/></button>{profile && <section className="ta-pop ta-profile-pop"><button onClick={() => go("settings")}><UserRound/> My Profile</button><button onClick={() => go("settings")}><Settings/> Settings</button><button onClick={logout}><LogOut/> Logout</button></section>}</div></div></header><div className="ta-content">{page === "dashboard" && <Dashboard go={go} notify={notify}/>} {page === "students" && <Students notify={notify}/>} {page === "lessons" && <Lessons notify={notify}/>} {page === "activities" && <Activities notify={notify}/>} {page === "attendance" && <Attendance notify={notify}/>} {page === "health" && <Health notify={notify}/>} {page === "rewards" && <Rewards notify={notify}/>} {page === "reports" && <Reports notify={notify}/>} {page === "settings" && <ProfileSettings notify={notify} logout={logout}/>}</div></main><nav className="ta-bottom">{navItems.slice(0,5).map(({key,label,icon:Icon}) => <button className={page===key?"active":""} onClick={() => go(key)} key={key}><Icon/><span>{label.split(" ")[0]}</span></button>)}<button onClick={() => setMenu(true)}><MoreHorizontal/><span>More</span></button></nav>{toast && <div className="ta-toast"><Check/>{toast}</div>}</div>;
+  return <div className="teacher-app"><aside className={`ta-sidebar ${menu ? "open" : ""}`}><div className="ta-logo"><img src={logo}/><span><b>LearnEase</b><small>Teacher Portal</small></span><button onClick={() => setMenu(false)}><X/></button></div><nav>{navItems.map(({key,label,icon:Icon}) => <button className={page===key?"active":""} onClick={() => go(key)} key={key}><i><Icon/></i><b>{label}</b></button>)}</nav><div className="ta-side-profile"><i>👩🏻‍🏫</i><span><b>Maria Santos</b><small>Kindergarten Teacher</small></span><button onClick={logout}><LogOut/></button></div></aside>{menu && <button className="ta-backdrop" onClick={() => setMenu(false)}/>}<main><header className="ta-top"><button className="ta-menu" onClick={() => setMenu(true)}><Menu/></button><div className="ta-mobile-logo"><img src={logo}/><b>LearnEase Kids</b></div><span className="ta-current"><CurrentIcon/><b>{current.label}</b></span><div className="ta-top-actions"><div><button className="ta-bell" onClick={() => {setAlerts(!alerts);setProfile(false)}}><Bell/><b>3</b></button>{alerts && <section className="ta-pop ta-alert-pop"><h3>Notifications</h3>{[["⚠️","Attendance reminder","Review today's class attendance"],["🎨","Quest update","A learner completed a Colors activity"],["⭐","New achievement","A learner earned a new badge"]].map(([i,t,d]) => <button onClick={() => notify(t)} key={t}><i>{i}</i><span><b>{t}</b><small>{d}</small></span></button>)}</section>}</div><div><button className="ta-top-profile" onClick={() => {setProfile(!profile);setAlerts(false)}}><i>👩🏻‍🏫</i><span><b>Teacher Maria</b><small>Sunflower Class</small></span><ChevronDown/></button>{profile && <section className="ta-pop ta-profile-pop"><button onClick={() => go("settings")}><UserRound/> My Profile</button><button onClick={() => go("settings")}><Settings/> Settings</button><button onClick={logout}><LogOut/> Logout</button></section>}</div></div></header><div className="ta-content">{page === "dashboard" && <Dashboard go={go} notify={notify}/>} {page === "students" && <Students notify={notify}/>} {page === "lessons" && <Lessons notify={notify}/>} {page === "activities" && <Activities notify={notify}/>} {page === "attendance" && <Attendance notify={notify}/>} {page === "health" && <Health notify={notify}/>} {page === "rewards" && <Rewards notify={notify}/>} {page === "settings" && <ProfileSettings notify={notify} logout={logout}/>}</div></main><nav className="ta-bottom">{navItems.slice(0,5).map(({key,label,icon:Icon}) => <button className={page===key?"active":""} onClick={() => go(key)} key={key}><Icon/><span>{label.split(" ")[0]}</span></button>)}<button onClick={() => setMenu(true)}><MoreHorizontal/><span>More</span></button></nav>{toast && <div className="ta-toast"><Check/>{toast}</div>}</div>;
 }

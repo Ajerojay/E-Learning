@@ -3,6 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 // ===== SUPABASE DATABASE CONNECTION: lessons shared by web and Android app =====
 import { supabase } from "../../../lib/supabase";
+import { getOrCreateActiveChildId } from "../../../lib/childProgress";
+import { isStudentGameAllowed } from "../../../lib/studentGameAccess";
 
 
 import colorsBg from "./images/colors-bg.png";
@@ -53,6 +55,12 @@ export default function LessonPage() {
     shapes: "Shapes",
     logic: "Logic",
   };
+
+  useEffect(() => {
+    void getOrCreateActiveChildId().then(childId => {
+      if (childId && category && !isStudentGameAllowed(childId, category)) navigate("/student", { replace: true, state: { blockedGame: category } });
+    });
+  }, [category, navigate]);
 
   useEffect(() => {
     const fetchLessonVideo = async () => {
