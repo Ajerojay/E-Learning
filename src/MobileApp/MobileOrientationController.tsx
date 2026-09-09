@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { isMobileApp } from "./isMobileApp";
+import { supabase } from "../lib/supabase";
 
 type AndroidOrientationBridge = {
   allowGameRotation: () => void;
@@ -39,6 +40,30 @@ const LANDSCAPE_ONLY_PATHS = new Set(GAME_PATHS);
 /** Android app only: games may rotate; every other app page stays portrait. */
 export default function MobileOrientationController() {
   const { pathname } = useLocation();
+
+  useEffect(() => {
+    if (!isMobileApp()) return;
+    const isStudentPage = pathname === "/student" || pathname === "/student-access" || pathname.startsWith("/lesson/") || GAME_PATHS.has(pathname);
+    if (!isStudentPage) return;
+    const childId = localStorage.getItem("activeChildId");
+    if (!childId) return;
+    const touchPresence = () => {
+      void supabase.from("children_accounts").update({ last_active_at: new Date().toISOString() }).eq("id", childId).then(({ error }) => {
+        if (error && !/last_active_at/i.test(error.message)) console.error("Student presence update:", error.message);
+      });
+    };
+    touchPresence();
+    const timer = window.setInterval(touchPresence, 60000);
+    const onVisibility = () => { if (document.visibilityState === "visible") touchPresence(); };
+    window.addEventListener("pagehide", touchPresence);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      touchPresence();
+      window.clearInterval(timer);
+      window.removeEventListener("pagehide", touchPresence);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [pathname]);
 
   useEffect(() => {
     if (!isMobileApp()) return;

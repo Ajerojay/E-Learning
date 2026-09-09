@@ -96,11 +96,14 @@ export default function LessonPage() {
 
       setLessonTitle(data.title);
 
-      const { data: publicData } = supabase.storage
-        .from("lesson-videos")
-        .getPublicUrl(data.video_path);
-
-      setLessonVideoUrl(publicData.publicUrl);
+      if (/^https?:\/\//i.test(data.video_path)) {
+        setLessonVideoUrl(data.video_path);
+      } else {
+        const { data: publicData } = supabase.storage
+          .from("lesson-videos")
+          .getPublicUrl(data.video_path);
+        setLessonVideoUrl(publicData.publicUrl);
+      }
       setLoading(false);
     };
 

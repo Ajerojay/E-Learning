@@ -8,8 +8,6 @@ import { getOrCreateActiveChildId } from "../lib/childProgress";
 
 const ADMIN_USERNAME = "admin";
 const ADMIN_PASSWORD = "admin123";
-const TEACHER_USERNAME = "teacher";
-const TEACHER_PASSWORD = "teacher123";
 
 function isAndroidAppPreview() {
   const capacitorWindow = window as Window & {
@@ -46,16 +44,6 @@ export default function ParentLogin() {
       return;
     }
 
-    // Temporary teacher login. This intentionally works without the database.
-    if (user === TEACHER_USERNAME && pass === TEACHER_PASSWORD) {
-      localStorage.setItem(
-        "user",
-        JSON.stringify({ role: "teacher", id: "temporary-teacher", username: user })
-      );
-      navigate("/teacher-dashboard");
-      return;
-    }
-
     if (isAndroidAppPreview()) {
       localStorage.setItem(
         "user",
@@ -71,6 +59,18 @@ export default function ParentLogin() {
 
     try {
       setLoading(true);
+
+      const { data: teacherRows, error: teacherError } = await supabase.rpc(
+        "authenticate_teacher",
+        { p_username: user, p_password: pass }
+      );
+      if (teacherError) console.error("Teacher login error:", teacherError.message);
+      const teacher = Array.isArray(teacherRows) ? teacherRows[0] : teacherRows;
+      if (teacher) {
+        localStorage.setItem("user", JSON.stringify({ ...teacher, role: "teacher" }));
+        navigate("/teacher-dashboard");
+        return;
+      }
 
       const { data, error } = await supabase
         .from("parents_accounts")

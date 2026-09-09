@@ -9,7 +9,6 @@ import { getOrCreateActiveChildId } from "../../lib/childProgress";
 
 const ADMIN_USERNAME = "admin";
 const ADMIN_PASSWORD = "admin123";
-
 export default function AppSignIn() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
@@ -38,6 +37,25 @@ export default function AppSignIn() {
 
     try {
       setLoading(true);
+      const { data: teacherRows, error: teacherError } = await supabase.rpc(
+        "authenticate_teacher",
+        { p_username: cleanUsername, p_password: cleanPassword }
+      );
+
+      if (teacherError) {
+        console.error("Teacher login error:", teacherError.message);
+      }
+
+      const teacher = Array.isArray(teacherRows) ? teacherRows[0] : teacherRows;
+      if (teacher) {
+        localStorage.setItem(
+          "user",
+          JSON.stringify({ ...teacher, role: "teacher", source: "mobile-app" })
+        );
+        navigate("/teacher-dashboard");
+        return;
+      }
+
       // ===== SUPABASE DATABASE: VERIFY PARENT USERNAME AND PASSWORD =====
       const { data, error: loginError } = await supabase
         .from("parents_accounts")
@@ -112,7 +130,7 @@ export default function AppSignIn() {
         <div className="app-auth-panel">
           <h1 className="app-auth-title">Sign in</h1>
           <p className="app-auth-copy">
-            Parent access for monitoring lessons, progress, and your child's learning setup.
+            Parent and teacher access for lessons, progress, and classroom management.
           </p>
 
           <form className="app-auth-form" onSubmit={handleLogin}>
