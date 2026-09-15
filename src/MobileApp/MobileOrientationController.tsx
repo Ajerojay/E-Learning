@@ -47,7 +47,9 @@ export default function MobileOrientationController() {
     if (!isStudentPage) return;
     const childId = localStorage.getItem("activeChildId");
     if (!childId) return;
+    if (!navigator.onLine) return;
     const touchPresence = () => {
+      if (!navigator.onLine) return;
       void supabase.from("children_accounts").update({ last_active_at: new Date().toISOString() }).eq("id", childId).then(({ error }) => {
         if (error && !/last_active_at/i.test(error.message)) console.error("Student presence update:", error.message);
       });
@@ -68,14 +70,26 @@ export default function MobileOrientationController() {
   useEffect(() => {
     if (!isMobileApp()) return;
 
-    if (LANDSCAPE_ONLY_PATHS.has(pathname)) {
-      window.AndroidOrientation?.lockLandscape?.();
-    } else if (GAME_PATHS.has(pathname)) {
-      window.AndroidOrientation?.allowGameRotation();
-    } else {
-      // This also rotates the lesson page back to portrait after leaving a quest.
-      window.AndroidOrientation?.lockPortrait();
-    }
+    const applyOrientation = () => {
+      if (LANDSCAPE_ONLY_PATHS.has(pathname)) {
+        window.AndroidOrientation?.lockLandscape?.();
+      } else if (pathname.startsWith("/lesson/")) {
+        // Lesson videos can go fullscreen and follow the device if auto-rotate is on.
+        window.AndroidOrientation?.allowGameRotation();
+      } else if (GAME_PATHS.has(pathname)) {
+        window.AndroidOrientation?.allowGameRotation();
+      } else {
+        window.AndroidOrientation?.lockPortrait();
+      }
+    };
+
+    applyOrientation();
+    const retry = window.setInterval(applyOrientation, 400);
+    const stop = window.setTimeout(() => window.clearInterval(retry), 2500);
+    return () => {
+      window.clearInterval(retry);
+      window.clearTimeout(stop);
+    };
   }, [pathname]);
 
   return null;

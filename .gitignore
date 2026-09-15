@@ -9,6 +9,8 @@ lerna-debug.log*
 
 #inigo
 .env
+.env.migration
+firebase-service-account*.json
 .capasitor.config.json
 
 #aaddd this to superfisions

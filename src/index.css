@@ -1,5 +1,4 @@
 html, body, #root {
-  height: 100%;
   width: 100%;
   margin: 0;
   padding: 0;
@@ -13,9 +12,9 @@ html, body, #root {
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: light;
+  color: #172033;
+  background-color: #f7fbff;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -34,12 +33,16 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
+  display: block;
   min-width: 0;
   min-height: 100vh;
   min-height: 100dvh;
   overflow-x: hidden;
+}
+
+#root {
+  min-height: 100dvh;
+  width: 100%;
 }
 
 button, input, select, textarea { font: inherit; }

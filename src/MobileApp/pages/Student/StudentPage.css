@@ -23,3 +23,6 @@
 @media (prefers-reduced-motion: reduce) { .student-page *, .student-page *::before, .student-page *::after { animation: none !important; transition-duration: .01ms !important; } }
 
 .student-access-note{max-width:520px;margin:10px auto 0!important;padding:10px 14px;border-radius:14px;background:#fff1d6;color:#855b13;font-weight:800}
+.student-reward-row{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
+.student-star-chip,.student-rewards-btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 14px;border-radius:999px;border:2px solid rgba(191,168,221,.4);background:rgba(255,255,255,.94);font-family:inherit;font-weight:800;color:#5a3d12;box-shadow:0 5px 12px rgba(66,58,91,.12)}
+.student-rewards-btn{cursor:pointer;background:#fff3c4}

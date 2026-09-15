@@ -1,4 +1,4 @@
-﻿html,
+html,
 body,
 #root {
   width: 100%;
@@ -35,7 +35,7 @@ body {
   background-repeat: no-repeat;
 }
 
-.phonics-page.game-container > *:not(.phonics-bg):not(.pq-back-btn):not(.game-overlay) {
+.phonics-page.game-container > *:not(.phonics-bg):not(.pq-back-btn):not(.game-overlay):not(.qlm) {
   position: relative;
   z-index: 2;
 }
@@ -186,6 +186,8 @@ body {
   border: 5px solid white;
   color: #1e3a5f;
   flex-direction: column;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Poppins", sans-serif;
+  line-height: 1;
 }
 
 .phonics-page .sound-guide-img {
@@ -201,6 +203,7 @@ body {
   font-weight: 900;
   color: #1e3a5f;
   white-space: nowrap;
+  font-family: "Poppins", sans-serif;
 }
 
 .phonics-page .sound-circle:hover {
@@ -229,7 +232,7 @@ body {
   min-width: 70px;
 }
 
-.phonics-page .choice-btn span { display: block; line-height: 1; }
+.phonics-page .choice-btn span { display: block; line-height: 1; font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Poppins", sans-serif; }
 .phonics-page .choice-btn small { display: block; margin-top: 6px; color: #503f46; font-size: 13px; font-weight: 900; text-transform: capitalize; }
 
 .pq-rotate-notice { display: none; }

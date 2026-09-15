@@ -2,24 +2,21 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import "./App.css";
 import { getOrCreateActiveChildId, type SubjectKey } from "./lib/childProgress";
+import { completePendingParentRegistration } from "./lib/supabaseAuth";
+import { supabase } from "./lib/supabase";
+import { syncOfflineProgress } from "./lib/gameProgressDb";
+import { initializeOfflineSqlite } from "./lib/offlineSqlite";
 import { isStudentGameAllowed } from "./lib/studentGameAccess";
 import { isActivityOpen } from "./lib/activityConfig";
-
-/* PARENT */
-const ParentLogin = lazy(() => import("./Parent/ParentLogin"));
-const ParentDashboard = lazy(() => import("./Parent/ParentDashboard"));
-const ParentSignup = lazy(() => import("./Parent/SignUp"));
-const ParentProgress = lazy(() => import("./Parent/ParentProgress"));
-const ParentChildren = lazy(() => import("./Parent/ParentChildren"));
+import { installMojibakeRepair } from "./MobileApp/repairMojibake";
 
 /* MOBILE APP */
-import { isMobileApp } from "./MobileApp/isMobileApp";
 import MobileOrientationController from "./MobileApp/MobileOrientationController";
-const AppSignIn = lazy(() => import("./MobileApp/WebView/AppSignIn"));
-const AppSignUp = lazy(() => import("./MobileApp/WebView/AppSignUp"));
-const AppStudentAccess = lazy(() => import("./MobileApp/WebView/AppStudentAccess"));
-const AppStudentPage = lazy(() => import("./MobileApp/WebView/AppStudentPage"));
-const AppLessonPage = lazy(() => import("./MobileApp/WebView/AppLessonPage"));
+import AppSignIn from "./MobileApp/WebView/AppSignIn";
+import AppSignUp from "./MobileApp/WebView/AppSignUp";
+import AppStudentAccess from "./MobileApp/WebView/AppStudentAccess";
+import AppStudentPage from "./MobileApp/WebView/AppStudentPage";
+import AppLessonPage from "./MobileApp/WebView/AppLessonPage";
 const AppColorsQuestPage = lazy(() => import("./MobileApp/WebView/AppColorsQuestPage"));
 const AppPhonicsQuestPage = lazy(() => import("./MobileApp/WebView/AppPhonicsQuestPage"));
 const AppLogicQuestPage = lazy(() => import("./MobileApp/WebView/AppLogicQuestPage"));
@@ -29,43 +26,52 @@ const AppShapesQuestPage = lazy(() => import("./MobileApp/WebView/AppShapesQuest
 const AppParentDashboard = lazy(() => import("./MobileApp/WebView/AppParentDashboard"));
 const AppParentChildren = lazy(() => import("./MobileApp/WebView/AppParentChildren"));
 const AppParentProgress = lazy(() => import("./MobileApp/WebView/AppParentProgress"));
-const AppAdminPage = lazy(() => import("./MobileApp/WebView/AppAdminPage"));
-const AppAdminStudents = lazy(() => import("./MobileApp/WebView/AppAdminStudents"));
 const AppTeacherDashboard = lazy(() => import("./MobileApp/WebView/AppTeacherDashboard"));
 
-/* ADMIN */
-const AdminPage = lazy(() => import("./Admin/AdminPage"));
-const AdminStudents = lazy(() => import("./Admin/AdminStudents"));
-
-/* TEACHER */
-const TeacherDashboard = lazy(() => import("./Teacher/TeacherDashboard"));
-
-/* STUDENT */
-const StudentAccess = lazy(() => import("./Student/StudentAccess"));
-const StudentPage = lazy(() => import("./Student/StudentPage"));
-const LessonPage = lazy(() => import("./Student/LessonPage"));
-const ColorsQuestPage = lazy(() => import("./Student/ColorsQuestPage"));
-const SoundGame = lazy(() => import("./Student/PhonicsQuestPage"));
-const LogicGame = lazy(() => import("./Student/LogicQuestPage"));
-const NumbersQuestPage = lazy(() => import("./Student/NumbersQuestPage"));
-const LetterQuestPage = lazy(() => import("./Student/LetterQuestPage"));
-const ShapesQuestPage = lazy(() => import("./Student/ShapesQuestPage"));
-
 function StudentGameGuard({ category, children }: { category: SubjectKey; children: ReactNode }) {
-  const [allowed, setAllowed] = useState<boolean | null>(null);
+  const cachedChildId = typeof localStorage === "undefined" ? null : localStorage.getItem("activeChildId");
+  const [allowed, setAllowed] = useState<boolean>(() => (
+    isActivityOpen(category) && (!cachedChildId || isStudentGameAllowed(cachedChildId, category))
+  ));
   useEffect(() => {
     let active = true;
     void getOrCreateActiveChildId().then(childId => {
-      if (active) setAllowed(isActivityOpen(category) && (!childId || isStudentGameAllowed(childId, category)));
+      if (!active) return;
+      setAllowed(isActivityOpen(category) && (!childId || isStudentGameAllowed(childId, category)));
+    }).catch(() => {
+      if (active) setAllowed(isActivityOpen(category));
     });
     return () => { active = false; };
   }, [category]);
-  if (allowed === null) return <div className="app-route-loading">Checking activity access…</div>;
   return allowed ? <>{children}</> : <Navigate to="/student" replace state={{ blockedGame: category }} />;
 }
 
 function App() {
-  const mobileApp = isMobileApp();
+  useEffect(() => {
+    const stopMojibakeRepair = installMojibakeRepair();
+    void initializeOfflineSqlite().then(() => {
+      if (navigator.onLine) void syncOfflineProgress();
+    });
+    const sync = () => { void syncOfflineProgress(); };
+    window.addEventListener("online", sync);
+
+    if (navigator.onLine) {
+      void supabase.auth.getSession().then(({ data }) => {
+        if (data.session?.user) void completePendingParentRegistration(data.session.user);
+      });
+    }
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === "SIGNED_IN" || event === "USER_UPDATED") && session?.user) {
+        void completePendingParentRegistration(session.user);
+      }
+    });
+
+    return () => {
+      stopMojibakeRepair();
+      window.removeEventListener("online", sync);
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <BrowserRouter>
@@ -74,8 +80,8 @@ function App() {
       <Routes>
 
         {/* DEFAULT */}
-        <Route path="/" element={mobileApp ? <AppSignIn /> : <ParentLogin />} />
-        <Route path="/signup" element={mobileApp ? <AppSignUp /> : <ParentSignup />} />
+        <Route path="/" element={<AppSignIn />} />
+        <Route path="/signup" element={<AppSignUp />} />
 
         {/* MOBILE APP */}
         <Route path="/app" element={<Navigate to="/app/signin" replace />} />
@@ -89,30 +95,26 @@ function App() {
         <Route path="/app/letters-quest" element={<StudentGameGuard category="letters"><AppLetterQuestPage /></StudentGameGuard>} />
         
         {/* PARENT */}
-        <Route path="/parent-dashboard" element={mobileApp ? <AppParentDashboard /> : <ParentDashboard />} />
-        <Route path="/parent-children" element={mobileApp ? <AppParentChildren /> : <ParentChildren />} />
-        <Route path="/parent-progress" element={mobileApp ? <AppParentProgress /> : <ParentProgress />} />
-
-        {/* ADMIN */}
-        <Route path="/admin" element={mobileApp ? <AppAdminPage /> : <AdminPage />} />
-        <Route path="/admin/students" element={mobileApp ? <AppAdminStudents /> : <AdminStudents />} />
+        <Route path="/parent-dashboard" element={<AppParentDashboard />} />
+        <Route path="/parent-children" element={<AppParentChildren />} />
+        <Route path="/parent-progress" element={<AppParentProgress />} />
 
         {/* TEACHER */}
-        <Route path="/teacher-dashboard" element={mobileApp ? <AppTeacherDashboard /> : <TeacherDashboard />} />
+        <Route path="/teacher-dashboard" element={<AppTeacherDashboard />} />
 
         {/* STUDENT */}
-        <Route path="/student-access" element={mobileApp ? <AppStudentAccess /> : <StudentAccess />} />
-        <Route path="/student" element={mobileApp ? <AppStudentPage /> : <StudentPage />} />
-        <Route path="/lesson/:category" element={mobileApp ? <AppLessonPage /> : <LessonPage />} />
-        <Route path="/quest/colors" element={<StudentGameGuard category="colors">{mobileApp ? <AppColorsQuestPage /> : <ColorsQuestPage />}</StudentGameGuard>} />
-        <Route path="/student/PhonicsQuestPage" element={<StudentGameGuard category="phonics">{mobileApp ? <AppPhonicsQuestPage /> : <SoundGame />}</StudentGameGuard>} />
-        <Route path="/student/sound" element={<StudentGameGuard category="phonics">{mobileApp ? <AppPhonicsQuestPage /> : <SoundGame />}</StudentGameGuard>} />
-        <Route path="/student/LogicQuestPage" element={<StudentGameGuard category="logic">{mobileApp ? <AppLogicQuestPage /> : <LogicGame />}</StudentGameGuard>} />
-        <Route path="/student/pattern" element={<StudentGameGuard category="logic">{mobileApp ? <AppLogicQuestPage /> : <LogicGame />}</StudentGameGuard>} />
-        <Route path="/quest/number" element={<StudentGameGuard category="numbers">{mobileApp ? <AppNumbersQuestPage /> : <NumbersQuestPage />}</StudentGameGuard>} />
+        <Route path="/student-access" element={<AppStudentAccess />} />
+        <Route path="/student" element={<AppStudentPage />} />
+        <Route path="/lesson/:category" element={<AppLessonPage />} />
+        <Route path="/quest/colors" element={<StudentGameGuard category="colors"><AppColorsQuestPage /></StudentGameGuard>} />
+        <Route path="/student/PhonicsQuestPage" element={<StudentGameGuard category="phonics"><AppPhonicsQuestPage /></StudentGameGuard>} />
+        <Route path="/student/sound" element={<StudentGameGuard category="phonics"><AppPhonicsQuestPage /></StudentGameGuard>} />
+        <Route path="/student/LogicQuestPage" element={<StudentGameGuard category="logic"><AppLogicQuestPage /></StudentGameGuard>} />
+        <Route path="/student/pattern" element={<StudentGameGuard category="logic"><AppLogicQuestPage /></StudentGameGuard>} />
+        <Route path="/quest/number" element={<StudentGameGuard category="numbers"><AppNumbersQuestPage /></StudentGameGuard>} />
         <Route path="/quest/numbers" element={<Navigate to="/quest/number" replace />} />
-        <Route path="/quest/letter" element={<StudentGameGuard category="letters">{mobileApp ? <AppLetterQuestPage /> : <LetterQuestPage />}</StudentGameGuard>} />
-        <Route path="/quest/shapes" element={<StudentGameGuard category="shapes">{mobileApp ? <AppShapesQuestPage /> : <ShapesQuestPage />}</StudentGameGuard>} />
+        <Route path="/quest/letter" element={<StudentGameGuard category="letters"><AppLetterQuestPage /></StudentGameGuard>} />
+        <Route path="/quest/shapes" element={<StudentGameGuard category="shapes"><AppShapesQuestPage /></StudentGameGuard>} />
 
         {/* ⚠️ ALWAYS LAST */}
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -5,6 +5,15 @@
   padding: 0;
 }
 
+.app-route-loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  font: 800 18px Nunito, Arial, sans-serif;
+  color: #23324a;
+  background: #f7fbff;
+}
+
 .logo {
   height: 6em;
   padding: 1.5em;

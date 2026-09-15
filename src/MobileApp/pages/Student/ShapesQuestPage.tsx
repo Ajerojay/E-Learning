@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   DndContext,
@@ -27,6 +27,8 @@ import {
 
 import gameBg from "./images/shapes-bg.jpg";
 import { speakNative } from "../../nativeTts";
+import QuestLevelSelect from "./QuestLevelSelect";
+import { useQuestLevelGate } from "./questLevelMap";
 import bearImg from "./images/bear-3.png";
 
 type ShapeKind =
@@ -205,6 +207,7 @@ export default function ShapesQuestPage() {
   const lastPraiseIndexRef = useRef(-1);
 
   const [levelIndex, setLevelIndex] = useState(0);
+  const { mapOpen, setMapOpen, unlockedCount, completeLevel } = useQuestLevelGate("shapes");
   const playSession = 0;
   const [placed, setPlaced] = useState<Record<string, string>>({});
   const [wrongAttempts, setWrongAttempts] = useState(0);
@@ -239,6 +242,7 @@ export default function ShapesQuestPage() {
   const startCountdown = useCallback(() => setCountdown(3), []);
 
   const introEnabled =
+    !mapOpen &&
     !finalCongratsOpen &&
     !timeUpOpen &&
     proceedPromptLevel === null &&
@@ -319,11 +323,11 @@ export default function ShapesQuestPage() {
   setPlaced(updated);
 
   const happyMessages = [
-    `Amazing! That's the correct ${activeKind}! ðŸŽ‰`,
-    `Awesome job! You found the ${activeKind}! â­`,
-    `Great work little learner! ðŸ˜Š`,
-    `You got it right! ðŸŒˆ`,
-    `Fantastic job builder! ðŸ `,
+    `Amazing! That's the correct ${activeKind}! 🎉`,
+    `Awesome job! You found the ${activeKind}! ⭐`,
+    `Great work little learner! 😊`,
+    `You got it right! 🌈`,
+    `Fantastic job builder! 🏠`,
   ];
 
   const randomHappy =
@@ -347,15 +351,16 @@ setMessage(randomHappy);
   );
 
   if (nextProgress === total) {
+    void completeLevel(levelIndex);
     if (levelIndex >= 2) {
       setFinalCongratsOpen(true);
       sayKid("Congratulations! Amazing building! You finished all shape levels!");
 
       const finishMessages = [
-        "Amazing! You finished all levels! ðŸŽ‰",
-        "You're a superstar learner! â­",
-        "Wonderful job! ðŸŒˆ",
-        "You completed everything! ðŸ§¸",
+        "Amazing! You finished all levels! 🎉",
+        "You're a superstar learner! ⭐",
+        "Wonderful job! 🌈",
+        "You completed everything! 🧸",
       ];
 
       setMessage(
@@ -370,9 +375,9 @@ setMessage(randomHappy);
       setTimerRunning(false);
 
       const completeMessages = [
-        `Great job! Level ${levelIndex + 1} complete! ðŸŽ‰`,
-        "Awesome work superstar! â­",
-        "You did amazing! ðŸŒˆ",
+        `Great job! Level ${levelIndex + 1} complete! 🎉`,
+        "Awesome work superstar! ⭐",
+        "You did amazing! 🌈",
       ];
 
       setMessage(
@@ -399,12 +404,12 @@ setMessage(randomHappy);
   setWrongAttempts(nextWrong);
 
   const encourageMessages = [
-    "Great job trying! ðŸ˜Š",
-    "Almost there! Keep going ðŸŒŸ",
-    "You can do it! ðŸŽ‰",
-    "Nice try little builder! ðŸ ",
-    "Keep practicing superstar â­",
-    "That was a good try! ðŸŒˆ",
+    "Great job trying! 😊",
+    "Almost there! Keep going 🌟",
+    "You can do it! 🎉",
+    "Nice try little builder! 🏠",
+    "Keep practicing superstar ⭐",
+    "That was a good try! 🌈",
   ];
 
  const randomEncourage =
@@ -503,8 +508,8 @@ speakFeedback("Try again!");
     setCountdown(null);
     setTimeUpOpen(false);
     warnedSecondsRef.current = new Set();
-    onLevelStart();
-  }, [levelIndex, onLevelStart]);
+    if (!mapOpen) onLevelStart();
+  }, [levelIndex, onLevelStart, mapOpen]);
 
   const getOrCreateAudio = () => {
     const existing = audioRef.current;
@@ -823,13 +828,24 @@ speakFeedback("Try again!");
 
   return (
     <div className="sq-page-bg" ref={pageRef} style={{ backgroundImage: `url(${gameBg})` }}>
+      {mapOpen && (
+        <QuestLevelSelect
+          title="Shapes Quest"
+          unlockedCount={unlockedCount}
+          onSelectLevel={(index) => {
+            setLevelIndex(index);
+            setMapOpen(false);
+          }}
+          onBack={handleBack}
+        />
+      )}
       <div className="sq-top-bar">
         <button
           type="button"
           className="sq-back-btn"
           onClick={handleBack}
         >
-          â† Back
+          {"\u2190"} Back
         </button>
       </div>
 <div className="sq-title-wrapper">
@@ -853,9 +869,9 @@ speakFeedback("Try again!");
           onClick={() => setMusicEnabled((prev) => !prev)}
           aria-label={musicEnabled ? "Mute music" : "Unmute music"}
         >
-          {musicEnabled ? "ðŸŽµ" : "ðŸ”‡"}
+          {musicEnabled ? "🎵" : "🔇"}
         </button>
-        <div className="sq-timer" aria-label="Time remaining">â± {timeLeft}s</div>
+        <div className="sq-timer" aria-label="Time remaining">⏱ {timeLeft}s</div>
         <button
           type="button"
           className={`sq-sound-toggle sq-effects-toggle ${soundEnabled ? "" : "is-muted"}`}
@@ -868,7 +884,7 @@ speakFeedback("Try again!");
           }}
           aria-label={soundEnabled ? "Mute voice" : "Unmute voice"}
         >
-          {soundEnabled ? "ðŸ”Š" : "ðŸ”‡"}
+          {soundEnabled ? "🔊" : "🔇"}
         </button>
       </div>
 
@@ -880,7 +896,7 @@ speakFeedback("Try again!");
               Level {levelIndex + 1}: {level.name}
             </div>
             <div className="sq-timer" aria-label="Time remaining">
-              â± {timeLeft}s
+              ⏱ {timeLeft}s
             </div>
             <button
               type="button"
@@ -889,7 +905,7 @@ speakFeedback("Try again!");
               aria-label={musicEnabled ? "Mute music" : "Unmute music"}
               title={musicEnabled ? "Mute Music" : "Unmute Music"}
             >
-              {musicEnabled ? "ðŸŽµ" : "ðŸ”‡"}
+              {musicEnabled ? "🎵" : "🔇"}
             </button>
             <button
               type="button"
@@ -905,7 +921,7 @@ speakFeedback("Try again!");
               }}
               aria-label={soundEnabled ? "Turn sound off" : "Turn sound on"}
             >
-              {soundEnabled ? "ðŸ”Š On" : "ðŸ”‡ Off"}
+              {soundEnabled ? "🔊 On" : "🔇 Off"}
             </button>
           </div>
 
@@ -992,7 +1008,7 @@ speakFeedback("Try again!");
             {timeUpOpen && (
               <GameOverlay isOpen={timeUpOpen}>
                 <GamePopup
-                  title="â° Time's up!"
+                  title="⏰ Time's up!"
                   subtitle={`Level ${levelIndex + 1} | Progress: ${progress}/${total} | Wrong Attempts: ${wrongAttempts}`}
                   buttons={
                     levelIndex < 2
@@ -1053,7 +1069,7 @@ speakFeedback("Try again!");
             {proceedPromptLevel !== null && levelIndex < 2 && (
               <GameOverlay isOpen={proceedPromptLevel !== null}>
                 <GamePopup
-                  title="ðŸŽ‰ Awesome!"
+                  title="🎉 Awesome!"
                   subtitle={`Level ${levelIndex + 1} complete! Proceed to the next level?`}
                   buttons={[
                     {
@@ -1122,7 +1138,7 @@ speakFeedback("Try again!");
         <div className="sq-finish-overlay">
           <GameOverlay isOpen={finalCongratsOpen}>
             <GamePopup
-              title="ðŸŽ‰ Congratulations!"
+              title="🎉 Congratulations!"
               subtitle="You finished all shape levels!"
               buttons={[
                 { label: "Play Again", onClick: handlePlayAgain, variant: "yes" },

@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./LetterQuestPage.css";
 import { getOrCreateActiveChildId } from "../../../lib/childProgress";
@@ -15,6 +15,8 @@ import {
 } from "./levelIntro";
 import bgMusic from "./bg-music-loop.mp3";
 import { speakNative } from "../../nativeTts";
+import QuestLevelSelect from "./QuestLevelSelect";
+import { useQuestLevelGate } from "./questLevelMap";
 
 import bear from "./images/bear-2.png";
 
@@ -71,6 +73,7 @@ export default function LetterQuestPage({ mobileApp = false }: { mobileApp?: boo
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
   const isVoiceSpeakingRef = useRef(false);
   const [levelIndex, setLevelIndex] = useState(0);
+  const { mapOpen, setMapOpen, unlockedCount, completeLevel } = useQuestLevelGate("letters");
   const [playSession, setPlaySession] = useState(0);
   const [placedIds, setPlacedIds] = useState<number[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -142,6 +145,7 @@ export default function LetterQuestPage({ mobileApp = false }: { mobileApp?: boo
 
   const introEnabled =
     isLandscape &&
+    !mapOpen &&
     !finalCongratsOpen &&
     !timeUpOpen &&
     proceedPromptLevel === null &&
@@ -492,11 +496,11 @@ const handleDrop = (e: any) => {
 
     if (match) {
       const goodMessages = [
-        `Amazing! You matched ${letter}! ðŸŒŸ`,
-        `Awesome job! ðŸŽ‰`,
-        `You did great little learner! ðŸ˜Š`,
-        `Fantastic work! â­`,
-        `Wonderful job! ðŸ§¸`,
+        `Amazing! You matched ${letter}! 🌟`,
+        `Awesome job! 🎉`,
+        `You did great little learner! 😊`,
+        `Fantastic work! ⭐`,
+        `Wonderful job! 🧸`,
       ];
 
       const randomGood =
@@ -515,6 +519,7 @@ const handleDrop = (e: any) => {
       setLevel3Remaining(updated);
 
       if (updated.length === 0) {
+        void completeLevel(2);
         setFinalCongratsOpen(true);
         sayKid(
           "Congratulations! Amazing work! You completed all letter levels!",
@@ -543,11 +548,11 @@ const handleDrop = (e: any) => {
       setWrongAttempts(nextWrong);
 
       const encourageMessages = [
-        "Great job trying! ðŸ˜Š",
-        "Almost there! Keep going ðŸŒˆ",
-        "You can do it superstar! â­",
-        "Nice try little learner! ðŸ§¸",
-        "Keep practicing! ðŸŽ‰",
+        "Great job trying! 😊",
+        "Almost there! Keep going 🌈",
+        "You can do it superstar! ⭐",
+        "Nice try little learner! 🧸",
+        "Keep practicing! 🎉",
       ];
 
       const randomEncourage =
@@ -589,11 +594,11 @@ const handleDrop = (e: any) => {
     setPlacedIds(updated);
 
     const goodMessages = [
-      "Great job! ðŸŒŸ",
-      "Awesome work! ðŸ˜Š",
-      "You did it! ðŸŽ‰",
-      "Fantastic job! â­",
-      "Amazing work little learner! ðŸ§¸",
+      "Great job! 🌟",
+      "Awesome work! 😊",
+      "You did it! 🎉",
+      "Fantastic job! ⭐",
+      "Amazing work little learner! 🧸",
     ];
 
     const randomGood =
@@ -616,6 +621,7 @@ const handleDrop = (e: any) => {
     );
 
     if (updated.length === totalItems) {
+      void completeLevel(levelIndex);
       setProceedPromptLevel(levelIndex);
     }
   } else {
@@ -624,11 +630,11 @@ const handleDrop = (e: any) => {
     setWrongAttempts(nextWrong);
 
     const encourageMessages = [
-      "Great job trying! ðŸ˜Š",
-      "Almost there! Keep going ðŸŒˆ",
-      "You can do it superstar! â­",
-      "Nice try little learner! ðŸ§¸",
-      "Keep practicing! ðŸŽ‰",
+      "Great job trying! 😊",
+      "Almost there! Keep going 🌈",
+      "You can do it superstar! ⭐",
+      "Nice try little learner! 🧸",
+      "Keep practicing! 🎉",
     ];
 
     const randomEncourage =
@@ -692,8 +698,8 @@ const handleDrop = (e: any) => {
     setCountdown(null);
     setTimeUpOpen(false);
     warnedSecondsRef.current = new Set();
-    onLevelStart();
-  }, [levelIndex, onLevelStart]);
+    if (!mapOpen) onLevelStart();
+  }, [levelIndex, onLevelStart, mapOpen]);
 
   useEffect(() => {
     if (levelIntroActive) setTimerRunning(false);
@@ -769,20 +775,31 @@ const handleDrop = (e: any) => {
 
   return (
     <div className={`cq-page${mobileApp ? " cq-page--mobile-app" : ""}${isFinished ? " cq-page--finished" : ""}`}>
+      {mapOpen && (
+        <QuestLevelSelect
+          title="Letters Quest"
+          unlockedCount={unlockedCount}
+          onSelectLevel={(index) => {
+            setLevelIndex(index);
+            setMapOpen(false);
+          }}
+          onBack={() => navigate("/lesson/letters", { replace: true })}
+        />
+      )}
       {mobileApp && !isLandscape && (
         <div className="cq-rotate-notice" role="status" aria-live="polite">
-          <span className="cq-phone-icon" aria-hidden="true">ðŸ“±</span>
+          <span className="cq-phone-icon" aria-hidden="true">📱</span>
           <strong>Turn your device sideways!</strong>
           <p>Letters Quest needs landscape mode before you can play.</p>
-          <span className="cq-turn-arrow" aria-hidden="true">â†»</span>
+          <span className="cq-turn-arrow" aria-hidden="true">↻</span>
         </div>
       )}
-      <button className="cq-back-btn" onClick={() => navigate("/lesson/letters", { replace: true })}>â† Back</button>
+      <button className="cq-back-btn" onClick={() => navigate("/lesson/letters", { replace: true })}>{"\u2190"} Back</button>
       <h1 className="cq-title">Match the Letters!</h1>
       <div className="cq-level-meta-row">
         <div className="cq-level-meta">
           <strong className="cq-level-pill">Level {levelIndex + 1}</strong>
-          <span className="cq-timer-pill">â± {timeLeft}s</span>
+          <span className="cq-timer-pill">⏱ {timeLeft}s</span>
         </div>
         <div className="cq-sound-buttons">
           <button
@@ -804,7 +821,7 @@ const handleDrop = (e: any) => {
             aria-label={musicEnabled ? "Mute music" : "Unmute music"}
             title={musicEnabled ? "Mute Music" : "Unmute Music"}
           >
-            {musicEnabled ? "ðŸŽµ" : "ðŸ”‡"}
+            {musicEnabled ? "🎵" : "🔇"}
           </button>
           <button
             type="button"
@@ -821,7 +838,7 @@ const handleDrop = (e: any) => {
             aria-label={soundEnabled ? "Mute voice" : "Unmute voice"}
             title={soundEnabled ? "Mute Voice" : "Unmute Voice"}
           >
-            {soundEnabled ? "ðŸ”Š" : "ðŸ”‡"}
+            {soundEnabled ? "🔊" : "🔇"}
           </button>
         </div>
       </div>
@@ -850,7 +867,7 @@ const handleDrop = (e: any) => {
           {timeUpOpen && (
             <GameOverlay isOpen={timeUpOpen}>
               <GamePopup
-                title="â° Time's up!"
+                title="⏰ Time's up!"
                 subtitle={`Progress: ${progress}/${totalItems} | Wrong Attempts: ${wrongAttempts}`}
                 buttons={
                   levelIndex < 2
@@ -915,7 +932,7 @@ const handleDrop = (e: any) => {
           {proceedPromptLevel !== null && levelIndex < 2 && (
             <GameOverlay isOpen={proceedPromptLevel !== null}>
               <GamePopup
-                  title="ðŸŽ‰ Awesome!"
+                  title="🎉 Awesome!"
                   subtitle={`Level ${levelIndex + 1} complete! Proceed to the next level?`}
                   buttons={[
                   {

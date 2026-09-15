@@ -4,10 +4,11 @@ import "./ParentLogin.css";
 import { useNavigate } from "react-router-dom";
 import bear from "../../../../images/learnease logo-no bg.png";
 import { supabase } from "../../../lib/supabase";
+import { signInParentAccount } from "../../../lib/supabaseAuth";
 import { getOrCreateActiveChildId } from "../../../lib/childProgress";
 
-const ADMIN_USERNAME = "admin";
-const ADMIN_PASSWORD = "admin123";
+const TEACHER_USERNAME = "teacher";
+const TEACHER_PASSWORD = "teacher123";
 
 export default function ParentLogin() {
   const navigate = useNavigate();
@@ -26,14 +27,16 @@ export default function ParentLogin() {
     const pass = password.trim();
 
     if (!user || !pass) {
-      setError("Please enter both username and password.");
+      setError("Please enter your username or email, and your password.");
       return;
     }
 
-    // Admin login
-    if (user === ADMIN_USERNAME && pass === ADMIN_PASSWORD) {
-      localStorage.setItem("user", JSON.stringify({ role: "admin" }));
-      navigate("/admin");
+    if (user === TEACHER_USERNAME && pass === TEACHER_PASSWORD) {
+      localStorage.setItem(
+        "user",
+        JSON.stringify({ role: "teacher", id: "temporary-teacher", username: user })
+      );
+      navigate("/teacher-dashboard");
       return;
     }
 
@@ -55,21 +58,11 @@ export default function ParentLogin() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("parents_accounts")
-        .select("*")
-        .eq("username", user)
-        .eq("password", pass)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Login error:", error.message);
-        setError("Something went wrong while logging in.");
-        return;
-      }
-
-      if (!data) {
-        setError("Invalid credentials.");
+      let data;
+      try {
+        data = await signInParentAccount(user, pass);
+      } catch (loginError) {
+        setError(loginError instanceof Error ? loginError.message : "Something went wrong while logging in.");
         return;
       }
 
@@ -143,13 +136,14 @@ export default function ParentLogin() {
           <form className="le-form" onSubmit={handleLogin}>
             {/* USERNAME */}
             <label className="le-row">
-              <span className="le-label">Username:</span>
+              <span className="le-label">Username or email:</span>
               <input
                 className="le-input"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Username"
+                placeholder="Username or email"
+                autoComplete="username"
               />
             </label>
 

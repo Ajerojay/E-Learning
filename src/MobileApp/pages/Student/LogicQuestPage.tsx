@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import "./LogicQuestPage.css";
 import { useNavigate } from "react-router-dom";
 import {
@@ -12,7 +12,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import lion_think from "../../../img/lion_think.png";
-import { supabase } from "../../../lib/supabase";
+import { recordGameProgressRpc, loadPrimaryGameCodeForCategory } from "../../../lib/gameProgressDb";
 import { getOrCreateActiveChildId } from "../../../lib/childProgress";
 import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
 import {
@@ -23,6 +23,8 @@ import {
 } from "./levelIntro";
 import bgMusic from "./bg-music-loop.mp3";
 import { speakNative } from "../../nativeTts";
+import QuestLevelSelect from "./QuestLevelSelect";
+import { useQuestLevelGate } from "./questLevelMap";
 
 const LOGIC_GAME_INTRO: LevelIntroContent = {
   title: "What comes next?",
@@ -41,33 +43,33 @@ type LogicLevel = {
 const logicLevels: LogicLevel[] = [
   {
     id: "sun_cloud",
-    sequence: ["â˜€ï¸", "â˜ï¸", "â˜€ï¸"],
+    sequence: ["☀️", "☁️", "☀️"],
     correctId: "cloud",
     choices: [
-      { id: "sun", emoji: "â˜€ï¸" },
-      { id: "cloud", emoji: "â˜ï¸" },
+      { id: "sun", emoji: "☀️" },
+      { id: "cloud", emoji: "☁️" },
     ],
   },
   {
     id: "shape_pattern",
     // Level 2: ABB repeating pattern (harder than ABA)
-    // ðŸŸ¦ ðŸŸ¥ ðŸŸ¥  ðŸŸ¦ ðŸŸ¥ ðŸŸ¥  â“
-    sequence: ["ðŸŸ¦", "ðŸŸ¥", "ðŸŸ¥", "ðŸŸ¦", "ðŸŸ¥", "ðŸŸ¥"],
+    // 🟦 🟥 🟥  🟦 🟥 🟥  ❓
+    sequence: ["🟦", "🟥", "🟥", "🟦", "🟥", "🟥"],
     correctId: "blue",
     choices: [
-      { id: "blue", emoji: "ðŸŸ¦" },
-      { id: "red", emoji: "ðŸŸ¥" },
+      { id: "blue", emoji: "🟦" },
+      { id: "red", emoji: "🟥" },
     ],
   },
   {
     // harder: repeating 3-symbol pattern (A B C)
     id: "abc_repeat",
-    sequence: ["ðŸ”º", "ðŸ”µ", "ðŸŸ¥", "ðŸ”º", "ðŸ”µ", "ðŸŸ¥"],
+    sequence: ["🔺", "🔵", "🟥", "🔺", "🔵", "🟥"],
     correctId: "triangle",
     choices: [
-      { id: "triangle", emoji: "ðŸ”º" },
-      { id: "circle", emoji: "ðŸ”µ" },
-      { id: "square", emoji: "ðŸŸ¥" },
+      { id: "triangle", emoji: "🔺" },
+      { id: "circle", emoji: "🔵" },
+      { id: "square", emoji: "🟥" },
     ],
   },
 ];
@@ -128,7 +130,7 @@ function DropTarget({
       ref={setNodeRef}
       className={`drop-box ${isOver ? "drop-box-over" : ""}`}
     >
-      {droppedEmoji ?? "â“"}
+      {droppedEmoji ?? "❓"}
     </span>
   );
 }
@@ -149,6 +151,7 @@ export default function Level2Pattern() {
   const [dropped, setDropped] = useState<string | null>(null);
   const [time, setTime] = useState(30);
   const [level, setLevel] = useState(0);
+  const { mapOpen, setMapOpen, unlockedCount, completeLevel } = useQuestLevelGate("logic");
   const [proceedPromptLevel, setProceedPromptLevel] = useState<number | null>(null);
   const [showCongratsPanel, setShowCongratsPanel] = useState(false);
   const [showNoPrompt, setShowNoPrompt] = useState(false);
@@ -171,6 +174,7 @@ export default function Level2Pattern() {
 
   const introEnabled =
     isStarted &&
+    !mapOpen &&
     !popup &&
     !isFinished &&
     proceedPromptLevel === null &&
@@ -189,8 +193,8 @@ export default function Level2Pattern() {
     setCountdown(null);
     setTime(30);
     warnedSecondsRef.current = new Set();
-    onLevelStart();
-  }, [level, onLevelStart]);
+    if (!mapOpen) onLevelStart();
+  }, [level, onLevelStart, mapOpen]);
 
   // Prevent transformed drag elements from moving the Android viewport sideways.
   useEffect(() => {
@@ -332,7 +336,7 @@ export default function Level2Pattern() {
     if (isFinished) return;
     if (levelIntroActive || countdown !== null) return;
     if (popup) return;
-    if (proceedPromptLevel !== null) return; // âœ… pause timer kapag level complete popup lumabas
+    if (proceedPromptLevel !== null) return; // ✅ pause timer kapag level complete popup lumabas
   
     if (time === 0) {
       setPopup("TIME_UP");
@@ -368,33 +372,8 @@ export default function Level2Pattern() {
       const id = await getOrCreateActiveChildId();
       setChildId(id);
 
-      const { data: logicCategory, error: categoryError } = await supabase
-        .from("learning_categories")
-        .select("id")
-        .eq("code", "logic")
-        .maybeSingle();
-
-      if (categoryError || !logicCategory?.id) {
-        console.error("Unable to load logic category id.");
-        return;
-      }
-
-      const { data: games, error: gamesError } = await supabase
-        .from("learning_games")
-        .select("game_code")
-        .eq("category_id", logicCategory.id)
-        .order("created_at", { ascending: true })
-        .limit(1);
-
-      if (gamesError) {
-        console.error("Unable to load logic game code.");
-        return;
-      }
-
-      const firstGame = Array.isArray(games) ? games[0] : null;
-      if (firstGame?.game_code) {
-        setGameCode(firstGame.game_code);
-      }
+      const primaryGameCode = await loadPrimaryGameCodeForCategory("logic");
+      if (primaryGameCode) setGameCode(primaryGameCode);
     };
 
     void loadProgressContext();
@@ -403,17 +382,7 @@ export default function Level2Pattern() {
   const saveProgress = async (nextScore: number, finished: boolean, attempts: number) => {
     if (!childId || !gameCode) return;
 
-    const { error } = await supabase.rpc("record_game_attempt", {
-      p_child_id: childId,
-      p_game_code: gameCode,
-      p_score: nextScore,
-      p_wrong_attempts: attempts,
-      p_finished: finished,
-    });
-
-    if (error) {
-      console.error("Failed to save logic progress:", error.message);
-    }
+    await recordGameProgressRpc(childId, gameCode, nextScore, attempts, finished);
   };
 
   const handleDropChoice = (value: string) => {
@@ -430,6 +399,7 @@ export default function Level2Pattern() {
       setScore(nextScore);
       speakFeedback("Great job!");
       void saveProgress(percent, finished, wrong);
+      void completeLevel(level);
 
       if (finished) {
         setIsFinished(true);
@@ -505,15 +475,26 @@ export default function Level2Pattern() {
 
   return (
     <div className="pattern logic-bg-image">
+      {mapOpen && (
+        <QuestLevelSelect
+          title="Logic Quest"
+          unlockedCount={unlockedCount}
+          onSelectLevel={(index) => {
+            setLevel(index);
+            setMapOpen(false);
+          }}
+          onBack={handleBack}
+        />
+      )}
       <button className="lq-back-btn" onClick={handleBack}>
-        â† Back
+        {"\u2190"} Back
       </button>
 
       <h2 className="lq-main-title">What comes next?</h2>
 
       <div className="lq-meta-row">
         <span className="lq-level-pill">Level {level + 1}</span>
-        <span className={`timer ${time <= 5 ? "timer-warning" : ""}`}>â± {time}s</span>
+        <span className={`timer ${time <= 5 ? "timer-warning" : ""}`}>⏱ {time}s</span>
         <button
           type="button"
           className="lq-sound-toggle lq-music-toggle"
@@ -521,7 +502,7 @@ export default function Level2Pattern() {
           aria-label={musicEnabled ? "Mute music" : "Unmute music"}
           title={musicEnabled ? "Mute Music" : "Unmute Music"}
         >
-          {musicEnabled ? "ðŸŽµ" : "ðŸ”‡"}
+          {musicEnabled ? "🎵" : "🔇"}
         </button>
         <button
           type="button"
@@ -538,7 +519,7 @@ export default function Level2Pattern() {
           aria-label={soundEnabled ? "Mute sound" : "Unmute sound"}
           title={soundEnabled ? "Mute Sound" : "Unmute Sound"}
         >
-          {soundEnabled ? "ðŸ”Š" : "ðŸ”‡"}
+          {soundEnabled ? "🔊" : "🔇"}
         </button>
       </div>
 
@@ -589,7 +570,7 @@ export default function Level2Pattern() {
         <div className="lq-finish-overlay">
           <GameOverlay isOpen={isFinished}>
             <GamePopup
-              title="ðŸŽ‰ Amazing!"
+              title="🎉 Amazing!"
               subtitle="You completed all logic levels!"
               buttons={[
                 { label: "Play Again", onClick: handleRestart, variant: "yes" },
@@ -606,11 +587,11 @@ export default function Level2Pattern() {
         </div>
       )}
 
-      {/* â­ LEVEL PROCEED POPUP */}
+      {/* ⭐ LEVEL PROCEED POPUP */}
       {proceedPromptLevel !== null && (
         <GameOverlay isOpen={proceedPromptLevel !== null}>
           <GamePopup
-            title="ðŸŽ‰ Awesome!"
+            title="🎉 Awesome!"
             subtitle={`Level ${level + 1} complete! Proceed to Level ${level + 2}?`}
             buttons={[
               {
@@ -675,7 +656,7 @@ export default function Level2Pattern() {
 {popup === "TIME_UP" && (
   <GameOverlay isOpen={popup === "TIME_UP"}>
     <GamePopup
-      title="â° Time's up!"
+      title="⏰ Time's up!"
       subtitle={`You completed ${score}/${logicLevels.length} logic levels in Level ${level + 1}.`}
       buttons={
         level < logicLevels.length - 1

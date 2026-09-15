@@ -1,4 +1,4 @@
-﻿@import url("https://fonts.googleapis.com/css2?family=Inder&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inder&display=swap");
 
 * {
   margin: 0;
@@ -391,17 +391,31 @@ body {
   padding-top: 4px;
 }
 
+.pp-mobile-parent.pp-wrapper {
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .pp-mobile-parent .pp-main,
 .pp-mobile-parent .pp-sidebar[data-collapsed="true"] + .pp-main {
   width: 100%;
   min-width: 0;
+  min-height: 0;
+  height: 100%;
   margin-left: 0;
-  padding: calc(88px + env(safe-area-inset-top)) 14px 24px;
+  overflow: hidden;
+  padding: calc(78px + env(safe-area-inset-top)) 12px 0;
 }
 
 .pp-mobile-parent .pp-content {
-  overflow: visible;
-  padding-top: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 0 calc(24px + env(safe-area-inset-bottom));
 }
 
 @media (max-width: 768px) {
@@ -808,4 +822,159 @@ body {
   .pp-recommended-sub {
     font-size: 15px;
   }
+}
+
+/* Compact phone layout: keep subject analytics on screen and scrollable. */
+.pp-mobile-parent .pp-top-header {
+  margin-bottom: 8px;
+}
+
+.pp-mobile-parent .pp-brand {
+  font-size: 14px;
+  padding: 5px 14px;
+}
+
+.pp-mobile-parent .pp-logo {
+  width: 24px;
+  height: 24px;
+}
+
+.pp-mobile-parent .pp-bell-icon {
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+}
+
+.pp-mobile-parent .pp-heading-card {
+  padding: 8px 10px;
+  margin-bottom: 10px;
+}
+
+.pp-mobile-parent .pp-heading-card h1 {
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.pp-mobile-parent .pp-summary-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-bottom: 10px;
+  align-items: stretch;
+}
+
+.pp-mobile-parent .pp-child-card {
+  padding: 8px 10px;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pp-mobile-parent .pp-avatar {
+  width: 44px;
+  height: 44px;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.pp-mobile-parent .pp-child-card h2 {
+  font-size: 15px;
+  margin-bottom: 0;
+  line-height: 1.2;
+}
+
+.pp-mobile-parent .pp-grade {
+  font-size: 13px;
+}
+
+.pp-mobile-parent .pp-overall-card {
+  min-width: 84px;
+}
+
+.pp-mobile-parent .pp-circle {
+  width: 72px;
+  height: 72px;
+}
+
+.pp-mobile-parent .pp-circle::before {
+  width: 46px;
+  height: 46px;
+}
+
+.pp-mobile-parent .pp-circle span {
+  font-size: 15px;
+}
+
+.pp-mobile-parent .pp-grid {
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.pp-mobile-parent .pp-subject-card {
+  padding: 10px 10px 12px;
+  min-width: 0;
+}
+
+.pp-mobile-parent .pp-subject-header {
+  margin-bottom: 8px;
+  gap: 6px;
+}
+
+.pp-mobile-parent .pp-subject-icon {
+  font-size: 16px;
+}
+
+.pp-mobile-parent .pp-subject-header h3 {
+  font-size: 14px;
+}
+
+.pp-mobile-parent .pp-bar {
+  height: 10px;
+  margin-bottom: 6px;
+}
+
+.pp-mobile-parent .pp-row {
+  margin-bottom: 4px;
+}
+
+.pp-mobile-parent .pp-percent,
+.pp-mobile-parent .pp-status {
+  font-size: 11px;
+}
+
+.pp-mobile-parent .pp-recommended-title h2 {
+  font-size: 16px;
+}
+
+.pp-mobile-parent .pp-recommended-sub {
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.pp-mobile-parent .pp-recommend-card {
+  padding: 12px 12px 14px;
+  margin-bottom: 10px;
+}
+
+.pp-mobile-parent .pp-recommend-card h3,
+.pp-mobile-parent .pp-recommend-card p,
+.pp-mobile-parent .pp-child-did {
+  font-size: 13px;
+}
+
+.pp-mobile-parent .pp-recommend-actions {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.pp-mobile-parent .pp-recommend-box {
+  padding: 12px;
+}
+
+.pp-mobile-parent .pp-recommend-box strong {
+  font-size: 15px;
+}
+
+.pp-mobile-parent .pp-recommend-box button {
+  font-size: 13px;
+  padding: 8px 12px;
 }
