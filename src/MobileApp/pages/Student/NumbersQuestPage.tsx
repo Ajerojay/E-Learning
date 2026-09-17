@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./NumbersQuestPage.css";
 import { getOrCreateActiveChildId } from "../../../lib/childProgress";
@@ -15,6 +15,8 @@ import {
 } from "./levelIntro";
 import bgMusic from "./bg-music-loop.mp3";
 import { speakNative } from "../../nativeTts";
+import QuestLevelSelect from "./QuestLevelSelect";
+import { useQuestLevelGate } from "./questLevelMap";
 
 import cloudImg from "./images/cloud.png";
 import bgImg from "./images/numbers-bg.jpg";
@@ -87,6 +89,7 @@ export default function NumbersQuestPage() {
   const [musicEnabled, setMusicEnabled] = useState(true);
 
   const [levelIndex, setLevelIndex] = useState(0);
+  const { mapOpen, setMapOpen, unlockedCount, completeLevel } = useQuestLevelGate("numbers");
   // A fresh route visit from Start Number Activity owns the one full intro.
   const playSession = 0;
   const [target, setTarget] = useState<number>(3);
@@ -113,6 +116,7 @@ export default function NumbersQuestPage() {
   const startCountdown = useCallback(() => setCountdown(3), []);
 
   const introEnabled =
+    !mapOpen &&
     !timeUpOpen &&
     !isFinishedAllLevels &&
     proceedPromptLevel === null &&
@@ -194,8 +198,8 @@ export default function NumbersQuestPage() {
       Math.floor(Math.random() * (level.targetMax - level.targetMin + 1)) +
       level.targetMin;
     setTarget(num);
-    onLevelStart();
-  }, [levelIndex, level.targetMax, level.targetMin, onLevelStart]);
+    if (!mapOpen) onLevelStart();
+  }, [levelIndex, level.targetMax, level.targetMin, onLevelStart, mapOpen]);
 
   useEffect(() => {
     const load = async () => {
@@ -447,6 +451,7 @@ export default function NumbersQuestPage() {
         void saveNumbersProgress(pct, finishedAll, wrongAttempts);
 
         if (next >= totalRoundsToComplete) {
+          void completeLevel(levelIndex);
           if (levelIndex >= 2) {
             setMessage("Amazing! You finished all levels!");
             setIsFinishedAllLevels(true);
@@ -508,9 +513,20 @@ export default function NumbersQuestPage() {
 
   return (
     <div className="nq-page-bg nq-page-bg--no-card" style={{ backgroundImage: `url(${bgImg})` }}>
+      {mapOpen && (
+        <QuestLevelSelect
+          title="Numbers Quest"
+          unlockedCount={unlockedCount}
+          onSelectLevel={(index) => {
+            setLevelIndex(index);
+            setMapOpen(false);
+          }}
+          onBack={() => navigate("/lesson/numbers", { replace: true })}
+        />
+      )}
       <div className="nq-top-bar">
         <button type="button" className="nq-back-btn" onClick={() => navigate("/lesson/numbers", { replace: true })}>
-          â† Back
+          {"\u2190"} Back
         </button>
       </div>
 
@@ -519,7 +535,7 @@ export default function NumbersQuestPage() {
           <span>Level {levelIndex + 1}</span>
           <span className="nq-level-name">: {level.name}</span>
         </div>
-        <div className="nq-timer">â± {timeLeft}s</div>
+        <div className="nq-timer">⏱ {timeLeft}s</div>
         <button
           type="button"
           className="nq-sound-toggle nq-music-toggle"
@@ -539,7 +555,7 @@ export default function NumbersQuestPage() {
           aria-label={musicEnabled ? "Turn music off" : "Turn music on"}
           title={musicEnabled ? "Mute Music" : "Unmute Music"}
         >
-          {musicEnabled ? "ðŸŽµ" : "ðŸ”‡"}
+          {musicEnabled ? "🎵" : "🔇"}
         </button>
         <button
           type="button"
@@ -555,14 +571,14 @@ export default function NumbersQuestPage() {
           }}
           aria-label={soundEnabled ? "Turn sound off" : "Turn sound on"}
         >
-          <span className="nq-effects-icon">{soundEnabled ? "ðŸ”Š" : "ðŸ”‡"}</span>
+          <span className="nq-effects-icon">{soundEnabled ? "🔊" : "🔇"}</span>
           <span className="nq-control-label">{soundEnabled ? " On" : " Off"}</span>
         </button>
       </div>
 
       <h2 className="nq-title nq-title--page">Count the Raindrops!</h2>
       <p className="nq-subtitle nq-subtitle--page">
-        Tap the raindrops that match the number ðŸ’§
+        Tap the raindrops that match the number 💧
       </p>
 
       <div className="nq-scene nq-scene--page">
@@ -615,7 +631,7 @@ export default function NumbersQuestPage() {
       {timeUpOpen && (
         <GameOverlay isOpen={timeUpOpen}>
           <GamePopup
-            title="â° Time's up!"
+            title="⏰ Time's up!"
             subtitle={`You completed ${correctRounds}/${totalRoundsToComplete} rounds in Level ${levelIndex + 1}.`}
             buttons={
               levelIndex < 2
@@ -686,7 +702,7 @@ export default function NumbersQuestPage() {
       {proceedPromptLevel !== null && levelIndex < 2 && (
         <GameOverlay isOpen={proceedPromptLevel !== null}>
           <GamePopup
-            title="ðŸŽ‰ Awesome!"
+            title="🎉 Awesome!"
             subtitle={`Level ${levelIndex + 1} complete! Proceed to Level ${levelIndex + 2}?`}
             buttons={[
               {
@@ -754,7 +770,7 @@ export default function NumbersQuestPage() {
         <div className="nq-finish-overlay">
           <GameOverlay isOpen={isFinishedAllLevels}>
             <GamePopup
-              title="ðŸŽ‰ Amazing!"
+              title="🎉 Amazing!"
               subtitle="You finished all number levels!"
               buttons={[
                 { label: "Play Again", onClick: handlePlayAgain },

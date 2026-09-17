@@ -13,6 +13,8 @@ import { buildChildAchievements, type ChildActivityRow, type ChildCategoryProgre
 import { SUBJECT_KEYS, type SubjectKey } from "../../lib/childProgress";
 import { getStudentGameAccess, saveStudentGameAccess } from "../../lib/studentGameAccess";
 import { getActivityConfig, saveActivityConfig, type ActivityConfig } from "../../lib/activityConfig";
+import { createOfflineLessonUrl, getOfflineLessons, removeOfflineLesson, saveOfflineLesson } from "../../lib/offlineLessonStore";
+import { cacheOfflineLessons, cacheOfflineChild, getOfflineChildrenFromSqlite, getOfflineLessonsFromSqlite } from "../../lib/offlineSqlite";
 
 type PageKey = "dashboard" | "students" | "lessons" | "activities" | "attendance" | "health" | "rewards" | "settings";
 type Notify = (text: string) => void;
@@ -40,6 +42,8 @@ type LessonRecord = {
   category: string;
   video_path: string;
   is_published: boolean;
+  offlineUrl?: string;
+  offlineStatus?: "queued";
 };
 
 type RecentGameActivity = {
@@ -101,10 +105,18 @@ function useClassSummary() {
       }
       if (!active) return;
       if (studentError) {
-        console.error("Teacher dashboard summary error:", studentError.message);
-        setSummary({ total: 0, present: 0, loading: false, recent: [] });
+        const cachedStudents = await getOfflineChildrenFromSqlite();
+        const enrolled = cachedStudents.filter(row => row.is_active !== 0);
+        setSummary({ total: enrolled.length, present: 0, loading: false, recent: [] });
         return;
       }
+      await Promise.all((students ?? []).map(row => cacheOfflineChild({
+        id: String(row.id),
+        childName: row.child_name,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        isActive: row.is_active,
+      })));
       if (activityError) console.error("Teacher recent activity error:", activityError.message);
       const rows = students ?? [];
       const enrolledRows = rows.filter(row => row.is_active !== false);
@@ -259,10 +271,31 @@ function Students({ notify }: { notify: Notify }) {
 
       if (!active) return;
       if (error) {
-        console.error("Teacher student roster error:", error.message);
-        setStudents([]);
-        setLoadError("Unable to load student records. Please try again.");
+        const cachedStudents = await getOfflineChildrenFromSqlite();
+        if (cachedStudents.length) {
+          setStudents(cachedStudents.map((row, index) => {
+            const fullName = `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim();
+            return {
+              id: String(row.id), name: row.child_name?.trim() || fullName || "Unnamed learner", age: null,
+              section: "Preschool", stars: 0, rate: 0, status: row.is_active ? "Offline" : "Unenrolled",
+              avatar: index % 2 === 0 ? "🧒" : "👧", firstName: row.first_name?.trim() || "", lastName: row.last_name?.trim() || "",
+              dateOfBirth: null, sex: null, pinCode: row.pin_code, enrolled: row.is_active !== 0, lastActiveAt: null,
+            };
+          }));
+        } else {
+          console.error("Teacher student roster error:", error.message);
+          setStudents([]);
+          setLoadError("Unable to load student records. Please try again.");
+        }
       } else {
+        await Promise.all((data ?? []).map(row => cacheOfflineChild({
+          id: String(row.id),
+          childName: row.child_name,
+          firstName: row.first_name,
+          lastName: row.last_name,
+          pinCode: row.pin_code,
+          isActive: row.is_active,
+        })));
         setStudents((data ?? []).map((row, index) => {
           const fullName = `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim();
           return {
@@ -344,14 +377,67 @@ function Lessons({ notify }: { notify: Notify }) {
   const [preview, setPreview] = useState<{ lesson: LessonRecord; url: string } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
+  const syncOfflineLessons = async () => {
+    if (!navigator.onLine) return;
+    const queued = await getOfflineLessons();
+    for (const lesson of queued) {
+      const videoPath = `Nursery/${lesson.category}/${Date.now()}-${lesson.videoName}`;
+      const uploadResult = await supabase.storage.from("lesson-videos").upload(videoPath, lesson.video, { upsert: false });
+      if (uploadResult.error) continue;
+      const insertResult = await supabase.from("video_lessons").insert([{
+        title: lesson.title,
+        description: lesson.description,
+        grade_level: lesson.gradeLevel,
+        category: lesson.category,
+        video_path: videoPath,
+        is_published: true,
+      }]);
+      if (!insertResult.error) await removeOfflineLesson(lesson.id);
+    }
+  };
+
   const fetchLessons = async () => {
     setLoading(true); setLoadError("");
     const { data, error } = await supabase.from("video_lessons").select("id,title,description,category,video_path,is_published").eq("is_published", true).order("created_at", { ascending: false });
-    if (error) { console.error("Teacher lessons error:", error.message); setLoadError("Unable to load video lessons. Please try again."); setLessons([]); }
-    else setLessons((data ?? []) as LessonRecord[]);
+    const queued = await getOfflineLessons();
+    const queuedLessons: LessonRecord[] = queued.map(lesson => ({
+      id: lesson.id,
+      title: lesson.title,
+      description: lesson.description,
+      category: lesson.category,
+      video_path: "",
+      is_published: true,
+      offlineUrl: createOfflineLessonUrl(lesson),
+      offlineStatus: "queued",
+    }));
+    if (error && !queuedLessons.length) {
+      const cachedLessons = await getOfflineLessonsFromSqlite();
+      if (cachedLessons.length) {
+        setLessons([...queuedLessons, ...cachedLessons.map(lesson => ({
+          id: lesson.id,
+          title: lesson.title,
+          description: lesson.description,
+          category: lesson.category,
+          video_path: lesson.video_path,
+          is_published: true,
+        }))]);
+      } else {
+        console.error("Teacher lessons error:", error.message);
+        setLoadError("Unable to load video lessons. Please try again.");
+        setLessons([]);
+      }
+    } else {
+      await cacheOfflineLessons((data ?? []).map(lesson => ({ id: String(lesson.id), title: lesson.title, description: lesson.description, category: lesson.category, videoPath: lesson.video_path, isPublished: lesson.is_published })));
+      setLessons([...queuedLessons, ...((data ?? []) as LessonRecord[])]);
+    }
     setLoading(false);
   };
-  useEffect(() => { void fetchLessons(); }, []);
+  useEffect(() => {
+    const refresh = () => { void syncOfflineLessons().then(fetchLessons); };
+    void refresh();
+    window.addEventListener("online", refresh);
+    return () => window.removeEventListener("online", refresh);
+  }, []);
 
   const closeForm = () => { setUpload(false); setEditing(null); setTitle(""); setCategory("Colors"); setDescription(""); setFile(null); setVideoUrl(""); };
   const openNew = () => {
@@ -372,6 +458,23 @@ function Lessons({ notify }: { notify: Notify }) {
     if (!editing && configuredCategories.size >= lessonCategories.length) { notify("Maximum of 6 lessons reached."); return; }
     setSaving(true);
     try {
+      if (!navigator.onLine && file && !editing) {
+        await saveOfflineLesson({
+          id: `offline-${Date.now()}-${file.name}`,
+          title: title.trim(),
+          description: description.trim() || `${category} lesson video`,
+          category: categoryToDb(category),
+          gradeLevel: "Nursery",
+          videoName: file.name,
+          videoType: file.type,
+          video: file,
+          createdAt: Date.now(),
+        });
+        closeForm();
+        await fetchLessons();
+        notify("Saved on this device. It will upload when internet returns.");
+        return;
+      }
       let videoPath = editing?.video_path ?? "";
       if (cleanUrl) {
         videoPath = cleanUrl;
@@ -387,7 +490,25 @@ function Lessons({ notify }: { notify: Notify }) {
         : await supabase.from("video_lessons").insert([payload]);
       if (result.error) throw result.error;
       closeForm(); await fetchLessons(); notify(editing ? "Lesson updated" : "New lesson uploaded");
-    } catch (error) { console.error("Teacher lesson save error:", error); notify(error instanceof Error ? error.message : "Unable to save lesson"); }
+    } catch (error) {
+      console.error("Teacher lesson save error:", error);
+      if (file && !editing) {
+        await saveOfflineLesson({
+          id: `offline-${Date.now()}-${file.name}`,
+          title: title.trim(),
+          description: description.trim() || `${category} lesson video`,
+          category: categoryToDb(category),
+          gradeLevel: "Nursery",
+          videoName: file.name,
+          videoType: file.type,
+          video: file,
+          createdAt: Date.now(),
+        });
+        closeForm();
+        await fetchLessons();
+        notify("Upload paused offline. It will retry automatically.");
+      } else notify(error instanceof Error ? error.message : "Unable to save lesson");
+    }
     finally { setSaving(false); }
   };
   const archiveLesson = async (lesson: LessonRecord) => {
@@ -397,6 +518,10 @@ function Lessons({ notify }: { notify: Notify }) {
     setLessons(current => current.filter(item => item.id !== lesson.id)); notify("Lesson removed");
   };
   const previewLesson = async (lesson: LessonRecord) => {
+    if (lesson.offlineUrl) {
+      setPreview({ lesson, url: lesson.offlineUrl });
+      return;
+    }
     const rawPath = lesson.video_path?.trim();
     if (!rawPath) { notify("This lesson does not have a video file yet."); return; }
     setPreviewLoading(true);
@@ -423,7 +548,7 @@ function Lessons({ notify }: { notify: Notify }) {
     {loading && <section className="ta-student-state"><span className="ta-loader"/><h3>Loading video lessons…</h3><p>Retrieving the latest learning content.</p></section>}
     {!loading && loadError && <section className="ta-student-state error"><CircleAlert/><h3>Unable to load lessons</h3><p>{loadError}</p></section>}
     {!loading && !loadError && visible.length === 0 && <section className="ta-student-state"><Video/><h3>No video lessons yet</h3><p>Use Upload New Lesson to add the first lesson in this category.</p></section>}
-    {!loading && !loadError && <section className="ta-lessons">{visible.map(lesson => { const uiCategory = categoryFromDb(lesson.category); return <article key={lesson.id}><div className="ta-thumb"><span>{lessonIcons[uiCategory] ?? lessonIcons.Others}</span><b>VIDEO</b><button disabled={previewLoading} onClick={() => void previewLesson(lesson)}>{previewLoading ? "…" : "▶"}</button></div><div><span><i>{uiCategory}</i><em>Published</em></span><h3>{lesson.title}</h3><p>{lesson.description || `${uiCategory} lesson video`}</p><small><Activity /> Attached: {uiCategory === "Others" ? "Custom lesson" : `${uiCategory} Quest`}</small><footer><button onClick={() => openEdit(lesson)}><Pencil /> Edit</button><button onClick={() => void archiveLesson(lesson)}><Trash2 /> Delete</button></footer></div></article>; })}</section>}
+    {!loading && !loadError && <section className="ta-lessons">{visible.map(lesson => { const uiCategory = categoryFromDb(lesson.category); return <article key={lesson.id}><div className="ta-thumb"><span>{lessonIcons[uiCategory] ?? lessonIcons.Others}</span><b>VIDEO</b><button disabled={previewLoading} onClick={() => void previewLesson(lesson)}>{previewLoading ? "…" : "▶"}</button></div><div><span><i>{uiCategory}</i><em>{lesson.offlineStatus === "queued" ? "Waiting to sync" : "Published"}</em></span><h3>{lesson.title}</h3><p>{lesson.description || `${uiCategory} lesson video`}</p><small><Activity /> Attached: {uiCategory === "Others" ? "Custom lesson" : `${uiCategory} Quest`}</small><footer>{lesson.offlineStatus === "queued" ? <button onClick={() => void previewLesson(lesson)}><Video /> Preview</button> : <><button onClick={() => openEdit(lesson)}><Pencil /> Edit</button><button onClick={() => void archiveLesson(lesson)}><Trash2 /> Delete</button></>}</footer></div></article>; })}</section>}
     {preview && <div className="ta-overlay" onMouseDown={() => setPreview(null)}><section className="ta-modal ta-video-modal" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setPreview(null)}><X /></button><div className="ta-video-heading"><i>{lessonIcons[categoryFromDb(preview.lesson.category)] ?? lessonIcons.Others}</i><span><small>{categoryFromDb(preview.lesson.category)} VIDEO LESSON</small><h2>{preview.lesson.title}</h2></span></div><video src={preview.url} controls autoPlay playsInline onError={() => { setPreview(null); notify("This video could not be played. Please upload the video again."); }}>Your device does not support video playback.</video><p>{preview.lesson.description || "Watch this learning video."}</p></section></div>}
     {upload && <div className="ta-overlay" onMouseDown={closeForm}><form className="ta-modal ta-form" onMouseDown={event => event.stopPropagation()} onSubmit={saveLesson}><button type="button" className="ta-close" onClick={closeForm}><X /></button><h2>{editing ? "Edit Video Lesson" : "Upload New Video Lesson"}</h2><p>Choose one of the six lesson categories and provide either a file or a direct video URL.</p><label>Lesson title<select value={category} onChange={event => setCategory(event.target.value)}>{lessonCategories.map(value => <option disabled={lessons.some(item => item.id !== editing?.id && categoryFromDb(item.category) === value)} key={value}>{value}</option>)}</select></label><label>Video title<input required value={title} onChange={event => setTitle(event.target.value)} placeholder="Enter video title" /></label><label>Description<textarea value={description} onChange={event => setDescription(event.target.value)} placeholder="Enter lesson description" /></label><div className="ta-video-source"><label>{editing ? "Replace with video file (optional)" : "Video file"}<input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={event => { setFile(event.target.files?.[0] ?? null); if (event.target.files?.[0]) setVideoUrl(""); }} /></label><span>OR</span><label>{editing ? "Replace with direct video URL (optional)" : "Direct video URL"}<input type="url" value={videoUrl} onChange={event => { setVideoUrl(event.target.value); if (event.target.value) setFile(null); }} placeholder="https://example.com/lesson.mp4" /><small>Use a direct MP4, WebM, or hosted video-file link.</small></label></div><button className="ta-primary ta-full" disabled={saving}>{saving ? "Saving…" : editing ? "Update Lesson" : "Upload Lesson"}</button></form></div>}
   </>;

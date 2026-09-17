@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-
 const cp1252Bytes: Record<number, number> = {
   0x81: 0x81, 0x8d: 0x8d, 0x8f: 0x8f, 0x90: 0x90, 0x9d: 0x9d,
   0x152: 0x8c, 0x153: 0x9c, 0x160: 0x8a, 0x161: 0x9a, 0x178: 0x9f,
@@ -70,19 +69,19 @@ const repairMobileEncoding = {
     const repaired = repairQuotedStrings(code)
     return repaired === code ? null : { code: repaired, map: null }
   },
-  generateBundle(_options: unknown, bundle: Record<string, { type: string; code?: string }>) {
-    for (const output of Object.values(bundle)) {
-      if (output.type === 'chunk' && output.code) {
-        output.code = repairMojibake(output.code)
-      }
-    }
-  },
 }
 
 // https://vite.dev/config/
-export default defineConfig({
-  // Relative asset URLs so images/fonts/JS load inside the Capacitor Android WebView.
-  base: './',
+export default defineConfig(({ command }) => ({
+  // Relative URLs for the Capacitor Android WebView build. Absolute URLs in
+  // dev so the phone and laptop can share one LAN server with live reload.
+  base: command === 'build' ? './' : '/',
+  server: {
+    host: '0.0.0.0',
+    port: 5174,
+    strictPort: true,
+    allowedHosts: true,
+  },
   plugins: [
     repairMobileEncoding,
     react({
@@ -91,4 +90,4 @@ export default defineConfig({
       },
     }),
   ],
-})
+}))

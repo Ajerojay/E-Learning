@@ -1,16 +1,18 @@
-﻿import React from "react";
+import React from "react";
 import ParentLayout from "./ParentLayout";
-import { supabase } from "../../../lib/supabase";
 import {
   getChildDisplayFirstName,
   getChildDisplayName,
   getOrCreateActiveChildId,
 } from "../../../lib/childProgress";
+import { getActiveChild, getChildCategoryProgress, getChildOverallProgress, getLatestChildAttempt, getParentAnnouncements, type ParentAnnouncement } from "../../../lib/supabaseData";
+import { getOfflineCategoryProgress, getOfflineChildrenFromSqlite, cacheOfflineCategoryProgress } from "../../../lib/offlineSqlite";
 
 export default function ParentDashboard() {
   const [childName, setChildName] = React.useState("Child");
   const [overallProgress, setOverallProgress] = React.useState(0);
   const [recentActivity, setRecentActivity] = React.useState("No activity yet");
+  const [announcements, setAnnouncements] = React.useState<ParentAnnouncement[]>([]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -19,45 +21,46 @@ export default function ParentDashboard() {
       const childId = await getOrCreateActiveChildId();
       if (!childId || cancelled) return;
 
-      const [{ data: child }, { data: overall }, { data: latest }] = await Promise.all([
-        supabase
-          .from("children_accounts")
-          .select("child_name, first_name, last_name")
-          .eq("id", childId)
-          .maybeSingle(),
-        supabase
-          .from("v_child_overall_progress")
-          .select("overall_progress_percent")
-          .eq("child_id", childId)
-          .maybeSingle(),
-        supabase
-          .from("v_child_recent_activity")
-          .select("category_code, game_title")
-          .eq("child_id", childId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-      ]);
+      let child = null;
+      let overall = 0;
+      let latest = null;
+      try {
+        [child, overall, latest] = await Promise.all([
+          getActiveChild(childId),
+          getChildOverallProgress(childId),
+          getLatestChildAttempt(childId),
+        ]);
+        const categories = await getChildCategoryProgress(childId);
+        await cacheOfflineCategoryProgress(childId, categories.map(row => ({ categoryCode: row.category_code, categoryScore: row.category_score })));
+      } catch {
+        const cachedChild = (await getOfflineChildrenFromSqlite()).find(row => row.id === childId);
+        const cachedProgress = await getOfflineCategoryProgress(childId);
+        child = cachedChild ? { childName: cachedChild.child_name, firstName: cachedChild.first_name, lastName: cachedChild.last_name } : null;
+        overall = cachedProgress.length ? Math.round(cachedProgress.reduce((sum, row) => sum + row.category_score, 0) / cachedProgress.length) : 0;
+      }
 
       if (cancelled) return;
 
       if (child) {
-        setChildName(getChildDisplayName(child));
+        setChildName(getChildDisplayName({ child_name: child.childName, first_name: child.firstName, last_name: child.lastName }));
       }
 
-      if (overall?.overall_progress_percent != null) {
-        setOverallProgress(Math.round(overall.overall_progress_percent));
-      } else {
-        setOverallProgress(0);
-      }
+      setOverallProgress(overall);
 
-      if (latest?.category_code) {
+      if (latest?.categoryCode) {
         const category =
-          latest.category_code.charAt(0).toUpperCase() + latest.category_code.slice(1);
-        const recentName = getChildDisplayFirstName(child);
+          latest.categoryCode.charAt(0).toUpperCase() + latest.categoryCode.slice(1);
+        const recentName = getChildDisplayFirstName(child ? { child_name: child.childName, first_name: child.firstName, last_name: child.lastName } : null);
         setRecentActivity(`${recentName} completed "${category}"`);
       } else {
         setRecentActivity("No activity yet");
+      }
+
+      try {
+        const posts = await getParentAnnouncements();
+        if (!cancelled) setAnnouncements(posts);
+      } catch {
+        if (!cancelled) setAnnouncements([]);
       }
     };
 
@@ -109,6 +112,35 @@ export default function ParentDashboard() {
         <p className="pd-activity-text">
           <strong>{recentActivity}</strong>
         </p>
+      </section>
+
+      <section className="pd-card pd-announcements" aria-label="Announcements">
+        <div className="pd-card-header">
+          <span className="pd-icon" aria-hidden="true">&#128227;</span>
+          <h2>Announcements</h2>
+        </div>
+
+        {announcements.length === 0 ? (
+          <p className="pd-announcement-empty">No announcements yet</p>
+        ) : (
+          <ul className="pd-announcement-list">
+            {announcements.map((item) => (
+              <li key={item.id} className="pd-announcement-item">
+                <h3>{item.title}</h3>
+                {item.createdAt && (
+                  <p className="pd-announcement-date">
+                    {new Date(item.createdAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </p>
+                )}
+                {item.body ? <p>{item.body}</p> : null}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </ParentLayout>
   );

@@ -6,7 +6,6 @@ const cp1252Bytes: Record<number, number> = {
   0x9d: 0x9d,
   0x20ac: 0x80,
   0x201a: 0x82,
-  0x192: 0x83,
   0x201e: 0x84,
   0x2026: 0x85,
   0x2020: 0x86,
@@ -53,45 +52,29 @@ function repairText(value: string): string {
   return repaired;
 }
 
+const SKIP_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT", "SCRIPT", "STYLE"]);
+
 function repairTree(root: Node) {
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  const textNodes: Text[] = [];
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      const parent = node.parentElement;
+      if (!parent || SKIP_TAGS.has(parent.tagName)) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+
   let node = walker.nextNode();
   while (node) {
-    textNodes.push(node as Text);
-    node = walker.nextNode();
-  }
-
-  for (const textNode of textNodes) {
-    if (textNode.nodeValue) textNode.nodeValue = repairText(textNode.nodeValue);
-  }
-
-  if (root instanceof Element) {
-    for (const element of [root, ...Array.from(root.querySelectorAll("*"))]) {
-      for (const attribute of ["title", "aria-label", "placeholder"]) {
-        const value = element.getAttribute(attribute);
-        if (value) element.setAttribute(attribute, repairText(value));
-      }
+    const textNode = node as Text;
+    if (textNode.nodeValue) {
+      const next = repairText(textNode.nodeValue);
+      if (next !== textNode.nodeValue) textNode.nodeValue = next;
     }
+    node = walker.nextNode();
   }
 }
 
 export function installMojibakeRepair() {
-  repairTree(document.body);
-  const observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      if (mutation.type === "characterData" && mutation.target.nodeValue) {
-        mutation.target.nodeValue = repairText(mutation.target.nodeValue);
-      }
-      for (const addedNode of Array.from(mutation.addedNodes)) {
-        repairTree(addedNode);
-      }
-    }
-  });
-  observer.observe(document.body, {
-    characterData: true,
-    childList: true,
-    subtree: true,
-  });
-  return () => observer.disconnect();
+  if (document.body) repairTree(document.body);
+  return () => undefined;
 }

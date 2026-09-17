@@ -1,11 +1,13 @@
-﻿import "./StudentPage.css";
+import "./StudentPage.css";
 import logo from "../../../img/bear.jpg";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
-import { supabase } from "../../../lib/supabase";
-import { getOrCreateActiveChildId } from "../../../lib/childProgress";
+import { getOrCreateActiveChildId, getRememberedChildFirstName, rememberChildFirstName, getChildDisplayFirstName } from "../../../lib/childProgress";
+import { getActiveChild } from "../../../lib/supabaseData";
+import { cacheOfflineChild, getOfflineChildById } from "../../../lib/offlineSqlite";
 import { getStudentGameAccess } from "../../../lib/studentGameAccess";
 import { isActivityOpen } from "../../../lib/activityConfig";
+import { cancelNativeSpeech, speakKidPrompt } from "../../nativeTts";
 import bgMusic from "./bg-music-loop.mp3";
 
 import { FaFont, FaShapes, FaPuzzlePiece } from "react-icons/fa";
@@ -15,10 +17,18 @@ import { GiSoundWaves } from "react-icons/gi";
 export default function StudentPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [childFirstName, setChildFirstName] = useState("Child");
+  const selectedChild = location.state as { childId?: string; childFirstName?: string } | null;
+  const [childFirstName, setChildFirstName] = useState(() => {
+    const childId = localStorage.getItem("activeChildId");
+    if (selectedChild?.childId && selectedChild.childId === childId && selectedChild.childFirstName) {
+      return selectedChild.childFirstName;
+    }
+    return getRememberedChildFirstName(childId) || "Child";
+  });
   const [allowedGames, setAllowedGames] = useState<string[]>([]);
   const [musicEnabled, setMusicEnabled] = useState(true);
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
+  const greetedRef = useRef(false);
 
   const lessons = [
     { name: "Phonics", icon: <GiSoundWaves />, key: "phonics" },
@@ -35,19 +45,81 @@ export default function StudentPage() {
       if (!childId) return;
       setAllowedGames(getStudentGameAccess(childId));
 
-      const { data } = await supabase
-        .from("children_accounts")
-        .select("first_name")
-        .eq("id", childId)
-        .maybeSingle();
+      const applyName = (name: string, allowPlaceholder = false) => {
+        const clean = name.trim();
+        if (!clean) return;
+        if (!allowPlaceholder && clean === "Child") return;
+        setChildFirstName(clean);
+        rememberChildFirstName(childId, clean);
+      };
 
-      const firstName = data?.first_name?.trim();
-      if (firstName) {
-        setChildFirstName(firstName);
+      const remembered = getRememberedChildFirstName(childId);
+      if (remembered) applyName(remembered, true);
+      else if (selectedChild?.childId === childId && selectedChild.childFirstName) {
+        applyName(selectedChild.childFirstName, true);
+      }
+      const cachedChild = await getOfflineChildById(childId);
+      applyName(getChildDisplayFirstName({
+        first_name: cachedChild?.firstName,
+        child_name: cachedChild?.childName,
+      }));
+
+      try {
+        const child = await Promise.race([
+          getActiveChild(childId),
+          new Promise<null>((_, reject) => window.setTimeout(() => reject(new Error("offline-timeout")), 2500)),
+        ]);
+        applyName(getChildDisplayFirstName({
+          first_name: child?.firstName,
+          child_name: child?.childName,
+        }));
+        if (child) {
+          void cacheOfflineChild({
+            id: childId,
+            parentId: child.parentId,
+            childName: child.childName,
+            firstName: child.firstName,
+            lastName: child.lastName,
+            pinCode: child.pinCode,
+            isActive: child.isActive,
+          });
+        }
+      } catch {
+        // Keep the locally remembered name when the network is gone.
       }
     };
 
     void loadChildName();
+  }, []);
+
+  useEffect(() => {
+    const name = childFirstName.trim();
+    if (!name || greetedRef.current) return;
+
+    const resumeMusic = () => {
+      if (bgMusicRef.current && musicEnabled) {
+        bgMusicRef.current.play().catch(() => {});
+      }
+    };
+
+    const timer = window.setTimeout(() => {
+      if (greetedRef.current) return;
+      greetedRef.current = true;
+      if (bgMusicRef.current && musicEnabled) bgMusicRef.current.pause();
+      speakKidPrompt(`Hi, ${name}! What would you want to learn today?`, {
+        interrupt: true,
+        onEnd: resumeMusic,
+      });
+    }, 650);
+
+    return () => window.clearTimeout(timer);
+  }, [childFirstName, musicEnabled]);
+
+  useEffect(() => {
+    return () => {
+      cancelNativeSpeech();
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    };
   }, []);
 
   useEffect(() => {

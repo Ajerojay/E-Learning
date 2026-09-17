@@ -1,12 +1,10 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Baby, Eye, EyeOff, UserRoundPlus } from "lucide-react";
+import { ArrowLeft, Baby, Check, Circle, Eye, EyeOff, UserRoundPlus } from "lucide-react";
 import "./AppAuth.css";
 import logo from "../../../images/learnease logo-no bg.png";
-// ===== SUPABASE DATABASE CONNECTION (same client used by the web app) =====
-import { supabase } from "../../lib/supabase";
+import { createParentAccount, resendVerificationEmail } from "../../lib/supabaseAuth";
 
-const GRADE_OPTIONS = ["Nursery", "Prep", "Kinder"] as const;
 const PRESCHOOL_MIN_AGE = 3;
 const PRESCHOOL_MAX_AGE = 6;
 
@@ -30,16 +28,30 @@ function getAgeYears(birthday: string): number | null {
   return age;
 }
 
+function startsWithCapitalLetter(value: string): boolean {
+  return /^\p{Lu}/u.test(value.trim());
+}
+
+function RequiredLabel({ htmlFor, children }: { htmlFor: string; children: string }) {
+  return (
+    <label htmlFor={htmlFor}>
+      {children}
+      <span className="app-auth-required" title="Required"> *</span>
+    </label>
+  );
+}
+
 export default function AppSignUp() {
   const navigate = useNavigate();
   const [childFirstName, setChildFirstName] = useState("");
   const [childLastName, setChildLastName] = useState("");
+  const [childNickname, setChildNickname] = useState("");
   const [childBirthday, setChildBirthday] = useState("");
   const [childSex, setChildSex] = useState("");
-  const [childGrade, setChildGrade] = useState<string>(GRADE_OPTIONS[0]);
   const [childPin, setChildPin] = useState("");
   const [confirmChildPin, setConfirmChildPin] = useState("");
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -57,9 +69,15 @@ export default function AppSignUp() {
     special: /[!@#$%^&*]/.test(password),
   };
 
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const strongPassword = Object.values(passwordChecks).every(Boolean);
   const passwordsMatch = password !== "" && password === confirmPassword;
   const pinsMatch = childPin.length === 4 && childPin === confirmChildPin;
+  const pinComplete = childPin.length === 4;
+  const confirmPinStarted = confirmChildPin.length > 0;
+  const confirmPasswordStarted = confirmPassword.length > 0;
+  const firstNameCapitalized = startsWithCapitalLetter(childFirstName);
+  const lastNameCapitalized = startsWithCapitalLetter(childLastName);
   const childAge = getAgeYears(childBirthday);
   const childAgeValid =
     childAge !== null && childAge >= PRESCHOOL_MIN_AGE && childAge <= PRESCHOOL_MAX_AGE;
@@ -68,28 +86,56 @@ export default function AppSignUp() {
   const canSubmit = useMemo(
     () =>
       Boolean(childFirstName.trim()) &&
+      firstNameCapitalized &&
       Boolean(childLastName.trim()) &&
+      lastNameCapitalized &&
       Boolean(childBirthday) &&
       childAgeValid &&
       Boolean(childSex) &&
-      Boolean(childGrade) &&
       pinsMatch &&
       Boolean(username.trim()) &&
+      Boolean(email.trim()) &&
+      emailValid &&
       strongPassword &&
       passwordsMatch,
     [
       childFirstName,
       childLastName,
+      firstNameCapitalized,
+      lastNameCapitalized,
       childBirthday,
       childAgeValid,
       childSex,
-      childGrade,
       pinsMatch,
       username,
+      email,
+      emailValid,
       strongPassword,
       passwordsMatch,
     ]
   );
+
+  const getValidationMessage = () => {
+    const missing: string[] = [];
+    if (!childFirstName.trim()) missing.push("Child first name");
+    else if (!firstNameCapitalized) missing.push("Child first name starting with a capital letter");
+    if (!childLastName.trim()) missing.push("Child last name");
+    else if (!lastNameCapitalized) missing.push("Child last name starting with a capital letter");
+    if (!childBirthday) missing.push("Child birthday");
+    else if (!childAgeValid) missing.push(`Child age must be ${PRESCHOOL_MIN_AGE}-${PRESCHOOL_MAX_AGE}`);
+    if (!childSex) missing.push("Sex");
+    if (!username.trim()) missing.push("Username");
+    if (!email.trim()) missing.push("Email address");
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) missing.push("Valid email address");
+    if (!password) missing.push("Password");
+    else if (!strongPassword) missing.push("Password: 8+ characters, uppercase, number, and symbol");
+    if (!confirmPassword) missing.push("Confirm password");
+    else if (!passwordsMatch) missing.push("Matching confirm password");
+    if (!childPin || childPin.length !== 4) missing.push("4-digit child PIN");
+    if (!confirmChildPin || confirmChildPin.length !== 4) missing.push("Confirm child PIN");
+    else if (!pinsMatch) missing.push("Matching confirm child PIN");
+    return missing.length ? `Please complete: ${missing.join(", ")}.` : "";
+  };
 
   const handlePinChange = (value: string, setter: (newValue: string) => void) => {
     setter(value.replace(/\D/g, "").slice(0, 4));
@@ -101,13 +147,14 @@ export default function AppSignUp() {
     setSuccess("");
 
     if (!canSubmit) {
-      setError("Please complete all required fields before signing up.");
+      setError(getValidationMessage());
       return;
     }
 
     const cleanFirstName = childFirstName.trim();
     const cleanLastName = childLastName.trim();
     const cleanUsername = username.trim();
+    const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
     const cleanPin = childPin.trim();
     const fullChildName = `${cleanFirstName} ${cleanLastName}`.trim();
@@ -115,78 +162,37 @@ export default function AppSignUp() {
     try {
       setLoading(true);
 
-      // ===== SUPABASE DATABASE: CHECK IF USERNAME ALREADY EXISTS =====
-      const { data: existingUser, error: checkError } = await supabase
-        .from("parents_accounts")
-        .select("id")
-        .eq("username", cleanUsername)
-        .maybeSingle();
-
-      if (checkError) {
-        console.error("App username check error:", checkError.message);
-        setError("Something went wrong while checking the username.");
-        return;
-      }
-
-      if (existingUser) {
-        setError("Username already exists. Please choose another one.");
-        return;
-      }
-
-      // ===== SUPABASE DATABASE: CREATE THE PARENT ACCOUNT =====
-      const { data: createdParent, error: insertError } = await supabase
-        .from("parents_accounts")
-        .insert([{ username: cleanUsername, password: cleanPassword }])
-        .select("id")
-        .single();
-
-      if (insertError) {
-        console.error("App signup error:", insertError.message);
-        setError("Failed to register account.");
-        return;
-      }
-
-      const childPayload = {
-        parent_id: createdParent.id,
-        child_name: fullChildName,
-        first_name: cleanFirstName,
-        last_name: cleanLastName,
-        date_of_birth: childBirthday,
+      const credential = await createParentAccount(cleanUsername, cleanEmail, cleanPassword, {
+        childName: fullChildName,
+        firstName: cleanFirstName,
+        lastName: cleanLastName,
+        dateOfBirth: childBirthday,
         sex: childSex,
-        grade_level: childGrade,
-        pin_code: cleanPin,
-        is_active: true,
-      };
+        gradeLevel: "",
+        pinCode: cleanPin,
+        nickname: childNickname.trim() || "n/a",
+      });
 
-      // ===== SUPABASE DATABASE: CREATE AND LINK THE CHILD PROFILE + PIN =====
-      let { error: childInsertError } = await supabase
-        .from("children_accounts")
-        .insert([childPayload]);
-
-      if (childInsertError && /column|schema|does not exist/i.test(childInsertError.message)) {
-        const { error: fallbackError } = await supabase.from("children_accounts").insert([
-          {
-            parent_id: createdParent.id,
-            child_name: fullChildName,
-            grade_level: childGrade,
-            pin_code: cleanPin,
-            is_active: true,
-          },
-        ]);
-        childInsertError = fallbackError;
-      }
-
-      if (childInsertError) {
-        console.error("App child setup error:", childInsertError.message);
-        setError("Account created, but child setup failed. Please contact support.");
+      if (credential.needsEmailConfirmation) {
+        setSuccess("Check your email to confirm your account. After you click the link, sign in with your username or email.");
         return;
       }
 
-      setSuccess("Successfully registered. You can sign in now.");
-      window.setTimeout(() => navigate("/app/signin"), 900);
+      setSuccess("Email already confirmed. You can sign in now.");
+      window.setTimeout(() => navigate("/app/signin"), 1400);
     } catch (caughtError) {
       console.error(caughtError);
-      setError("Something went wrong while registering.");
+      const message = caughtError instanceof Error ? caughtError.message : "Unable to create the account.";
+      const normalizedMessage = message.toLowerCase();
+      if (normalizedMessage.includes("already registered") || normalizedMessage.includes("already been registered") || normalizedMessage.includes("already exists")) {
+        setError(message);
+      } else if (normalizedMessage.includes("password")) {
+        setError(`Password rejected: ${message}`);
+      } else if (normalizedMessage.includes("email")) {
+        setError(`Email rejected: ${message}`);
+      } else {
+        setError(`Account creation failed: ${message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -195,6 +201,15 @@ export default function AppSignUp() {
   return (
     <main className="app-auth-shell">
       <section className="app-auth-phone" aria-label="LearnEase mobile app sign up">
+        <button
+          className="app-auth-back-btn"
+          type="button"
+          aria-label="Back to sign in"
+          onClick={() => navigate("/app/signin")}
+        >
+          <ArrowLeft size={22} strokeWidth={2.5} />
+        </button>
+
         <header className="app-auth-top">
           <img className="app-auth-logo" src={logo} alt="LearnEase Kids" />
           <div className="app-auth-brand">
@@ -217,27 +232,50 @@ export default function AppSignUp() {
               </h2>
 
               <div className="app-auth-field">
-                <label htmlFor="app-signup-username">Username</label>
+                <RequiredLabel htmlFor="app-signup-username">Username</RequiredLabel>
                 <input
                   id="app-signup-username"
                   className="app-auth-input"
                   type="text"
                   autoComplete="username"
                   placeholder="Choose username"
+                  required
+                  aria-required="true"
                   value={username}
                   onChange={(event) => setUsername(event.target.value)}
                 />
               </div>
 
               <div className="app-auth-field">
-                <label htmlFor="app-signup-password">Password</label>
+                <RequiredLabel htmlFor="app-signup-email">Email address</RequiredLabel>
+                <input
+                  id="app-signup-email"
+                  className={`app-auth-input${email && !emailValid ? " app-auth-input-invalid" : ""}`}
+                  type="email"
+                  autoComplete="email"
+                  placeholder="parent@example.com"
+                  required
+                  aria-required="true"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                />
+                <p className="app-auth-hint">Used for verification and password recovery.</p>
+                {email.length > 0 && !emailValid && (
+                  <p className="app-auth-field-error">Enter a valid email address.</p>
+                )}
+              </div>
+
+              <div className="app-auth-field">
+                <RequiredLabel htmlFor="app-signup-password">Password</RequiredLabel>
                 <div className="app-auth-input-wrap">
                   <input
                     id="app-signup-password"
-                    className="app-auth-input"
+                    className={`app-auth-input${password && !strongPassword ? " app-auth-input-invalid" : ""}`}
                     type={showPassword ? "text" : "password"}
                     autoComplete="new-password"
                     placeholder="Create password"
+                    required
+                    aria-required="true"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                   />
@@ -250,18 +288,32 @@ export default function AppSignUp() {
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
-                <p className="app-auth-hint">Use 8 characters, uppercase, number, and symbol.</p>
+                <ul className="app-auth-checklist" aria-live="polite">
+                  {[
+                    { ok: passwordChecks.length, label: "8 characters" },
+                    { ok: passwordChecks.uppercase, label: "One uppercase letter" },
+                    { ok: passwordChecks.number, label: "One number" },
+                    { ok: passwordChecks.special, label: "One symbol (!@#$%^&*)" },
+                  ].map((item) => (
+                    <li key={item.label} className={item.ok ? "is-met" : "is-missing"}>
+                      {item.ok ? <Check size={14} strokeWidth={3} /> : <Circle size={14} />}
+                      {item.label}
+                    </li>
+                  ))}
+                </ul>
               </div>
 
               <div className="app-auth-field">
-                <label htmlFor="app-signup-confirm-password">Confirm password</label>
+                <RequiredLabel htmlFor="app-signup-confirm-password">Confirm password</RequiredLabel>
                 <div className="app-auth-input-wrap">
                   <input
                     id="app-signup-confirm-password"
-                    className="app-auth-input"
+                    className={`app-auth-input${confirmPasswordStarted && !passwordsMatch ? " app-auth-input-invalid" : ""}`}
                     type={showConfirmPassword ? "text" : "password"}
                     autoComplete="new-password"
                     placeholder="Repeat password"
+                    required
+                    aria-required="true"
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
                   />
@@ -274,6 +326,12 @@ export default function AppSignUp() {
                     {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
+                {confirmPasswordStarted && !passwordsMatch && (
+                  <p className="app-auth-field-error">Passwords do not match.</p>
+                )}
+                {passwordsMatch && (
+                  <p className="app-auth-field-ok">Passwords match.</p>
+                )}
               </div>
             </section>
 
@@ -285,48 +343,77 @@ export default function AppSignUp() {
 
               <div className="app-auth-row">
                 <div className="app-auth-field">
-                  <label htmlFor="app-child-first">First name</label>
+                  <RequiredLabel htmlFor="app-child-first">First name</RequiredLabel>
                   <input
                     id="app-child-first"
-                    className="app-auth-input"
+                    className={`app-auth-input${childFirstName && !firstNameCapitalized ? " app-auth-input-invalid" : ""}`}
                     type="text"
                     autoComplete="given-name"
+                    placeholder="e.g. Maria"
+                    required
+                    aria-required="true"
                     value={childFirstName}
                     onChange={(event) => setChildFirstName(event.target.value)}
                   />
+                  {childFirstName.trim() && !firstNameCapitalized && (
+                    <p className="app-auth-field-error">First name must start with a capital letter.</p>
+                  )}
                 </div>
 
                 <div className="app-auth-field">
-                  <label htmlFor="app-child-last">Last name</label>
+                  <RequiredLabel htmlFor="app-child-last">Last name</RequiredLabel>
                   <input
                     id="app-child-last"
-                    className="app-auth-input"
+                    className={`app-auth-input${childLastName && !lastNameCapitalized ? " app-auth-input-invalid" : ""}`}
                     type="text"
                     autoComplete="family-name"
+                    placeholder="e.g. Santos"
+                    required
+                    aria-required="true"
                     value={childLastName}
                     onChange={(event) => setChildLastName(event.target.value)}
                   />
+                  {childLastName.trim() && !lastNameCapitalized && (
+                    <p className="app-auth-field-error">Last name must start with a capital letter.</p>
+                  )}
                 </div>
+              </div>
+
+              <div className="app-auth-field">
+                <label htmlFor="app-child-nickname">Nickname <span className="app-auth-optional">(optional)</span></label>
+                <input
+                  id="app-child-nickname"
+                  className="app-auth-input"
+                  type="text"
+                  autoComplete="nickname"
+                  placeholder="Leave blank for n/a"
+                  value={childNickname}
+                  onChange={(event) => setChildNickname(event.target.value)}
+                />
               </div>
 
               <div className="app-auth-row">
                 <div className="app-auth-field">
-                  <label htmlFor="app-child-birthday">Birthday</label>
+                  <RequiredLabel htmlFor="app-child-birthday">Birthday</RequiredLabel>
                   <input
                     id="app-child-birthday"
-                    className="app-auth-input"
+                    className={`app-auth-input${childBirthday && !childAgeValid ? " app-auth-input-invalid" : ""}`}
                     type="date"
                     max={maxBirthday}
+                    required
+                    aria-required="true"
                     value={childBirthday}
                     onChange={(event) => setChildBirthday(event.target.value)}
                   />
                 </div>
 
                 <div className="app-auth-field">
-                  <label htmlFor="app-child-sex">Sex</label>
+                  <RequiredLabel htmlFor="app-child-sex">Sex</RequiredLabel>
                   <select
                     id="app-child-sex"
                     className="app-auth-select"
+                    required
+                    aria-required="true"
                     value={childSex}
                     onChange={(event) => setChildSex(event.target.value)}
                   >
@@ -340,33 +427,19 @@ export default function AppSignUp() {
                 </div>
               </div>
 
-              <div className="app-auth-field">
-                <label htmlFor="app-child-grade">Preschool level</label>
-                <select
-                  id="app-child-grade"
-                  className="app-auth-select"
-                  value={childGrade}
-                  onChange={(event) => setChildGrade(event.target.value)}
-                >
-                  {GRADE_OPTIONS.map((grade) => (
-                    <option key={grade} value={grade}>
-                      {grade}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               <div className="app-auth-row">
                 <div className="app-auth-field">
-                  <label htmlFor="app-child-pin">Child PIN</label>
+                  <RequiredLabel htmlFor="app-child-pin">Child PIN</RequiredLabel>
                   <div className="app-auth-input-wrap">
                     <input
                       id="app-child-pin"
-                      className="app-auth-input"
+                      className={`app-auth-input${childPin && !pinComplete ? " app-auth-input-invalid" : ""}`}
                       type={showPin ? "text" : "password"}
                       inputMode="numeric"
                       maxLength={4}
                       placeholder="4 digits"
+                      required
+                      aria-required="true"
                       value={childPin}
                       onChange={(event) => handlePinChange(event.target.value, setChildPin)}
                     />
@@ -379,18 +452,23 @@ export default function AppSignUp() {
                       {showPin ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
+                  {childPin.length > 0 && !pinComplete && (
+                    <p className="app-auth-field-error">PIN must be 4 digits.</p>
+                  )}
                 </div>
 
                 <div className="app-auth-field">
-                  <label htmlFor="app-child-pin-confirm">Confirm PIN</label>
+                  <RequiredLabel htmlFor="app-child-pin-confirm">Confirm PIN</RequiredLabel>
                   <div className="app-auth-input-wrap">
                     <input
                       id="app-child-pin-confirm"
-                      className="app-auth-input"
+                      className={`app-auth-input${confirmPinStarted && !pinsMatch ? " app-auth-input-invalid" : ""}`}
                       type={showConfirmPin ? "text" : "password"}
                       inputMode="numeric"
                       maxLength={4}
                       placeholder="Repeat PIN"
+                      required
+                      aria-required="true"
                       value={confirmChildPin}
                       onChange={(event) =>
                         handlePinChange(event.target.value, setConfirmChildPin)
@@ -405,6 +483,10 @@ export default function AppSignUp() {
                       {showConfirmPin ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
+                  {confirmPinStarted && !pinsMatch && (
+                    <p className="app-auth-field-error">PINs do not match.</p>
+                  )}
+                  {pinsMatch && <p className="app-auth-field-ok">PINs match.</p>}
                 </div>
               </div>
 
@@ -417,8 +499,39 @@ export default function AppSignUp() {
 
             {error && <p className="app-auth-alert">{error}</p>}
             {success && <p className="app-auth-success">{success}</p>}
+            {success && (
+              <button
+                className="app-auth-link-button"
+                type="button"
+                disabled={loading}
+                onClick={async () => {
+                  try {
+                    setLoading(true);
+                    setError("");
+                    await resendVerificationEmail(email.trim());
+                    setSuccess("A new confirmation email was sent. Confirm it before signing in.");
+                  } catch (caughtError) {
+                    const message = caughtError instanceof Error ? caughtError.message : "Could not resend the confirmation email.";
+                    setError(message);
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+              >
+                Resend confirmation email
+              </button>
+            )}
 
-            <button className="app-auth-main-btn" type="submit" disabled={loading || !canSubmit}>
+            <p className="app-auth-required-note">
+              <span className="app-auth-required">*</span> Required fields
+            </p>
+
+            <button
+              className="app-auth-main-btn"
+              type="submit"
+              disabled={loading || !canSubmit}
+              title={canSubmit ? "Create account" : "Fill in every required field to continue"}
+            >
               <UserRoundPlus size={19} />
               {loading ? "Creating account..." : "Create account"}
             </button>

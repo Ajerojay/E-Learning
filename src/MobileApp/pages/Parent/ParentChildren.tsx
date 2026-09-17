@@ -1,7 +1,6 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ParentLayout from "./ParentLayout";
 import "./ParentChildren.css";
-import { supabase } from "../../../lib/supabase";
 import {
   buildChildAchievements,
   clearChildDeviceLabel,
@@ -15,6 +14,14 @@ import {
   type ChildActivityRow,
   type ChildCategoryProgressRow,
 } from "../../../lib/childProgress";
+import {
+  getActiveChild,
+  getChildCategoryProgress,
+  getChildOverallProgress,
+  getRecentChildAttempts,
+  updateChild,
+} from "../../../lib/supabaseData";
+import { cacheOfflineCategoryProgress, cacheOfflineChild, getOfflineCategoryProgress, getOfflineChildrenFromSqlite } from "../../../lib/offlineSqlite";
 
 type ChildRow = {
   id: string;
@@ -35,6 +42,7 @@ export default function ParentChildren() {
   const [categoryRows, setCategoryRows] = useState<ChildCategoryProgressRow[]>([]);
   const [deviceLabel, setDeviceLabel] = useState<string | null>(null);
   const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [oldPin, setOldPin] = useState("");
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [showPin, setShowPin] = useState(false);
@@ -55,34 +63,35 @@ export default function ParentChildren() {
     }
 
     try {
-      const [{ data: childRow }, { data: overall }, { data: categories }, { data: activity }] =
-        await Promise.all([
-          supabase
-            .from("children_accounts")
-            .select(
-              "id, child_name, first_name, last_name, date_of_birth, grade_level, pin_code, nickname"
-            )
-            .eq("id", trimmedChildId)
-            .maybeSingle(),
-          supabase
-            .from("v_child_overall_progress")
-            .select("overall_progress_percent")
-            .eq("child_id", trimmedChildId)
-            .maybeSingle(),
-          supabase
-            .from("v_child_category_progress")
-            .select(
-              "category_code, category_label, category_score, total_games_in_category, played_games_in_category, completed_games_in_category"
-            )
-            .eq("child_id", trimmedChildId),
-          supabase
-            .from("v_child_recent_activity")
-            .select(
-              "category_code, game_code, game_title, score, finished, created_at"
-            )
-            .eq("child_id", trimmedChildId)
-            .order("created_at", { ascending: true }),
+      let childRow: ChildRow | null = null;
+      let overall = 0;
+      let categories: ChildCategoryProgressRow[] = [];
+      let activity: Array<{ categoryCode: string; gameCode: string; gameTitle: string | null; score: number; finished: boolean; created_at: string }> = [];
+      try {
+        const [firestoreChild, remoteOverall, remoteCategories, remoteActivity] = await Promise.all([
+          getActiveChild(trimmedChildId),
+          getChildOverallProgress(trimmedChildId),
+          getChildCategoryProgress(trimmedChildId),
+          getRecentChildAttempts(trimmedChildId),
         ]);
+        childRow = firestoreChild ? {
+          id: firestoreChild.id, child_name: firestoreChild.childName ?? null, first_name: firestoreChild.firstName ?? null,
+          last_name: firestoreChild.lastName ?? null, date_of_birth: firestoreChild.dateOfBirth ?? null,
+          grade_level: firestoreChild.gradeLevel ?? null, pin_code: firestoreChild.pinCode ?? null, nickname: firestoreChild.nickname ?? null,
+        } : null;
+        overall = remoteOverall;
+        categories = (remoteCategories ?? []) as ChildCategoryProgressRow[];
+        activity = remoteActivity.map(row => ({ ...row, gameTitle: row.gameTitle ?? null }));
+        if (childRow) await cacheOfflineChild({ id: childRow.id, childName: childRow.child_name, firstName: childRow.first_name, lastName: childRow.last_name, pinCode: childRow.pin_code });
+        await cacheOfflineCategoryProgress(trimmedChildId, categories.map(row => ({ categoryCode: row.category_code, categoryScore: row.category_score })));
+      } catch (offlineError) {
+        console.error("loadChild: using offline cache", offlineError);
+        const cachedChild = (await getOfflineChildrenFromSqlite()).find(row => row.id === trimmedChildId);
+        const cachedProgress = await getOfflineCategoryProgress(trimmedChildId);
+        childRow = cachedChild ? { id: cachedChild.id, child_name: cachedChild.child_name, first_name: cachedChild.first_name, last_name: cachedChild.last_name, date_of_birth: null, grade_level: null, pin_code: cachedChild.pin_code, nickname: null } : null;
+        categories = cachedProgress as ChildCategoryProgressRow[];
+        overall = categories.length ? Math.round(categories.reduce((sum, row) => sum + row.category_score, 0) / categories.length) : 0;
+      }
 
       console.log("loadChild: query results", { childRow, overall, categories, activity });
 
@@ -90,14 +99,17 @@ export default function ParentChildren() {
         setChild(childRow as ChildRow);
       }
 
-      setOverallProgress(
-        overall?.overall_progress_percent != null
-          ? Math.round(overall.overall_progress_percent)
-          : 0
-      );
+      setOverallProgress(overall);
 
       setCategoryRows((categories ?? []) as ChildCategoryProgressRow[]);
-      setActivityRows((activity ?? []) as ChildActivityRow[]);
+      setActivityRows(activity.map(row => ({
+        category_code: row.categoryCode,
+        game_code: row.gameCode,
+        game_title: row.gameTitle ?? null,
+        score: row.score,
+        finished: row.finished,
+        created_at: row.created_at,
+      })) as ChildActivityRow[]);
       setDeviceLabel(getChildDeviceLabel(trimmedChildId));
     } catch (err) {
       console.error("loadChild: error fetching child data", err);
@@ -134,33 +146,48 @@ export default function ParentChildren() {
 
   const handleSavePin = async () => {
     setPinError("");
+    const current = oldPin.replace(/\D/g, "");
     const pin = newPin.replace(/\D/g, "");
     const confirm = confirmPin.replace(/\D/g, "");
+    const storedPin = (child?.pin_code ?? "").replace(/\D/g, "");
+
+    if (storedPin && current.length !== 4) {
+      setPinError("Enter the current 4-digit PIN first.");
+      return;
+    }
+    if (storedPin && current !== storedPin) {
+      setPinError("Current PIN is incorrect.");
+      return;
+    }
     if (pin.length !== 4 || confirm.length !== 4) {
-      setPinError("Both PIN fields must be exactly 4 digits.");
+      setPinError("Both new PIN fields must be exactly 4 digits.");
       return;
     }
     if (pin !== confirm) {
       setPinError("PINs do not match. Please confirm the same PIN twice.");
       return;
     }
+    if (storedPin && pin === storedPin) {
+      setPinError("Choose a new PIN that is different from the current PIN.");
+      return;
+    }
     if (!child?.id) return;
 
     setPinSaving(true);
-    const { error } = await supabase
-      .from("children_accounts")
-      .update({ pin_code: pin })
-      .eq("id", child.id);
-
-    setPinSaving(false);
-    if (error) {
+    try {
+      await updateChild(child.id, { pinCode: pin });
+    } catch (error) {
+      console.error("Could not update PIN:", error);
+      setPinSaving(false);
       setPinError("Could not update PIN. Please try again.");
       return;
     }
+    setPinSaving(false);
 
     localStorage.setItem("studentPin", pin);
     setChild((prev) => (prev ? { ...prev, pin_code: pin } : prev));
     setPinModalOpen(false);
+    setOldPin("");
     setNewPin("");
     setConfirmPin("");
   };
@@ -259,6 +286,7 @@ export default function ParentChildren() {
               aria-label="Edit child PIN"
               onClick={() => {
                 setPinError("");
+                setOldPin("");
                 setNewPin("");
                 setConfirmPin("");
                 setShowPin(false);
@@ -285,8 +313,54 @@ export default function ParentChildren() {
         <div className="pc-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="pin-modal-title">
           <div className="pc-modal">
             <h3 id="pin-modal-title">Edit child PIN</h3>
-            <p>Set a new 4-digit PIN for {firstName} to use on the student login screen.</p>
+            <p>Enter the current PIN, then set a new 4-digit PIN for {firstName} to use on the student login screen.</p>
             {pinError && <p className="pc-modal-error">{pinError}</p>}
+            <div className="pc-pin-field">
+              <input
+                className="pc-modal-input"
+                type={showPin ? "text" : "password"}
+                inputMode="numeric"
+                maxLength={4}
+                placeholder="Old PIN"
+                value={oldPin}
+                onChange={(e) => setOldPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              />
+              <button
+                type="button"
+                className="pc-toggle-pin-visibility"
+                aria-label={showPin ? "Hide PIN" : "Show PIN"}
+                title={showPin ? "Hide PIN" : "Show PIN"}
+                onClick={() => setShowPin((prev) => !prev)}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M1 12C1 12 5 4 12 4s11 8 11 8-4 8-11 8S1 12 1 12z"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M8 12a4 4 0 1 0 8 0 4 4 0 0 0-8 0"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  {!showPin && (
+                    <path
+                      d="M4 4l16 16"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      fill="none"
+                      strokeLinecap="round"
+                    />
+                  )}
+                </svg>
+              </button>
+            </div>
             <div className="pc-pin-field">
               <input
                 className="pc-modal-input"

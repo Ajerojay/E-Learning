@@ -1,4 +1,4 @@
-﻿/* Your Children page - matches parent dashboard mockup */
+/* Your Children page - matches parent dashboard mockup */
 
 .pc-page-title {
   text-align: center;
@@ -380,6 +380,8 @@
   padding: 30px 34px;
   max-width: 420px;
   width: 100%;
+  max-height: min(90dvh, 680px);
+  overflow-y: auto;
   box-shadow: 0 18px 44px rgba(23, 38, 92, 0.18);
   border: 1px solid rgba(88, 108, 216, 0.14);
 }

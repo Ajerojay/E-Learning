@@ -2,7 +2,6 @@
 import "./ParentProgress.css";
 import { useNavigate } from "react-router-dom";
 import logo from "../../../../images/learnease logo-no bg.png";
-import { supabase } from "../../../lib/supabase";
 import {
   getChildDisplayFirstName,
   getChildDisplayName,
@@ -10,6 +9,8 @@ import {
   SUBJECT_KEYS,
   type SubjectKey,
 } from "../../../lib/childProgress";
+import { getActiveChild, getChildCategoryProgress } from "../../../lib/supabaseData";
+import { cacheOfflineCategoryProgress, getOfflineCategoryProgress, getOfflineChildrenFromSqlite } from "../../../lib/offlineSqlite";
 
 type CategoryProgressRow = {
   category_code: SubjectKey;
@@ -35,23 +36,26 @@ export default function ParentProgress() {
         return;
       }
 
-      const [{ data: child }, { data: categories }] = await Promise.all([
-        supabase
-          .from("children_accounts")
-          .select("child_name, first_name, last_name")
-          .eq("id", childId)
-          .maybeSingle(),
-        supabase
-          .from("v_child_category_progress")
-          .select("category_code, category_score")
-          .eq("child_id", childId),
-      ]);
+      let child = null;
+      let categories: Array<{ category_code: string; category_score: number }> = [];
+      try {
+        [child, categories] = await Promise.all([
+          getActiveChild(childId),
+          getChildCategoryProgress(childId),
+        ]);
+        await cacheOfflineCategoryProgress(childId, categories.map(row => ({ categoryCode: row.category_code, categoryScore: row.category_score })));
+      } catch {
+        const cachedChild = (await getOfflineChildrenFromSqlite()).find(row => row.id === childId);
+        child = cachedChild ? { childName: cachedChild.child_name, firstName: cachedChild.first_name, lastName: cachedChild.last_name } : null;
+        categories = await getOfflineCategoryProgress(childId);
+      }
 
       if (cancelled) return;
 
       if (child) {
-        setChildName(getChildDisplayName(child));
-        setChildFirstName(getChildDisplayFirstName(child));
+        const childRow = { child_name: child.childName, first_name: child.firstName, last_name: child.lastName };
+        setChildName(getChildDisplayName(childRow));
+        setChildFirstName(getChildDisplayFirstName(childRow));
       }
 
       if (categories) {

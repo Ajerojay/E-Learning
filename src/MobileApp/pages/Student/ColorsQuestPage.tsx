@@ -1,4 +1,4 @@
-﻿import "./ColorsQuestPage.css";
+import "./ColorsQuestPage.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -13,7 +13,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { getOrCreateActiveChildId } from "../../../lib/childProgress";
-import { supabase } from "../../../lib/supabase";
+import { recordGameProgressRpc } from "../../../lib/gameProgressDb";
 import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
 import {
   useLevelIntro,
@@ -23,6 +23,8 @@ import {
 } from "./levelIntro";
 import bgMusic from "./bg-music-loop.mp3";
 import { speakNative } from "../../nativeTts";
+import QuestLevelSelect from "./QuestLevelSelect";
+import { useQuestLevelGate } from "./questLevelMap";
 
 const COLORS_LEVEL_INTRO: LevelIntroContent = {
   title: "Sort the colors!",
@@ -84,54 +86,54 @@ const LEVELS: { name: string; colors: ColorKey[]; items: Item[]; time: number }[
     colors: ["red", "blue", "yellow"],
     time: 25,
     items: [
-      { id: "l1-red", name: "Apple", color: "red", emoji: "ðŸŽ" },
-      { id: "l1-blue", name: "Blue Dot", color: "blue", emoji: "ðŸ”µ" },
-      { id: "l1-yellow", name: "Star", color: "yellow", emoji: "â­" },
-      { id: "l1-red-2", name: "Cherry", color: "red", emoji: "ðŸ’" },
-      { id: "l1-blue-2", name: "Gem", color: "blue", emoji: "ðŸ’Ž" },
-      { id: "l1-yellow-2", name: "Banana", color: "yellow", emoji: "ðŸŒ" },
+      { id: "l1-red", name: "Apple", color: "red", emoji: "🍎" },
+      { id: "l1-blue", name: "Blue Dot", color: "blue", emoji: "🔵" },
+      { id: "l1-yellow", name: "Star", color: "yellow", emoji: "⭐" },
+      { id: "l1-red-2", name: "Cherry", color: "red", emoji: "🍒" },
+      { id: "l1-blue-2", name: "Gem", color: "blue", emoji: "💎" },
+      { id: "l1-yellow-2", name: "Banana", color: "yellow", emoji: "🍌" },
     ],
   },
-  // Level 2: introduce more â€œbasicâ€ colors
+  // Level 2: introduce more “basic” colors
   {
     name: "Level 2",
     colors: ["red", "blue", "yellow", "green", "orange", "purple"],
     time: 35,
     items: [
-      { id: "l2-red", name: "Red Dot", color: "red", emoji: "ðŸ”´" },
-      { id: "l2-blue", name: "Blue Dot", color: "blue", emoji: "ðŸ”µ" },
-      { id: "l2-yellow", name: "Yellow Dot", color: "yellow", emoji: "ðŸŸ¡" },
-      { id: "l2-green", name: "Green Dot", color: "green", emoji: "ðŸŸ¢" },
-      { id: "l2-orange", name: "Orange Dot", color: "orange", emoji: "ðŸŸ " },
-      { id: "l2-purple", name: "Purple Dot", color: "purple", emoji: "ðŸŸ£" },
-      { id: "l2-red-2", name: "Strawberry", color: "red", emoji: "ðŸ“" },
-      { id: "l2-blue-2", name: "Blueberry", color: "blue", emoji: "ðŸ«" },
-      { id: "l2-yellow-2", name: "Sun", color: "yellow", emoji: "â˜€ï¸" },
-      { id: "l2-green-2", name: "Leaf", color: "green", emoji: "ðŸƒ" },
-      { id: "l2-orange-2", name: "Carrot", color: "orange", emoji: "ðŸ¥•" },
-      { id: "l2-purple-2", name: "Grapes", color: "purple", emoji: "ðŸ‡" },
+      { id: "l2-red", name: "Red Dot", color: "red", emoji: "🔴" },
+      { id: "l2-blue", name: "Blue Dot", color: "blue", emoji: "🔵" },
+      { id: "l2-yellow", name: "Yellow Dot", color: "yellow", emoji: "🟡" },
+      { id: "l2-green", name: "Green Dot", color: "green", emoji: "🟢" },
+      { id: "l2-orange", name: "Orange Dot", color: "orange", emoji: "🟠" },
+      { id: "l2-purple", name: "Purple Dot", color: "purple", emoji: "🟣" },
+      { id: "l2-red-2", name: "Strawberry", color: "red", emoji: "🍓" },
+      { id: "l2-blue-2", name: "Blueberry", color: "blue", emoji: "🫐" },
+      { id: "l2-yellow-2", name: "Sun", color: "yellow", emoji: "☀️" },
+      { id: "l2-green-2", name: "Leaf", color: "green", emoji: "🍃" },
+      { id: "l2-orange-2", name: "Carrot", color: "orange", emoji: "🥕" },
+      { id: "l2-purple-2", name: "Grapes", color: "purple", emoji: "🍇" },
     ],
   },
-  // Level 3: full â€œbasic colorsâ€ row like the reference
+  // Level 3: full “basic colors” row like the reference
   {
     name: "Level 3",
     colors: ["red", "blue", "yellow", "green", "orange", "pink", "brown", "black", "white", "gray"],
     time: 60,
     items: [
-      { id: "l3-red", name: "Red Dot", color: "red", emoji: "ðŸ”´" },
-      { id: "l3-blue", name: "Blue Dot", color: "blue", emoji: "ðŸ”µ" },
-      { id: "l3-yellow", name: "Yellow Dot", color: "yellow", emoji: "ðŸŸ¡" },
-      { id: "l3-green", name: "Green Dot", color: "green", emoji: "ðŸŸ¢" },
-      { id: "l3-orange", name: "Orange Dot", color: "orange", emoji: "ðŸŸ " },
-      { id: "l3-pink", name: "Pink Dot", color: "pink", emoji: "ðŸ©·" },
-      { id: "l3-brown", name: "Brown Dot", color: "brown", emoji: "ðŸŸ¤" },
-      { id: "l3-black", name: "Black Dot", color: "black", emoji: "âš«" },
-      { id: "l3-white", name: "White Dot", color: "white", emoji: "âšª" },
-      { id: "l3-gray", name: "Gray Dot", color: "gray", emoji: "â—»ï¸" },
-      { id: "l3-orange-2", name: "Carrot", color: "orange", emoji: "ðŸ¥•" },
-      { id: "l3-green-2", name: "Leaf", color: "green", emoji: "ðŸƒ" },
-      { id: "l3-pink-2", name: "Flower", color: "pink", emoji: "ðŸŒ¸" },
-      { id: "l3-brown-2", name: "Chestnut", color: "brown", emoji: "ðŸŒ°" },
+      { id: "l3-red", name: "Red Dot", color: "red", emoji: "🔴" },
+      { id: "l3-blue", name: "Blue Dot", color: "blue", emoji: "🔵" },
+      { id: "l3-yellow", name: "Yellow Dot", color: "yellow", emoji: "🟡" },
+      { id: "l3-green", name: "Green Dot", color: "green", emoji: "🟢" },
+      { id: "l3-orange", name: "Orange Dot", color: "orange", emoji: "🟠" },
+      { id: "l3-pink", name: "Pink Dot", color: "pink", emoji: "🩷" },
+      { id: "l3-brown", name: "Brown Dot", color: "brown", emoji: "🟤" },
+      { id: "l3-black", name: "Black Dot", color: "black", emoji: "⚫" },
+      { id: "l3-white", name: "White Dot", color: "white", emoji: "⚪" },
+      { id: "l3-gray", name: "Gray Dot", color: "gray", emoji: "◻️" },
+      { id: "l3-orange-2", name: "Carrot", color: "orange", emoji: "🥕" },
+      { id: "l3-green-2", name: "Leaf", color: "green", emoji: "🍃" },
+      { id: "l3-pink-2", name: "Flower", color: "pink", emoji: "🌸" },
+      { id: "l3-brown-2", name: "Chestnut", color: "brown", emoji: "🌰" },
     ],
   },
 ];
@@ -258,6 +260,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
   const lastPraiseIndexRef = useRef(-1);
 
   const [levelIndex, setLevelIndex] = useState(0);
+  const { mapOpen, setMapOpen, unlockedCount, completeLevel } = useQuestLevelGate("colors");
   const playSession = 0;
   const [items, setItems] = useState<Item[]>(LEVELS[0].items);
   const [activeColors, setActiveColors] = useState<ColorKey[]>(LEVELS[0].colors);
@@ -319,6 +322,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
   // actually landscape. This also pauses a level if the phone rotates back.
   const introEnabled =
     isLandscape &&
+    !mapOpen &&
     !timeUpOpen && !finalCompleteOpen && !levelCompleteOpen && !levelSummaryOpen;
 
   const { levelIntroActive, onLevelStart, startCountdownOnly, cancelIntro } = useLevelIntro({
@@ -462,8 +466,8 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
     setFinalCompleteOpen(false);
     warnedSecondsRef.current = new Set();
     setMessage("Drag each object into the correct color basket!");
-    onLevelStart();
-  }, [levelIndex, onLevelStart]);
+    if (!mapOpen) onLevelStart();
+  }, [levelIndex, onLevelStart, mapOpen]);
 
   useEffect(() => {
     if (levelIntroActive) setTimerRunning(false);
@@ -534,17 +538,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
   const saveProgress = async (score: number, finished: boolean, attempts: number) => {
     if (!childId) return;
 
-    const { error } = await supabase.rpc("record_game_attempt", {
-      p_child_id: childId,
-      p_game_code: "colors_sort",
-      p_score: score,
-      p_wrong_attempts: attempts,
-      p_finished: finished,
-    });
-
-    if (error) {
-      console.error("Failed to save colors progress:", error.message);
-    }
+    await recordGameProgressRpc(childId, "colors_sort", score, attempts, finished);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -567,7 +561,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
 
       setPlaced(updatedPlaced);
 
-      // Baskets can be below the fold on Levels 2â€“3. Reset only when the page
+      // Baskets can be below the fold on Levels 2–3. Reset only when the page
       // actually scrolled. Avoid delayed/smooth scrolling because it can steal
       // the next fast touch gesture in Android WebView.
       const gamePage = pageRef.current;
@@ -601,6 +595,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
       void saveProgress(score, finishedAll, wrongAttempts);
 
       if (finishedLevel) {
+        void completeLevel(levelIndex);
         setTimerRunning(false);
         if (finishedAll) {
           setFinalCompleteOpen(true);
@@ -682,23 +677,34 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
 
   return (
     <div className="colors-page" data-level={levelIndex + 1} ref={pageRef}>
+      {mapOpen && (
+        <QuestLevelSelect
+          title="Colors Quest"
+          unlockedCount={unlockedCount}
+          onSelectLevel={(index) => {
+            setLevelIndex(index);
+            setMapOpen(false);
+          }}
+          onBack={() => navigate("/lesson/colors", { replace: true })}
+        />
+      )}
       {mobileApp && !isLandscape && (
         <div className="cq-rotate-notice" role="status" aria-live="polite">
-          <span className="cq-phone-icon" aria-hidden="true">ðŸ“±</span>
+          <span className="cq-phone-icon" aria-hidden="true">📱</span>
           <strong>Turn your device sideways!</strong>
           <p>Colors Quest needs landscape mode before you can play.</p>
-          <span className="cq-turn-arrow" aria-hidden="true">â†»</span>
+          <span className="cq-turn-arrow" aria-hidden="true">↻</span>
         </div>
       )}
       <button className="cq-back-btn" onClick={() => navigate("/lesson/colors", { replace: true })}>
-        â† Back
+        {"\u2190"} Back
       </button>
 
       <h1 className="cq-title">Sort the Colors!</h1>
       <div className="cq-level-meta-row">
         <div className="cq-level-meta">
           <strong className="cq-level-pill">Level {levelIndex + 1}</strong>
-          <span className="cq-timer-pill">â± {timeLeft}s</span>
+          <span className="cq-timer-pill">⏱ {timeLeft}s</span>
         </div>
         <div className="cq-sound-buttons">
           <button
@@ -720,7 +726,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
             aria-label={musicEnabled ? "Mute music" : "Unmute music"}
             title={musicEnabled ? "Mute Music" : "Unmute Music"}
           >
-            {musicEnabled ? "ðŸŽµ" : "ðŸ”‡"}
+            {musicEnabled ? "🎵" : "🔇"}
           </button>
           <button
             type="button"
@@ -737,12 +743,12 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
             aria-label={soundEnabled ? "Mute voice" : "Unmute voice"}
             title={soundEnabled ? "Mute Voice" : "Unmute Voice"}
           >
-            {soundEnabled ? "ðŸ”Š" : "ðŸ”‡"}
+            {soundEnabled ? "🔊" : "🔇"}
           </button>
         </div>
       </div>
 
-      <div className="cq-bear" aria-hidden="true">ðŸ§¸</div>
+      <div className="cq-bear" aria-hidden="true">🧸</div>
 
       <DndContext sensors={sensors} onDragMove={handleDragMove} onDragEnd={handleDragEnd}>
         <div className="cq-items-area">
@@ -799,7 +805,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
       {timeUpOpen && (
         <GameOverlay isOpen={timeUpOpen}>
           <GamePopup
-            title="â° Time's up!"
+            title="⏰ Time's up!"
             subtitle={`You sorted ${totalCorrect}/${totalItems} in ${LEVELS[levelIndex]?.name ?? "this level"}.`}
             buttons={
               levelIndex < LEVELS.length - 1
@@ -878,7 +884,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
       {levelCompleteOpen && (
         <GameOverlay isOpen={levelCompleteOpen}>
           <GamePopup
-            title="ðŸŽ‰ Awesome!"
+            title="🎉 Awesome!"
             subtitle={`${LEVELS[levelIndex]?.name ?? "Level"} complete! Proceed to the next level?`}
             buttons={[
               {
@@ -938,7 +944,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
         <div className="cq-finish-overlay">
           <GameOverlay isOpen={finalCompleteOpen}>
             <GamePopup
-              title="ðŸŽ‰ Amazing!"
+              title="🎉 Amazing!"
               subtitle="You finished all color levels!"
               buttons={[
                 {

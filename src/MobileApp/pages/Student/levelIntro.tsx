@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { GameOverlay } from "./GamePopup";
 import { speakNative, cancelNativeSpeech } from "../../nativeTts";
 
@@ -184,7 +184,7 @@ export function speakKidLevelIntro(
 
 /**
  * Instruction overlay + voice once per play session (before level 1).
- * Later levels use startCountdownOnly() â€” no instruction prompt.
+ * Later levels use startCountdownOnly() — no instruction prompt.
  */
 export function useLevelIntro({
   content,
@@ -196,7 +196,7 @@ export function useLevelIntro({
   content: LevelIntroContent;
   soundEnabled: boolean;
   enabled: boolean;
-  /** Increment on "Play again" / new game â€” replays the instruction intro. */
+  /** Increment on "Play again" / new game — replays the instruction intro. */
   sessionKey: number;
   onStartCountdown: () => void;
 }) {

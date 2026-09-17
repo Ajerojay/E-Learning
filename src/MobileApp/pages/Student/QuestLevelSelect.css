@@ -1,0 +1,190 @@
+.qlm {
+  position: fixed;
+  inset: 0;
+  z-index: 40000;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+  background-color: #9ec8e6;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  font-family: "Comic Neue", "Comic Sans MS", "Nunito", cursive, sans-serif;
+}
+
+.qlm-back {
+  position: absolute;
+  top: max(10px, env(safe-area-inset-top));
+  left: max(10px, env(safe-area-inset-left));
+  z-index: 3;
+  min-height: 40px;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #3b3b3b;
+  font: inherit;
+  font-weight: 800;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
+
+.qlm-title {
+  position: relative;
+  z-index: 2;
+  margin: max(10px, env(safe-area-inset-top)) 72px 0;
+  color: #35506a;
+  font-size: clamp(18px, 3.6vw, 32px);
+  font-weight: 800;
+  text-align: center;
+  text-shadow: 0 2px 0 rgba(255, 255, 255, 0.7);
+}
+
+.qlm-hint {
+  position: relative;
+  z-index: 2;
+  margin: 2px 24px 0;
+  color: #4d6478;
+  font-size: clamp(12px, 2vw, 15px);
+  font-weight: 700;
+  text-align: center;
+}
+
+.qlm-trail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: visible;
+}
+
+.qlm-trail path {
+  fill: none;
+  stroke: rgba(176, 148, 108, 0.85);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 10 12;
+}
+
+.qlm-stage {
+  position: absolute;
+  left: max(8px, env(safe-area-inset-left));
+  right: max(8px, env(safe-area-inset-right));
+  top: 18%;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 4px;
+  z-index: 2;
+}
+
+.qlm-bear {
+  position: relative;
+  z-index: 1;
+  width: min(13vw, 100px);
+  height: auto;
+  flex: 0 0 auto;
+  align-self: flex-end;
+  margin: 0 0 3% 1%;
+  pointer-events: none;
+  filter: drop-shadow(0 8px 8px rgba(0, 0, 0, 0.18));
+}
+
+.qlm-node {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0;
+  max-width: 280px;
+  height: auto;
+  aspect-ratio: 1.7 / 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  filter: drop-shadow(0 8px 10px rgba(70, 90, 110, 0.25));
+}
+
+.qlm-node--1 { align-self: flex-end; margin-bottom: 1%; }
+.qlm-node--2 { align-self: center; max-width: 300px; }
+.qlm-node--3 { align-self: flex-start; margin-top: 0; max-width: 320px; flex: 1.2 1 0; }
+
+.qlm-cloud {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.qlm-node.is-locked .qlm-cloud {
+  filter: grayscale(0.35) brightness(0.82);
+}
+
+.qlm-label {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  transform: translate(-50%, -50%);
+  color: #35506a;
+  font-size: clamp(13px, 2.1vw, 22px);
+  font-weight: 800;
+  white-space: nowrap;
+  text-shadow: 0 1px 0 #fff;
+}
+
+.qlm-node.is-locked .qlm-label {
+  top: 66%;
+  font-size: clamp(12px, 1.9vw, 18px);
+}
+
+.qlm-lock {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(18px, 3vw, 32px);
+  filter: drop-shadow(0 4px 0 rgba(255, 255, 255, 0.6));
+}
+
+.qlm-node.is-open {
+  animation: qlm-bob 2.4s ease-in-out infinite;
+}
+
+.qlm-node--2.is-open { animation-delay: 0.2s; }
+.qlm-node--3.is-open { animation-delay: 0.4s; }
+
+@keyframes qlm-bob {
+  50% { transform: translateY(-6px); }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .qlm-title { margin-top: max(6px, env(safe-area-inset-top)); font-size: 18px; }
+  .qlm-hint { display: none; }
+  .qlm-stage { top: 14%; gap: 2px; }
+  .qlm-bear { width: min(11vw, 82px); }
+  .qlm-node { max-width: 220px; }
+  .qlm-node--3 { max-width: 250px; }
+}
+
+@media (orientation: portrait) {
+  .qlm-stage {
+    top: 18%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-evenly;
+  }
+  .qlm-bear { width: min(26vw, 110px); order: 4; margin: 0; }
+  .qlm-node { width: min(58vw, 220px); max-width: none; flex: 0 0 auto; }
+  .qlm-node--3 { order: 1; align-self: center; margin: 0; }
+  .qlm-node--2 { order: 2; align-self: center; margin: 0; }
+  .qlm-node--1 { order: 3; align-self: center; margin: 0; }
+  .qlm-trail { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qlm-node.is-open { animation: none; }
+}

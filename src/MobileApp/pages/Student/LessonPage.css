@@ -1,6 +1,8 @@
-﻿.lesson-page {
+.lesson-page {
   min-height: 100vh;
   min-height: 100dvh;
+  width: 100%;
+  overflow-x: hidden;
   background-repeat: no-repeat;
   background-position: center;
   background-size: cover;
@@ -10,8 +12,7 @@
   align-items: center;
   justify-content: center;
 
-  font-family: system-ui, -apple-system, "Segoe UI", "Nunito", "Comic Sans MS",
-    cursive, sans-serif;
+  font-family: "Comic Neue", "Comic Sans MS", "Nunito", cursive, sans-serif;
 }
 
 .back-btn {
@@ -21,15 +22,16 @@
 
   padding: 10px 18px;
   font-size: 16px;
-  font-weight: bold;
+  font-weight: 800;
+  font-family: inherit;
 
-  border: none;
-  border-radius: 30px;
+  border: 2px solid rgba(122, 102, 174, 0.22);
+  border-radius: 999px;
 
-  background: white;
-  color: #333;
+  background: rgba(255, 255, 255, 0.94);
+  color: #4b4074;
 
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 5px 12px rgba(66, 58, 91, 0.16);
 
   cursor: pointer;
   transition: 0.2s;
@@ -38,20 +40,24 @@
 }
 
 .back-btn:hover {
-  background: #ff9800;
-  color: white;
+  background: #fff0c9;
+  color: #4b4074;
   transform: translateY(-2px);
 }
 
 .lesson-title {
+  max-width: 100%;
   font-size: 40px;
   margin-bottom: 20px;
   color: #333;
 }
 
 .tv-container {
-  width: 650px;
+  position: relative;
+  width: min(650px, 100%);
+  max-width: 100%;
   height: 370px;
+  box-sizing: border-box;
 
   background: black;
   border: 15px solid #333;
@@ -69,6 +75,73 @@
 .tv-container video {
   width: 100%;
   height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+.tv-container video:fullscreen,
+.tv-container video:-webkit-full-screen,
+.tv-container:fullscreen,
+.tv-container:-webkit-full-screen {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: contain;
+  background: #000;
+  border: none;
+  border-radius: 0;
+}
+
+.video-fullscreen-btn {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 3;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.92);
+  color: #2b2b2b;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+}
+
+.lesson-page.is-video-fullscreen .back-btn,
+.lesson-page.is-video-fullscreen .offline-video-btn,
+.lesson-page.is-video-fullscreen .lesson-title,
+.lesson-page.is-video-fullscreen .video-title,
+.lesson-page.is-video-fullscreen .offline-video-message,
+.lesson-page.is-video-fullscreen .lesson-activity-meta,
+.lesson-page.is-video-fullscreen .start-quest-btn {
+  display: none;
+}
+
+.lesson-page.is-video-fullscreen {
+  background: #000 !important;
+}
+
+.lesson-page.is-video-fullscreen .tv-wrapper,
+.lesson-page.is-video-fullscreen .tv-container {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  border: none;
+  border-radius: 0;
+  z-index: 80;
+}
+
+.lesson-page.is-video-fullscreen .tv-container video {
+  width: 100%;
+  height: 100%;
 }
 
 .no-video {
@@ -81,6 +154,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: min(650px, 100%);
+  max-width: 100%;
 }
 
 .video-title {
@@ -111,6 +186,76 @@
   box-shadow:
     0 10px 20px rgba(0, 0, 0, 0.3),
     inset 0 2px 5px rgba(255, 255, 255, 0.5);
+}
+
+.offline-video-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 10;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 9px 16px 9px 12px;
+
+  border: 2px solid rgba(122, 102, 174, 0.22);
+  border-radius: 999px;
+
+  background: rgba(255, 255, 255, 0.94);
+  color: #4b4074;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+
+  box-shadow: 0 5px 12px rgba(66, 58, 91, 0.16);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.offline-video-btn:hover:not(:disabled) {
+  background: #fff0c9;
+  transform: translateY(-2px);
+}
+
+.offline-video-btn:disabled {
+  cursor: default;
+}
+
+.offline-video-btn.is-offline {
+  background: linear-gradient(135deg, #d7f7c9, #fff6c9);
+  border-color: rgba(90, 168, 92, 0.35);
+  color: #2f5d38;
+  box-shadow: 0 5px 12px rgba(66, 120, 70, 0.18);
+}
+
+.offline-video-btn.is-saving {
+  background: linear-gradient(135deg, #fff0c9, #ffe4c4);
+  border-color: rgba(232, 168, 88, 0.4);
+  color: #7a4b16;
+}
+
+.offline-video-btn-icon {
+  width: 1.25em;
+  height: 1.25em;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", inherit;
+}
+
+.offline-video-message {
+  max-width: 650px;
+  margin: 0;
+  color: #24522a;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
 }
 
 .lesson-activity-meta {
@@ -188,13 +333,22 @@
     overflow-x: hidden;
   }
 
-  .lesson-page .back-btn {
+  .lesson-page .back-btn,
+  .lesson-page .offline-video-btn {
     position: fixed;
     top: max(14px, env(safe-area-inset-top));
-    left: max(12px, env(safe-area-inset-left));
     min-height: 46px;
     padding: 9px 14px;
     font-size: 14px;
+  }
+
+  .lesson-page .back-btn {
+    left: max(12px, env(safe-area-inset-left));
+  }
+
+  .lesson-page .offline-video-btn {
+    right: max(12px, env(safe-area-inset-right));
+    left: auto;
   }
 
   .lesson-title {
@@ -218,5 +372,25 @@
   .lesson-activity-meta { margin-top: 11px; font-size: 14px; }
   .lesson-activity-count { min-width: 2rem; height: 2rem; font-size: 15px; }
   .start-quest-btn { min-height: 48px; margin-top: 12px; padding: 11px 20px; font-size: 15px; }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .lesson-page {
+    justify-content: flex-start;
+    padding: max(52px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom));
+  }
+
+  .lesson-title {
+    margin-bottom: 8px;
+    font-size: clamp(18px, 4.5vw, 28px);
+  }
+
+  .tv-container {
+    width: min(92vw, 860px);
+    height: auto;
+    max-height: 64vh;
+    aspect-ratio: 16 / 9;
+    border-width: 8px;
+  }
 }
 
