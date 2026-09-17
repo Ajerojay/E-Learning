@@ -563,6 +563,26 @@ body {
   padding: 12px 14px;
 }
 
+.pd-announcement-item.pd-announcement-pinned {
+  background: rgba(232, 249, 238, 0.92);
+  border: 2px solid #8ed4a6;
+  box-shadow: 0 6px 16px rgba(46, 130, 78, 0.12);
+}
+
+.pd-announcement-pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #e5f8ec;
+  color: #1f7a45;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
 .pd-announcement-item h3 {
   font-size: 17px;
   margin-bottom: 4px;

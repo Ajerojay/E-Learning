@@ -5,12 +5,12 @@ import { getOfflineChildById } from "./offlineSqlite";
 const GAME_CODE_CACHE_KEY = "offlineGameCodes";
 
 const FALLBACK_GAME_CODES: Record<string, string> = {
-  phonics: "phonics_sound_match",
+  phonics: "phonics_sound",
   colors: "colors_sort",
-  logic: "logic_quest",
-  shapes: "shapes_quest",
-  letters: "letters_quest",
-  numbers: "numbers_quest",
+  logic: "logic_pattern",
+  shapes: "shapes_match",
+  letters: "letters_trace",
+  numbers: "numbers_count",
 };
 
 function isOnline(): boolean {
@@ -75,6 +75,11 @@ async function resolveChildParentId(childId: string): Promise<string | null> {
   }
   const offline = await getOfflineChildById(childId);
   return offline?.parentId ?? null;
+}
+
+export async function recordGameOpened(childId: string, categoryCode: string): Promise<void> {
+  const gameCode = await loadPrimaryGameCodeForCategory(categoryCode) || FALLBACK_GAME_CODES[categoryCode] || categoryCode;
+  await recordGameProgressRpc(childId, gameCode, 0, 0, false);
 }
 
 export async function recordGameProgressRpc(

@@ -9,6 +9,7 @@ import {
   type PinChildMatch,
 } from "../../../lib/childProgress";
 import { cancelNativeSpeech, speakNative } from "../../nativeTts";
+import { recordChildLoginAttendance } from "../../../lib/attendance";
 
 function childName(child: PinChildMatch) {
   return getChildDisplayName({
@@ -80,7 +81,9 @@ export default function StudentAccess() {
 
   const enterChild = useCallback(async (child: PinChildMatch, childPin: string) => {
     await activateChildPinSession(child, childPin);
+    await recordChildLoginAttendance(child.id);
     saveChildDeviceLabel(child.id);
+    sessionStorage.setItem(`studentGreetingPending:${child.id}`, "1");
     navigate("/student", {
       replace: true,
       state: {

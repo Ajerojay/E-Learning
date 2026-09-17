@@ -166,7 +166,7 @@ export async function authenticateOfflineParent(username: string, password: stri
     const row = result.values?.[0] as { user_id?: string; username?: string; password_hash?: string; active_child_id?: string | null } | undefined;
     const login = username.trim().toLowerCase();
     const storedName = row?.username?.toLowerCase() ?? "";
-    if (!row?.user_id || (storedName !== login && storedName !== login.split("@")[0]) || row.password_hash !== await hashSecret(password)) return null;
+    if (!row?.user_id || !row.username || (storedName !== login && storedName !== login.split("@")[0]) || row.password_hash !== await hashSecret(password)) return null;
     return { id: row.user_id, username: row.username, activeChildId: row.active_child_id ?? null };
   } catch (error) {
     console.warn("Offline parent login skipped:", error);

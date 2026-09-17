@@ -122,8 +122,32 @@ export async function createChildProfile(childId: string | undefined, child: Omi
   return String(data.id);
 }
 
+function missingColumnError(error: { message?: string } | null | undefined) {
+  return Boolean(error?.message && /column|schema cache|could not find/i.test(error.message));
+}
+
+const GAME_CODE_BY_CATEGORY: Record<string, string> = {
+  colors: "colors_sort",
+  shapes: "shapes_match",
+  letters: "letters_trace",
+  numbers: "numbers_count",
+  phonics: "phonics_sound",
+  logic: "logic_pattern",
+};
+
+async function resolveLiveGame(gameCode: string) {
+  const wanted = GAME_CODE_BY_CATEGORY[gameCode] || gameCode;
+  const prefix = wanted.split("_")[0];
+  const { data, error } = await supabase.from("learning_games").select("id,game_code,game_title");
+  if (error || !data?.length) return null;
+  return data.find(row => row.game_code === wanted)
+    || data.find(row => row.game_code === gameCode)
+    || data.find(row => String(row.game_code).startsWith(prefix))
+    || null;
+}
+
 export async function recordGameAttempt(attempt: SupabaseAttempt): Promise<string> {
-  const { data, error } = await supabase.from("game_attempts").insert([{
+  const full = await supabase.from("game_attempts").insert([{
     child_id: attempt.childId,
     parent_id: attempt.parentId,
     category_code: attempt.categoryCode,
@@ -133,9 +157,21 @@ export async function recordGameAttempt(attempt: SupabaseAttempt): Promise<strin
     wrong_attempts: attempt.wrongAttempts,
     finished: attempt.finished,
   }]).select("id").single();
-  if (error) throw error;
-  if (!data) throw new Error("Failed to record game attempt.");
-  return String(data.id);
+  if (!full.error && full.data) return String(full.data.id);
+  if (full.error && !missingColumnError(full.error)) throw full.error;
+
+  const game = await resolveLiveGame(attempt.gameCode || attempt.categoryCode);
+  if (!game) throw full.error ?? new Error("Unable to match the learning game.");
+  const live = await supabase.from("game_attempts").insert([{
+    child_id: attempt.childId,
+    game_id: game.id,
+    score: attempt.score,
+    wrong_attempts: attempt.wrongAttempts,
+    finished: attempt.finished,
+  }]).select("id").single();
+  if (live.error) throw live.error;
+  if (!live.data) throw new Error("Failed to record game attempt.");
+  return String(live.data.id);
 }
 
 export async function getRecentChildAttempts(childId: string, count = 50) {
@@ -177,6 +213,45 @@ export async function getLatestChildAttempt(childId: string) {
   return attempts[0] ?? null;
 }
 
+export type RecentClassActivityRow = {
+  id: string;
+  childId: string;
+  categoryCode: string;
+  gameCode: string;
+  gameTitle: string;
+  score: number;
+  finished: boolean;
+  createdAt: string;
+};
+
+function mapActivityRow(row: Record<string, unknown>, index: number, game?: { game_code?: string | null; game_title?: string | null } | null): RecentClassActivityRow {
+  const gameCode = String(row.game_code || game?.game_code || "");
+  return {
+    id: String(row.id ?? `${row.child_id}-${row.created_at}-${index}`),
+    childId: String(row.child_id ?? ""),
+    categoryCode: String(row.category_code || gameCode.split("_")[0] || ""),
+    gameCode,
+    gameTitle: String(row.game_title || game?.game_title || "Learning game"),
+    score: Number(row.score) || 0,
+    finished: Boolean(row.finished),
+    createdAt: String(row.created_at || row.attempt_started_at || ""),
+  };
+}
+
+export async function getRecentClassActivity(limit = 25): Promise<RecentClassActivityRow[]> {
+  const view = await supabase.from("v_child_recent_activity").select("child_id,category_code,game_code,game_title,score,finished,created_at").order("created_at", { ascending: false }).limit(limit);
+  if (!view.error) return (view.data ?? []).map((row, index) => mapActivityRow(row as Record<string, unknown>, index));
+
+  const attempts = await supabase.from("game_attempts").select("*").order("created_at", { ascending: false }).limit(limit);
+  if (attempts.error) {
+    console.error("Teacher recent activity error:", view.error.message);
+    return [];
+  }
+  const games = await supabase.from("learning_games").select("id,game_code,game_title");
+  const gameMap = new Map((games.data ?? []).map(game => [String(game.id), game]));
+  return (attempts.data ?? []).map((row, index) => mapActivityRow(row as Record<string, unknown>, index, gameMap.get(String((row as { game_id?: string }).game_id ?? ""))));
+}
+
 export async function getAllChildren(): Promise<SupabaseChild[]> {
   const { data, error } = await supabase.from("children_accounts").select("*").order("created_at", { ascending: false });
   if (error) throw error;
@@ -200,8 +275,10 @@ export async function updateChild(childId: string, updates: Partial<SupabaseChil
 
 export async function getPrimaryGameCode(categoryCode: string): Promise<string | null> {
   const { data, error } = await supabase.from("learning_games").select("game_code").eq("category_code", categoryCode).order("created_at", { ascending: true }).limit(1).maybeSingle();
-  if (error) throw error;
-  return data?.game_code ?? null;
+  if (!error) return data?.game_code ?? GAME_CODE_BY_CATEGORY[categoryCode] ?? null;
+  if (!missingColumnError(error)) throw error;
+  const game = await resolveLiveGame(categoryCode);
+  return game?.game_code ?? GAME_CODE_BY_CATEGORY[categoryCode] ?? null;
 }
 
 export async function getPublishedLesson(categoryCode: string, gradeLevel?: string | null) {
@@ -229,36 +306,121 @@ export async function updateLesson(lessonId: string, updates: Partial<SupabaseLe
   if (error) throw error;
 }
 
+export type ParentAnnouncementKind = "classroom" | "health";
+
 export type ParentAnnouncement = {
   id: string;
   title: string;
   body: string;
   createdAt: string | null;
+  kind: ParentAnnouncementKind;
+  pinned: boolean;
 };
 
-function mapAnnouncementRows(rows: Array<Record<string, unknown>> | null): ParentAnnouncement[] {
-  return (rows ?? []).map((row) => ({
-    id: String(row.id ?? `${row.title ?? "announcement"}-${row.created_at ?? ""}`),
-    title: String(row.title || row.headline || "Announcement"),
-    body: String(row.body || row.message || row.content || ""),
-    createdAt: typeof row.created_at === "string" ? row.created_at : null,
-  }));
+function isSchemaError(error: { message?: string } | null | undefined) {
+  return Boolean(error?.message && /column|schema cache|could not find/i.test(error.message));
 }
 
-export async function getParentAnnouncements(): Promise<ParentAnnouncement[]> {
-  const tables = ["announcements", "parent_announcements", "school_announcements"];
-  for (const table of tables) {
-    const { data, error } = await supabase
-      .from(table)
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(8);
+function announcementKind(row: Record<string, unknown>): ParentAnnouncementKind {
+  const kind = String(row.kind || row.type || "").toLowerCase();
+  if (kind === "health") return "health";
+  if (row.is_pinned === true || row.pinned === true) return "health";
+  if (row.target_all === false) return "health";
+  return "classroom";
+}
+
+function mapAnnouncementRows(rows: Array<Record<string, unknown>> | null): ParentAnnouncement[] {
+  return (rows ?? []).map((row) => {
+    const kind = announcementKind(row);
+    return {
+      id: String(row.id ?? `${row.title ?? "announcement"}-${row.created_at ?? ""}`),
+      title: String(row.title || row.headline || "Announcement"),
+      body: String(row.body || row.message || row.content || ""),
+      createdAt: typeof row.created_at === "string" ? row.created_at : null,
+      kind,
+      pinned: kind === "health" || row.is_pinned === true || row.pinned === true,
+    };
+  });
+}
+
+function isForParent(row: Record<string, unknown>, parentId: string) {
+  if (row.is_active === false) return false;
+  const rowParentId = row.parent_id ? String(row.parent_id) : "";
+  if (rowParentId) return rowParentId === parentId;
+  if (row.target_all === true) return true;
+  if (row.created_by && String(row.created_by) === parentId) return true;
+  return row.target_all == null && !row.created_by;
+}
+
+export async function getParentAnnouncements(parentId?: string, _childId?: string): Promise<ParentAnnouncement[]> {
+  if (!parentId) return [];
+
+  const lookups = [
+    () => supabase.from("parent_announcements").select("*").or(`target_all.eq.true,created_by.eq.${parentId}`).order("created_at", { ascending: false }).limit(40),
+    () => supabase.from("parent_announcements").select("*").or(`parent_id.eq.${parentId},target_all.eq.true,created_by.eq.${parentId}`).order("created_at", { ascending: false }).limit(40),
+  ];
+
+  let rows: Array<Record<string, unknown>> | null = null;
+  for (const lookup of lookups) {
+    const { data, error } = await lookup();
     if (!error) {
-      const published = (data as Array<Record<string, unknown>> | null)?.filter(
-        (row) => row.is_published !== false && row.published !== false
-      ) ?? [];
-      return mapAnnouncementRows(published);
+      rows = (data ?? []) as Array<Record<string, unknown>>;
+      break;
+    }
+    if (!isSchemaError(error)) {
+      console.error("Parent announcements lookup error:", error.message);
+      return [];
     }
   }
-  return [];
+
+  if (!rows) {
+    const { data, error } = await supabase.from("parent_announcements").select("*").order("created_at", { ascending: false }).limit(40);
+    if (error) {
+      console.error("Parent announcements lookup error:", error.message);
+      return [];
+    }
+    rows = (data ?? []) as Array<Record<string, unknown>>;
+  }
+
+  const items = mapAnnouncementRows(rows.filter(row => isForParent(row, parentId)));
+  return items.sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    return String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
+  }).slice(0, 12);
+}
+
+export async function sendParentAnnouncement(input: {
+  title: string;
+  message: string;
+  kind: ParentAnnouncementKind;
+  parentId?: string | null;
+  childId?: string | null;
+}): Promise<void> {
+  const title = input.title.trim() || (input.kind === "health" ? "Health update" : "Announcement");
+  const message = input.message.trim();
+  if (!message) throw new Error("Message is required.");
+  if (input.kind === "health" && !input.parentId) {
+    throw new Error("This learner has no linked parent account.");
+  }
+
+  const classroom = input.kind === "classroom";
+  const payloads: Array<Record<string, unknown>> = classroom
+    ? [
+        { title, message, target_all: true, is_active: true },
+        { title, message, parent_id: null, child_id: input.childId ?? null, kind: "classroom", is_pinned: false, target_all: true, is_active: true },
+        { title, message },
+      ]
+    : [
+        { title, message, target_all: false, is_active: true, created_by: input.parentId },
+        { title, message, parent_id: input.parentId, child_id: input.childId ?? null, kind: "health", is_pinned: true, target_all: false, is_active: true, created_by: input.parentId },
+      ];
+
+  let lastError: { message?: string } | null = null;
+  for (const payload of payloads) {
+    const { error } = await supabase.from("parent_announcements").insert(payload);
+    if (!error) return;
+    lastError = error;
+    if (!isSchemaError(error)) throw error;
+  }
+  throw lastError ?? new Error("Announcement was not sent.");
 }

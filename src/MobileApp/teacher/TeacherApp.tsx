@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Activity, Award, BarChart3, Bell, BookOpen, CalendarDays, Camera,
-  Check, ChevronDown, CircleAlert, FilePlus2,
+  Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, FilePlus2,
   HeartPulse, Home, LogOut, Mail, Menu, MoreHorizontal,
   Pencil, Plus, Search, Settings, ShieldCheck, Star, Trash2, Upload,
   UserRound, Users, Video, X, Send, Trophy,
@@ -15,8 +15,10 @@ import { getStudentGameAccess, saveStudentGameAccess } from "../../lib/studentGa
 import { getActivityConfig, saveActivityConfig, type ActivityConfig } from "../../lib/activityConfig";
 import { createOfflineLessonUrl, getOfflineLessons, removeOfflineLesson, saveOfflineLesson } from "../../lib/offlineLessonStore";
 import { cacheOfflineLessons, cacheOfflineChild, getOfflineChildrenFromSqlite, getOfflineLessonsFromSqlite } from "../../lib/offlineSqlite";
+import { getAttendanceRecords, localDateKey, saveAttendanceRecords } from "../../lib/attendance";
+import { getRecentClassActivity, sendParentAnnouncement } from "../../lib/supabaseData";
 
-type PageKey = "dashboard" | "students" | "lessons" | "activities" | "attendance" | "health" | "rewards" | "settings";
+type PageKey = "dashboard" | "students" | "lessons" | "activities" | "attendance" | "announcements" | "health" | "rewards" | "settings";
 type Notify = (text: string) => void;
 
 const navItems = [
@@ -25,6 +27,7 @@ const navItems = [
   { key: "lessons", label: "Lessons & Videos", icon: Video },
   { key: "activities", label: "Activities & Quizzes", icon: Activity },
   { key: "attendance", label: "Attendance", icon: CalendarDays },
+  { key: "announcements", label: "Announcements", icon: Mail },
   { key: "health", label: "Health Monitoring", icon: HeartPulse },
   { key: "rewards", label: "Rewards", icon: Award },
   { key: "settings", label: "Profile & Settings", icon: Settings },
@@ -53,6 +56,7 @@ type RecentGameActivity = {
   gameTitle: string;
   score: number;
   finished: boolean;
+  opened: boolean;
   createdAt: string;
 };
 
@@ -87,14 +91,20 @@ function activityBadge(category: string) {
   return badges[category.toLowerCase()] ?? "⭐";
 }
 
+function readPresentCount(childIds: string[], today = localDateKey()) {
+  let history: Record<string, Record<string, string>> = {};
+  try { history = JSON.parse(localStorage.getItem("learnease.attendanceHistory") || "{}"); } catch { /* ignore invalid cache */ }
+  return childIds.filter(id => history[id]?.[today] === "Present").length;
+}
+
 function useClassSummary() {
   const [summary, setSummary] = useState<{ total: number; present: number; loading: boolean; recent: RecentGameActivity[] }>({ total: 0, present: 0, loading: true, recent: [] });
   useEffect(() => {
     let active = true;
     const load = async () => {
-      const [{ data: initialStudents, error: initialStudentError }, { data: activity, error: activityError }] = await Promise.all([
+      const [{ data: initialStudents, error: initialStudentError }, activityRows] = await Promise.all([
         supabase.from("children_accounts").select("id, child_name, first_name, last_name, is_active, last_active_at"),
-        supabase.from("v_child_recent_activity").select("child_id, category_code, game_code, game_title, score, finished, created_at").order("created_at", { ascending: false }).limit(8),
+        getRecentClassActivity(25),
       ]);
       let students = initialStudents;
       let studentError = initialStudentError;
@@ -107,7 +117,7 @@ function useClassSummary() {
       if (studentError) {
         const cachedStudents = await getOfflineChildrenFromSqlite();
         const enrolled = cachedStudents.filter(row => row.is_active !== 0);
-        setSummary({ total: enrolled.length, present: 0, loading: false, recent: [] });
+        setSummary({ total: enrolled.length, present: readPresentCount(enrolled.map(row => String(row.id))), loading: false, recent: [] });
         return;
       }
       await Promise.all((students ?? []).map(row => cacheOfflineChild({
@@ -117,23 +127,36 @@ function useClassSummary() {
         lastName: row.last_name,
         isActive: row.is_active,
       })));
-      if (activityError) console.error("Teacher recent activity error:", activityError.message);
       const rows = students ?? [];
       const enrolledRows = rows.filter(row => row.is_active !== false);
+      const enrolledIds = enrolledRows.map(row => String(row.id));
+      const today = localDateKey();
+      const remoteRecords = await getAttendanceRecords(enrolledIds);
+      if (remoteRecords.length) {
+        let history: Record<string, Record<string, string>> = {};
+        try { history = JSON.parse(localStorage.getItem("learnease.attendanceHistory") || "{}"); } catch { history = {}; }
+        remoteRecords.forEach(record => {
+          history[record.child_id] ||= {};
+          history[record.child_id][record.attendance_date] = record.status;
+        });
+        localStorage.setItem("learnease.attendanceHistory", JSON.stringify(history));
+      }
       const names = new Map(rows.map(row => {
         const fullName = `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim();
         return [String(row.id), row.child_name?.trim() || fullName || "Unnamed learner"];
       }));
-      const recent = (activity ?? []).map((row, index) => ({
-        id: `${row.game_code}-${row.child_id}-${row.created_at}-${index}`,
-        childName: names.get(String(row.child_id)) ?? "Student",
-        category: row.category_code || "activity",
-        gameTitle: row.game_title?.trim() || `${String(row.category_code || "Learning").replace(/^./, letter => letter.toUpperCase())} Quest`,
-        score: Math.round(Number(row.score) || 0),
-        finished: Boolean(row.finished),
-        createdAt: row.created_at,
+      const recent = activityRows.map(row => ({
+        id: row.id,
+        childName: names.get(row.childId) ?? "Student",
+        category: row.categoryCode || "activity",
+        gameTitle: row.gameTitle.trim() || `${String(row.categoryCode || "Learning").replace(/^./, letter => letter.toUpperCase())} Quest`,
+        score: Math.round(row.score || 0),
+        finished: row.finished,
+        opened: !row.finished && row.score <= 0,
+        createdAt: row.createdAt,
       }));
-      setSummary({ total: enrolledRows.length, present: enrolledRows.filter(row => row.last_active_at && Date.now() - new Date(row.last_active_at).getTime() < 2 * 60 * 1000).length, loading: false, recent });
+      if (!active) return;
+      setSummary({ total: enrolledRows.length, present: readPresentCount(enrolledIds, today), loading: false, recent });
     };
     void load();
     const refresh = () => { if (document.visibilityState === "visible") void load(); };
@@ -145,19 +168,8 @@ function useClassSummary() {
   return summary;
 }
 
-function HealthSmsLauncher() {
-  const [show, setShow] = useState(false);
-  const [message, setMessage] = useState("");
-  const templates = [
-    ["Health Reminder", "Good day! Please remember to update us about your child's current health condition."],
-    ["Health Concern", "Good day! We observed a minor health concern today. Please contact the teacher for details."],
-    ["Wellness Check", "Good day! Your child's classroom wellness check has been recorded."],
-  ];
-  return <><button className="ta-secondary" onClick={() => setShow(true)}><Send /> Send Health SMS</button>{show && <div className="ta-overlay" onMouseDown={() => setShow(false)}><form className="ta-modal ta-sms-form" onMouseDown={event => event.stopPropagation()} onSubmit={event => { event.preventDefault(); setShow(false); }}><button type="button" className="ta-close" onClick={() => setShow(false)}><X /></button><div className="ta-sms-title"><i><Send /></i><span><h2>Send Health Announcement</h2><p>Notify registered parent contacts by SMS.</p></span></div><label>Recipients<select><option>All parents in Sunflower</option><option>Parents with health alerts</option><option>Select individual learner</option></select></label><label>Sender<input defaultValue="Teacher Maria" required /></label><label>Announcement title <small>Optional</small><input placeholder="Health update" /></label><label>Message<textarea maxLength={300} required value={message} onChange={event => setMessage(event.target.value)} placeholder="Write your health announcement..."/><em>{message.length}/300</em></label><div className="ta-sms-templates"><header><b>Quick Health Templates</b><small>Tap to use</small></header><div>{templates.map(([title, text]) => <button type="button" key={title} onClick={() => setMessage(text)}><b>{title}</b><span>{text}</span></button>)}</div></div><button className="ta-primary ta-full" type="submit"><Send /> Send Announcement via SMS</button><p className="ta-sms-note">Messages will be sent to the registered parent contact numbers.</p></form></div>}</>;
-}
-
 function Heading({ eyebrow, title, detail, children }: { eyebrow: string; title: string; detail: string; children?: React.ReactNode }) {
-  return <div className="ta-heading"><div><span>{eyebrow}</span><h1>{title}</h1><p>{detail}</p></div><div className="ta-heading-actions">{title === "Health Monitoring" && <HealthSmsLauncher />}{children}</div></div>;
+  return <div className="ta-heading"><div><span>{eyebrow}</span><h1>{title}</h1><p>{detail}</p></div><div className="ta-heading-actions">{children}</div></div>;
 }
 
 function Dashboard({ go, notify }: { go: (key: PageKey) => void; notify: Notify }) {
@@ -167,7 +179,7 @@ function Dashboard({ go, notify }: { go: (key: PageKey) => void; notify: Notify 
   const quickAccess = navItems.filter(item => item.key !== "dashboard");
   const metrics = [
     ["Total Students", classSummary.loading ? "…" : String(classSummary.total), `${classSummary.total} enrolled`, Users, "blue", "students"],
-    ["Students Online", classSummary.loading ? "…" : String(classSummary.present), `${classSummary.present} online · ${Math.max(0, classSummary.total - classSummary.present)} offline`, CalendarDays, "green", "attendance"],
+    ["Students Present", classSummary.loading ? "…" : String(classSummary.present), `${classSummary.present} present · ${Math.max(0, classSummary.total - classSummary.present)} not yet`, CalendarDays, "green", "attendance"],
     ["Active Learning Quests", String(SUBJECT_KEYS.filter(key => getActivityConfig(key).open).length), "Modules open", Activity, "pink", "activities"],
     ["Recorded Activities", String(classSummary.recent.length), "Recent attempts", Star, "purple", "activities"],
   ] as const;
@@ -182,7 +194,7 @@ function Dashboard({ go, notify }: { go: (key: PageKey) => void; notify: Notify 
       <small>Today's Summary</small><h2>Class attendance and learning overview</h2>
       <div>
         <button onClick={() => go("students")}><strong>{classSummary.loading ? "…" : classSummary.total}</strong><span>Students</span></button>
-        <button onClick={() => go("students")}><strong>{classSummary.loading ? "…" : classSummary.present}</strong><span>Online</span></button>
+        <button onClick={() => go("attendance")}><strong>{classSummary.loading ? "…" : classSummary.present}</strong><span>Present</span></button>
         <button onClick={() => go("activities")}><strong>{SUBJECT_KEYS.filter(key => getActivityConfig(key).open).length}</strong><span>Active Quests</span></button>
         <button onClick={() => go("activities")}><strong>{classSummary.recent.length}</strong><span>Recent Attempts</span></button>
       </div>
@@ -193,12 +205,13 @@ function Dashboard({ go, notify }: { go: (key: PageKey) => void; notify: Notify 
     </section>
     <section className="ta-hero"><div><span>{teacher.section ? teacher.section.toUpperCase() : "TEACHER PORTAL"}</span><h1>Good Morning, {teacher.firstName}! 👋</h1><p>Here’s the latest information recorded for your classroom.</p><small><CalendarDays />{date}</small></div><div>🌈<i>☁️</i></div></section>
     <section className="ta-metrics">{metrics.map(([title, value, sub, Icon, tone, target]) => <button className={tone} onClick={() => go(target)} key={title}><i><Icon /></i><span><small>{title}</small><strong>{value}</strong><em>{sub}</em></span><b>View details →</b></button>)}</section>
-    <section className="ta-card ta-recent-wide"><header><span className="purple"><Activity /></span><div><h2>Recent Student Activity</h2><p>{classSummary.loading ? "Loading game activity…" : `${classSummary.recent.length} recent game ${classSummary.recent.length === 1 ? "activity" : "activities"}`}</p></div><b className="ta-live"><i /> Live</b></header><div className="ta-feed">{!classSummary.loading && classSummary.recent.length === 0 && <div className="ta-feed-empty"><Activity /><b>No game activity yet</b><small>Completed student games will appear here automatically.</small></div>}{classSummary.recent.map(item => { const action = item.finished ? "completed" : "played"; const text = `${item.childName} ${action} ${item.gameTitle}`; return <button onClick={() => notify(`${text} · Score ${item.score}%`)} key={item.id}><i>🧒</i><span><b>{text}</b><small>{relativeActivityTime(item.createdAt)} · Score {item.score}%</small></span><em>{activityBadge(item.category)}</em></button>; })}</div></section>
+    <section className="ta-card ta-recent-wide"><header><span className="purple"><Activity /></span><div><h2>Recent Student Activity</h2><p>{classSummary.loading ? "Loading game activity…" : `${classSummary.recent.length} recent game ${classSummary.recent.length === 1 ? "activity" : "activities"}`}</p></div><b className="ta-live"><i /> Live</b></header><div className="ta-feed">{!classSummary.loading && classSummary.recent.length === 0 && <div className="ta-feed-empty"><Activity /><b>No game activity yet</b><small>When a learner opens or finishes a game, it appears here.</small></div>}{classSummary.recent.map(item => { const action = item.finished ? "completed" : item.opened ? "opened" : "played"; const text = `${item.childName} ${action} ${item.gameTitle}`; return <button onClick={() => notify(`${text}${item.opened ? "" : ` · Score ${item.score}%`}`)} key={item.id}><i>🧒</i><span><b>{text}</b><small>{relativeActivityTime(item.createdAt)}{item.opened ? " · Opened a game" : ` · Score ${item.score}%`}</small></span><em>{activityBadge(item.category)}</em></button>; })}</div></section>
   </>;
 }
 
 type DatabaseStudent = {
   id: string;
+  parentId: string | null;
   name: string;
   age: number | null;
   section: string;
@@ -224,7 +237,7 @@ function getPresenceStatus(enrolled: boolean, lastActiveAt: string | null): Data
 function studentPresenceLabel(student: DatabaseStudent) {
   if (!student.enrolled) return "Unenrolled";
   if (student.status === "Online") return "Online now";
-  return student.lastActiveAt ? `Last active ${relativeActivityTime(student.lastActiveAt).toLowerCase()}` : "Not active yet";
+  return "Enrolled";
 }
 
 function getStudentAge(dateOfBirth: string | null) {
@@ -239,6 +252,16 @@ function getStudentAge(dateOfBirth: string | null) {
   return Math.max(0, age);
 }
 
+function getSavedAttendanceRate(studentId: string) {
+  try {
+    const history = JSON.parse(localStorage.getItem("learnease.attendanceHistory") || "{}") as Record<string, Record<string, string>>;
+    const statuses = Object.values(history[studentId] || {});
+    if (!statuses.length) return 0;
+    const attended = statuses.filter(status => status === "Present" || status === "Late").length;
+    return Math.round((attended / statuses.length) * 100);
+  } catch { return 0; }
+}
+
 function Students({ notify }: { notify: Notify }) {
   const [students, setStudents] = useState<DatabaseStudent[]>([]);
   const [query, setQuery] = useState("");
@@ -250,6 +273,12 @@ function Students({ notify }: { notify: Notify }) {
   const [studentMenu, setStudentMenu] = useState<string | null>(null);
   const [enrollmentPrompt, setEnrollmentPrompt] = useState<{ student: DatabaseStudent; enroll: boolean } | null>(null);
   const [enrollmentSaving, setEnrollmentSaving] = useState(false);
+  const [attendanceStudent, setAttendanceStudent] = useState<DatabaseStudent | null>(null);
+  const [healthStudent, setHealthStudent] = useState<DatabaseStudent | null>(null);
+  const [healthTitle, setHealthTitle] = useState("Health update");
+  const [healthMessage, setHealthMessage] = useState("");
+  const [, setHealthReady] = useState(false);
+  const [healthSending, setHealthSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
@@ -260,11 +289,11 @@ function Students({ notify }: { notify: Notify }) {
       setLoadError("");
       let { data, error } = await supabase
         .from("children_accounts")
-        .select("id, child_name, first_name, last_name, date_of_birth, sex, grade_level, pin_code, is_active, last_active_at")
+        .select("id, parent_id, child_name, first_name, last_name, date_of_birth, sex, grade_level, pin_code, is_active, last_active_at")
         .order("created_at", { ascending: false });
 
       if (error && /last_active_at/i.test(error.message)) {
-        const fallback = await supabase.from("children_accounts").select("id, child_name, first_name, last_name, date_of_birth, sex, grade_level, pin_code, is_active").order("created_at", { ascending: false });
+        const fallback = await supabase.from("children_accounts").select("id, parent_id, child_name, first_name, last_name, date_of_birth, sex, grade_level, pin_code, is_active").order("created_at", { ascending: false });
         data = fallback.data?.map(row => ({ ...row, last_active_at: null })) ?? null;
         error = fallback.error;
       }
@@ -276,7 +305,7 @@ function Students({ notify }: { notify: Notify }) {
           setStudents(cachedStudents.map((row, index) => {
             const fullName = `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim();
             return {
-              id: String(row.id), name: row.child_name?.trim() || fullName || "Unnamed learner", age: null,
+              id: String(row.id), parentId: row.parent_id ? String(row.parent_id) : null, name: row.child_name?.trim() || fullName || "Unnamed learner", age: null,
               section: "Preschool", stars: 0, rate: 0, status: row.is_active ? "Offline" : "Unenrolled",
               avatar: index % 2 === 0 ? "🧒" : "👧", firstName: row.first_name?.trim() || "", lastName: row.last_name?.trim() || "",
               dateOfBirth: null, sex: null, pinCode: row.pin_code, enrolled: row.is_active !== 0, lastActiveAt: null,
@@ -300,6 +329,7 @@ function Students({ notify }: { notify: Notify }) {
           const fullName = `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim();
           return {
             id: String(row.id),
+            parentId: row.parent_id ? String(row.parent_id) : null,
             name: row.child_name?.trim() || fullName || "Unnamed learner",
             age: getStudentAge(row.date_of_birth),
             section: row.grade_level?.trim() || "Preschool",
@@ -325,7 +355,7 @@ function Students({ notify }: { notify: Notify }) {
 
   const shown = students.filter(student =>
     student.name.toLowerCase().includes(query.toLowerCase()) &&
-    (filter === "All" || student.status === filter)
+    (filter === "All" || (filter === "Enrolled" ? student.enrolled : !student.enrolled))
   );
 
   const openAchievements = async (student: DatabaseStudent) => {
@@ -349,15 +379,63 @@ function Students({ notify }: { notify: Notify }) {
     notify(enrolled ? `${student.name} restored to the class` : `${student.name} has been unenrolled`);
   };
 
+  const attendanceHistory = useMemo(() => {
+    if (!attendanceStudent) return [] as Array<[string, string]>;
+    try {
+      const history = JSON.parse(localStorage.getItem("learnease.attendanceHistory") || "{}") as Record<string, Record<string, string>>;
+      return Object.entries(history[attendanceStudent.id] || {}).sort(([a], [b]) => b.localeCompare(a));
+    } catch { return [] as Array<[string, string]>; }
+  }, [attendanceStudent]);
+
+  const openHealthAnnouncement = (student: DatabaseStudent) => {
+    setHealthStudent(student);
+    setHealthReady(false);
+    try {
+      const drafts = JSON.parse(localStorage.getItem("learnease.healthAnnouncements") || "{}") as Record<string, { title?: string; message?: string; ready?: boolean }>;
+      setHealthTitle(drafts[student.id]?.title || `Health update for ${student.name}`);
+      setHealthMessage(drafts[student.id]?.message || `Good day! This is a health update regarding ${student.name}. `);
+      setHealthReady(Boolean(drafts[student.id]?.ready));
+    } catch {
+      setHealthTitle(`Health update for ${student.name}`);
+      setHealthMessage(`Good day! This is a health update regarding ${student.name}. `);
+    }
+  };
+
+  const sendHealthToParent = async () => {
+    if (!healthStudent || !healthMessage.trim() || healthSending) return;
+    if (!healthStudent.parentId) {
+      notify("This learner has no linked parent account.");
+      return;
+    }
+    setHealthSending(true);
+    try {
+      await sendParentAnnouncement({
+        title: healthTitle.trim() || `Health update for ${healthStudent.name}`,
+        message: healthMessage.trim(),
+        kind: "health",
+        parentId: healthStudent.parentId,
+        childId: healthStudent.id,
+      });
+      setHealthStudent(null);
+      notify(`Pinned on ${healthStudent.name}'s parent announcements`);
+    } catch (error) {
+      notify(`Announcement was not sent: ${error instanceof Error ? error.message : "Please try again."}`);
+    } finally {
+      setHealthSending(false);
+    }
+  };
+
   return <><Heading eyebrow="CLASSROOM ROSTER" title="Students Management" detail="Manage learner profiles, enrollment, and classroom activity."/>
-    <section className="ta-card ta-tools"><label><Search /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search learner by name…" /></label><div>{["All", "Online", "Offline", "Unenrolled"].map(value => <button className={filter === value ? "active" : ""} onClick={() => setFilter(value)} key={value}>{value}</button>)}</div></section>
+    <section className="ta-card ta-tools"><label><Search /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search learner by name…" /></label><div>{["All", "Enrolled", "Unenrolled"].map(value => <button className={filter === value ? "active" : ""} onClick={() => setFilter(value)} key={value}>{value}</button>)}</div></section>
     {loading && <section className="ta-student-state"><span className="ta-loader"/><h3>Loading student records…</h3><p>Retrieving the latest class information.</p></section>}
     {!loading && loadError && <section className="ta-student-state error"><CircleAlert/><h3>Unable to load roster</h3><p>{loadError}</p></section>}
     {!loading && !loadError && shown.length === 0 && <section className="ta-student-state"><Users/><h3>No student accounts found</h3><p>Students registered by parents will appear here automatically.</p></section>}
-    {!loading && !loadError && <section className="ta-students">{shown.map(student => <article key={student.id}><div className="ta-pupil-head"><i>{student.avatar}</i><span className={student.status.toLowerCase()}>{student.status === "Offline" ? studentPresenceLabel(student) : student.status}</span><button className="ta-student-more" aria-label={`More actions for ${student.name}`} onClick={() => setStudentMenu(studentMenu === student.id ? null : student.id)}><MoreHorizontal /></button>{studentMenu === student.id && <div className="ta-student-menu"><button onClick={() => { setProfile(student); setStudentMenu(null); }}><UserRound/> View details</button><button onClick={() => { void openAchievements(student); setStudentMenu(null); }}><Trophy/> Achievements</button><button onClick={() => { setEnrollmentPrompt({ student, enroll: !student.enrolled }); setStudentMenu(null); }} className={student.enrolled ? "danger" : "restore"}>{student.enrolled ? <Trash2/> : <Check/>}{student.enrolled ? "Unenroll student" : "Restore enrollment"}</button></div>}</div><h3>{student.name}</h3><p>{student.age === null ? "Age not provided" : `Age ${student.age}`} · {student.section}</p><div className="ta-pupil-stats"><span><Star /><b>{student.stars}</b><small>Total Stars</small></span><span><CalendarDays /><b>{student.rate}%</b><small>Attendance</small></span></div><div className="ta-progress"><i style={{ width: `${student.rate}%` }} /></div><footer><button onClick={() => setProfile(student)}><UserRound /> Profile</button><button onClick={() => notify(`Reward panel opened for ${student.name}`)}><Award /> Reward</button><button aria-label={`View ${student.name} achievements`} title="Achievements" onClick={() => void openAchievements(student)}><Trophy /></button></footer></article>)}</section>}
-    {profile && <div className="ta-overlay" onMouseDown={() => setProfile(null)}><section className="ta-modal ta-child-profile" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setProfile(null)}><X /></button><div className="ta-avatar">{profile.avatar}</div><h2>{profile.name}</h2><p>Child details provided by the parent</p><dl><div><dt>First name</dt><dd>{profile.firstName || "Not provided"}</dd></div><div><dt>Last name</dt><dd>{profile.lastName || "Not provided"}</dd></div><div><dt>Date of birth</dt><dd>{profile.dateOfBirth ? new Date(`${profile.dateOfBirth}T00:00:00`).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }) : "Not provided"}</dd></div><div><dt>Age</dt><dd>{profile.age === null ? "Not provided" : `${profile.age} years old`}</dd></div><div><dt>Sex</dt><dd>{profile.sex || "Not provided"}</dd></div><div><dt>Grade level</dt><dd>{profile.section}</dd></div><div><dt>Student PIN</dt><dd>{profile.pinCode || "Not provided"}</dd></div><div><dt>Account status</dt><dd>{profile.status}</dd></div></dl><small>Student ID: {profile.id}</small><button className="ta-primary ta-full" onClick={() => setProfile(null)}>Close Profile</button></section></div>}
+    {!loading && !loadError && <section className="ta-students">{shown.map(student => { const attendanceRate = getSavedAttendanceRate(student.id); return <article key={student.id}><div className="ta-pupil-head"><i>{student.avatar}</i><span className={student.status.toLowerCase()}>{student.status === "Offline" ? studentPresenceLabel(student) : student.status}</span><button className="ta-student-more" aria-label={`More actions for ${student.name}`} onClick={() => setStudentMenu(studentMenu === student.id ? null : student.id)}><MoreHorizontal /></button>{studentMenu === student.id && <div className="ta-student-menu"><button onClick={() => { setProfile(student); setStudentMenu(null); }}><UserRound/> View details</button><button onClick={() => { void openAchievements(student); setStudentMenu(null); }}><Trophy/> Achievements</button><button onClick={() => { setEnrollmentPrompt({ student, enroll: !student.enrolled }); setStudentMenu(null); }} className={student.enrolled ? "danger" : "restore"}>{student.enrolled ? <Trash2/> : <Check/>}{student.enrolled ? "Unenroll student" : "Restore enrollment"}</button></div>}</div><h3>{student.name}</h3><p>{student.age === null ? "Age not provided" : `Age ${student.age}`} · {student.section}</p><div className="ta-pupil-stats"><button className="ta-stars-stat" onClick={() => void openAchievements(student)} aria-label={`View ${student.name}'s stars and achievements`}><Star /><b>{student.stars}</b><small>Total Stars · Tap to view</small></button><button className="ta-attendance-stat" onClick={() => setAttendanceStudent(student)} aria-label={`View ${student.name}'s attendance history`}><CalendarDays /><b>{attendanceRate}%</b><small>Attendance · Tap to view</small></button></div><div className="ta-progress"><i style={{ width: `${attendanceRate}%` }} /></div><footer className="ta-student-actions"><button onClick={() => setProfile(student)}><UserRound /> Profile</button><button onClick={() => notify(`Reward panel opened for ${student.name}`)}><Award /> Reward</button><button onClick={() => void openAchievements(student)}><Trophy /> Child's Achievements</button><button className="health" onClick={() => openHealthAnnouncement(student)}><HeartPulse/> Health Monitoring</button></footer></article>; })}</section>}
+    {profile && <div className="ta-overlay" onMouseDown={() => setProfile(null)}><section className="ta-modal ta-child-profile" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setProfile(null)}><X /></button><div className="ta-avatar">{profile.avatar}</div><h2>{profile.name}</h2><p>Child details provided by the parent</p><dl><div><dt>First name</dt><dd>{profile.firstName || "Not provided"}</dd></div><div><dt>Last name</dt><dd>{profile.lastName || "Not provided"}</dd></div><div><dt>Date of birth</dt><dd>{profile.dateOfBirth ? new Date(`${profile.dateOfBirth}T00:00:00`).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }) : "Not provided"}</dd></div><div><dt>Age</dt><dd>{profile.age === null ? "Not provided" : `${profile.age} years old`}</dd></div><div><dt>Sex</dt><dd>{profile.sex || "Not provided"}</dd></div><div><dt>Grade level</dt><dd>{profile.section}</dd></div><div><dt>Student PIN</dt><dd>{profile.pinCode || "Not provided"}</dd></div></dl><small>Student ID: {profile.id}</small><button className="ta-primary ta-full" onClick={() => setProfile(null)}>Close Profile</button></section></div>}
     {achievementStudent && <div className="ta-overlay" onMouseDown={() => setAchievementStudent(null)}><section className="ta-modal ta-achievements-modal" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setAchievementStudent(null)}><X /></button><div className="ta-avatar"><Trophy /></div><h2>{achievementStudent.name}'s Achievements</h2><p>Earned from completed learning games</p>{achievementsLoading ? <div className="ta-achievement-empty"><span className="ta-loader"/><b>Loading achievements…</b></div> : achievements.length ? <div className="ta-achievement-list">{achievements.map(item => <article key={item.id}><i>{item.icon}</i><span><b>{item.text}</b><small>Earned achievement</small></span></article>)}</div> : <div className="ta-achievement-empty"><Trophy/><b>No achievements yet</b><small>Achievements will appear after this student completes games.</small></div>}<button className="ta-primary ta-full" onClick={() => setAchievementStudent(null)}>Close Achievements</button></section></div>}
     {enrollmentPrompt && <div className="ta-overlay ta-enrollment-overlay" onMouseDown={() => !enrollmentSaving && setEnrollmentPrompt(null)}><section className={`ta-modal ta-enrollment-modal ${enrollmentPrompt.enroll ? "restore" : "unenroll"}`} onMouseDown={event => event.stopPropagation()} role="alertdialog" aria-modal="true"><div className="ta-enrollment-sparkles" aria-hidden="true"><i>⭐</i><i>🌈</i><i>✨</i></div><div className="ta-enrollment-avatar">{enrollmentPrompt.student.avatar}<span>{enrollmentPrompt.enroll ? "↩" : "👋"}</span></div><h2>{enrollmentPrompt.enroll ? "Welcome Back!" : "Pause Enrollment?"}</h2><p>{enrollmentPrompt.enroll ? <>Restore <b>{enrollmentPrompt.student.name}</b> to the class?</> : <>Are you sure you want to unenroll <b>{enrollmentPrompt.student.name}</b>?</>}</p><div className="ta-enrollment-note">{enrollmentPrompt.enroll ? <><Check/><span><b>Student access will return</b><small>They can sign in and continue their learning games.</small></span></> : <><ShieldCheck/><span><b>Their learning memories stay safe</b><small>Progress, stars, and achievements will not be deleted.</small></span></>}</div><div className="ta-enrollment-actions"><button disabled={enrollmentSaving} onClick={() => setEnrollmentPrompt(null)}><X/> Not now</button><button disabled={enrollmentSaving} onClick={() => void setEnrollment(enrollmentPrompt.student, enrollmentPrompt.enroll)}>{enrollmentSaving ? <span className="ta-button-loader"/> : enrollmentPrompt.enroll ? <Check/> : <Trash2/>}{enrollmentSaving ? "Saving…" : enrollmentPrompt.enroll ? "Restore Student" : "Yes, Unenroll"}</button></div></section></div>}
+    {attendanceStudent && <div className="ta-overlay" onMouseDown={() => setAttendanceStudent(null)}><section className="ta-modal ta-student-attendance-view" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setAttendanceStudent(null)}><X/></button><div className="ta-quick-modal-title"><i><CalendarDays/></i><span><h2>{attendanceStudent.name}</h2><p>Complete attendance history</p></span></div>{attendanceHistory.length ? <div className="ta-student-attendance-list">{attendanceHistory.map(([date, status]) => <div key={date}><span><b>{new Intl.DateTimeFormat("en-PH", { month: "long", day: "numeric", year: "numeric" }).format(new Date(`${date}T00:00:00`))}</b><small>{attendanceStudent.section}</small></span><em className={status.toLowerCase()}>{status}</em></div>)}</div> : <div className="ta-quick-empty"><CalendarDays/><b>No attendance record yet</b><small>Saved attendance for this learner will appear here.</small></div>}</section></div>}
+    {healthStudent && <div className="ta-overlay" onMouseDown={() => setHealthStudent(null)}><section className="ta-modal ta-student-health-compose" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setHealthStudent(null)}><X/></button><div className="ta-quick-modal-title"><i><HeartPulse/></i><span><h2>Send Health Announcement</h2><p>Pin this only on {healthStudent.name}'s parent announcements.</p></span></div><div className={`ta-health-recipient ${healthStudent.parentId ? "linked" : "missing"}`}><UserRound/><span><small>Automatic recipient</small><b>{healthStudent.name}'s Parent</b><em>{healthStudent.parentId ? "Linked parent account" : "No linked parent account"}</em></span>{healthStudent.parentId ? <Check/> : <CircleAlert/>}</div><label>Sender<input value={teacherIdentity().name} readOnly/></label><label>Announcement title <small>Optional</small><input value={healthTitle} onChange={event => setHealthTitle(event.target.value)} placeholder="Health update"/></label><label>Message<textarea maxLength={300} value={healthMessage} onChange={event => setHealthMessage(event.target.value)} placeholder="Write the learner's health update…"/><small>{healthMessage.length}/300</small></label><div className="ta-student-health-templates"><header><b>Quick Health Templates</b><small>Tap to use</small></header><div>{[["Health Reminder", `Good day! Please remember to update us about ${healthStudent.name}'s current health condition.`],["Health Concern", `Good day! We observed a minor health concern for ${healthStudent.name} today. Please contact the teacher for details.`],["Wellness Check", `Good day! ${healthStudent.name}'s classroom wellness check has been recorded.`]].map(([title, message]) => <button type="button" key={title} onClick={() => { setHealthTitle(title); setHealthMessage(message); }}><b>{title}</b><span>{message}</span></button>)}</div></div><div className="ta-health-compose-actions ta-send-only"><button className="ta-primary" disabled={healthSending || !healthMessage.trim() || !healthStudent.parentId} onClick={() => void sendHealthToParent()}><Send/>{healthSending ? "Sending…" : "Pin to Parent"}</button></div><p className="ta-sms-note">Only this learner's parent will see it, pinned at the top of their Announcements.</p></section></div>}
   </>;
 }
 
@@ -620,9 +698,22 @@ function Activities({ notify }: { notify: Notify }) {
 }
 
 function Attendance({ notify }: { notify: Notify }) {
-  const [rows, setRows] = useState<Array<{ id: string; name: string; section: string; avatar: string; rate: number; today: string }>>([]);
+  type AttendanceStatus = "Present" | "Late" | "Absent" | "Excused" | "Unmarked";
+  type AttendanceRow = { id: string; name: string; section: string; avatar: string; rate: number; today: AttendanceStatus };
+  const ATTENDANCE_KEY = "learnease.attendanceHistory";
+  const todayKey = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`; };
+  const readHistory = (): Record<string, Record<string, Exclude<AttendanceStatus, "Unmarked">>> => {
+    try { return JSON.parse(localStorage.getItem(ATTENDANCE_KEY) || "{}"); } catch { return {}; }
+  };
+  const [selectedDate, setSelectedDate] = useState(todayKey);
+  const [rows, setRows] = useState<AttendanceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [calendarStudent, setCalendarStudent] = useState<AttendanceRow | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState(() => { const now = new Date(); return new Date(now.getFullYear(), now.getMonth(), 1); });
+  const [classCalendarOpen, setClassCalendarOpen] = useState(false);
+  const [classCalendarMonth, setClassCalendarMonth] = useState(() => { const now = new Date(); return new Date(now.getFullYear(), now.getMonth(), 1); });
+  const [editingAttendance, setEditingAttendance] = useState(true);
   useEffect(() => {
     let active = true;
     const loadAttendanceRoster = async () => {
@@ -635,29 +726,130 @@ function Attendance({ notify }: { notify: Notify }) {
         setRows([]);
         setLoadError("Unable to load the student roster. Please try again.");
       } else {
-        setRows((data ?? []).map((student, index) => {
+        const loadedRows = (data ?? []).map((student, index) => {
           const fullName = `${student.first_name ?? ""} ${student.last_name ?? ""}`.trim();
-          return { id: String(student.id), name: student.child_name?.trim() || fullName || "Unnamed learner", section: student.grade_level?.trim() || "Preschool", avatar: index % 2 === 0 ? "🧒" : "👧", rate: 0, today: "Present" };
-        }));
+          const id = String(student.id);
+          return { id, name: student.child_name?.trim() || fullName || "Unnamed learner", section: student.grade_level?.trim() || "Preschool", avatar: index % 2 === 0 ? "🧒" : "👧", rate: 0, today: readHistory()[id]?.[selectedDate] || "Unmarked" } as AttendanceRow;
+        });
+        const remoteRecords = await getAttendanceRecords(loadedRows.map(row => row.id));
+        const history = readHistory();
+        remoteRecords.forEach(record => {
+          history[record.child_id] ||= {};
+          history[record.child_id][record.attendance_date] = record.status;
+        });
+        localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(history));
+        const syncedRows = loadedRows.map(row => ({ ...row, today: history[row.id]?.[selectedDate] || "Unmarked" }) as AttendanceRow);
+        setRows(syncedRows);
+        setEditingAttendance(!syncedRows.length || !syncedRows.every(row => row.today !== "Unmarked"));
       }
       setLoading(false);
     };
     void loadAttendanceRoster();
     return () => { active = false; };
   }, []);
+  useEffect(() => {
+    const history = readHistory();
+    setRows(current => {
+      const updated = current.map(row => ({ ...row, today: history[row.id]?.[selectedDate] || "Unmarked" }) as AttendanceRow);
+      setEditingAttendance(!updated.length || !updated.every(row => row.today !== "Unmarked"));
+      return updated;
+    });
+  }, [selectedDate]);
   const present = rows.filter(x => x.today === "Present").length;
   const attendanceRate = rows.length ? Math.round(present / rows.length * 100) : 0;
-  return <><Heading eyebrow="DAILY ROLL CALL" title="Attendance" detail="Record attendance and review the class attendance summary in one place."><div className="ta-heading-actions"><label><CalendarDays /><input type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></label><button className="ta-secondary" disabled={loading || rows.length === 0} onClick={() => setRows(rows.map(x => ({ ...x, today: "Present" })))}><Check /> Mark All Present</button></div></Heading>
+  const attendanceSubmitted = rows.length > 0 && rows.every(row => row.today !== "Unmarked") && !editingAttendance;
+  const saveAttendance = async () => {
+    const history = readHistory();
+    for (const row of rows) {
+      history[row.id] ||= {};
+      if (row.today === "Unmarked") delete history[row.id][selectedDate];
+      else history[row.id][selectedDate] = row.today;
+    }
+    localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(history));
+    try {
+      await saveAttendanceRecords(rows.filter(row => row.today !== "Unmarked").map(row => ({ childId: row.id, date: selectedDate, status: row.today as Exclude<AttendanceStatus, "Unmarked"> })));
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Attendance could not sync online.");
+      return;
+    }
+    setEditingAttendance(false);
+    notify(`Attendance submitted for ${selectedDate}`);
+  };
+  const monthDays = calendarStudent ? (() => {
+    const year = calendarMonth.getFullYear(); const month = calendarMonth.getMonth();
+    const blanks = Array.from({ length: new Date(year, month, 1).getDay() }, () => null);
+    const days = Array.from({ length: new Date(year, month + 1, 0).getDate() }, (_, index) => index + 1);
+    return [...blanks, ...days];
+  })() : [];
+  const calendarStatus = (day: number) => {
+    if (!calendarStudent) return undefined;
+    const key = `${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    return readHistory()[calendarStudent.id]?.[key];
+  };
+  const classMonthDays = (() => {
+    const year = classCalendarMonth.getFullYear(); const month = classCalendarMonth.getMonth();
+    return [...Array.from({ length: new Date(year, month, 1).getDay() }, () => null), ...Array.from({ length: new Date(year, month + 1, 0).getDate() }, (_, index) => index + 1)];
+  })();
+  const classDateKey = (day: number) => `${classCalendarMonth.getFullYear()}-${String(classCalendarMonth.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const classDateRecorded = (day: number) => rows.some(row => readHistory()[row.id]?.[classDateKey(day)] === "Present");
+  const openClassDate = (day: number) => { setSelectedDate(classDateKey(day)); setClassCalendarOpen(false); };
+  return <><Heading eyebrow="AUTOMATIC DAILY ATTENDANCE" title="Attendance" detail="A learner is marked Present once per day after a successful PIN login."><div className="ta-heading-actions"><button className="ta-class-date" onClick={() => { const date = new Date(`${selectedDate}T00:00:00`); setClassCalendarMonth(new Date(date.getFullYear(), date.getMonth(), 1)); setClassCalendarOpen(true); }}><CalendarDays /><span><small>View attendance date</small><b>{new Intl.DateTimeFormat("en-PH", { month: "long", day: "numeric", year: "numeric" }).format(new Date(`${selectedDate}T00:00:00`))}</b></span><ChevronDown/></button></div></Heading>
     {loading && <section className="ta-student-state"><CalendarDays/><h3>Loading attendance roster…</h3><p>Retrieving students from Student Management.</p></section>}
     {!loading && loadError && <section className="ta-student-state error"><CircleAlert/><h3>Unable to load attendance</h3><p>{loadError}</p></section>}
     {!loading && !loadError && rows.length === 0 && <section className="ta-student-state"><Users/><h3>No student accounts found</h3><p>Students added to Student Management will appear here automatically.</p></section>}
-    {!loading && !loadError && rows.length > 0 && <><section className="ta-att-summary"><div className="ta-ring"><b>{attendanceRate}%</b></div><div><h2>Present Today</h2><p>{present} of {rows.length} learners checked in</p></div>{["Present", "Late", "Absent", "Excused"].map(s => <span className={s.toLowerCase()} key={s}><b>{rows.filter(x => x.today === s).length}</b>{s}</span>)}</section><div className="ta-grid-att"><section className="ta-card ta-roll"><header><span><CalendarDays /></span><div><h2>Class Attendance List</h2><p>Tap a status to update</p></div></header>{rows.map((p, index) => <div className="ta-roll-row" key={p.id}><i>{p.avatar}</i><span><b>{p.name}</b><small>{p.section}</small></span><div>{["Present", "Late", "Absent", "Excused"].map(s => <button className={`${s.toLowerCase()} ${p.today === s ? "active" : ""}`} onClick={() => setRows(rows.map((x, i) => i === index ? { ...x, today: s } : x))} key={s}>{s}</button>)}</div></div>)}<button className="ta-primary ta-save" onClick={() => notify("Attendance saved and submitted")}><ShieldCheck /> Save & Submit Attendance</button></section><aside className="ta-card ta-alerts"><header><span className="orange"><CircleAlert /></span><div><h2>Attendance Alerts</h2><p>Learners needing follow-up</p></div></header><div className="ta-alert-empty"><Check/><span><b>No attendance alerts yet</b><small>Alerts will appear after attendance history is recorded.</small></span></div></aside></div><section className="ta-card ta-trend"><header><span className="green"><CalendarDays /></span><div><h2>Attendance Trend</h2><p>Last 7 school days</p></div></header><svg viewBox="0 0 700 170" preserveAspectRatio="none"><path d="M0 130 L110 92 L220 105 L330 58 L440 72 L550 36 L700 48 L700 170 L0 170Z"/><polyline points="0,130 110,92 220,105 330,58 440,72 550,36 700,48"/></svg></section></>}
+    {!loading && !loadError && rows.length > 0 && <><section className="ta-att-summary ta-auto-att-summary"><div className="ta-ring"><b>{attendanceRate}%</b></div><div><h2>{present} Present</h2><p>{present} of {rows.length} learners logged in with their PIN</p></div><span className="present"><b>{present}</b>Present</span></section><section className="ta-card ta-roll ta-auto-roll"><header><span><CalendarDays /></span><div><h2>Attendance List — {new Intl.DateTimeFormat("en-PH", { month: "long", day: "numeric", year: "numeric" }).format(new Date(`${selectedDate}T00:00:00`))}</h2><p>Attendance is recorded automatically from successful child PIN logins.</p></div></header>{rows.map(p => <div className="ta-roll-row" key={p.id}><i>{p.avatar}</i><button className="ta-att-student" onClick={() => { setCalendarStudent(p); const date = new Date(`${selectedDate}T00:00:00`); setCalendarMonth(new Date(date.getFullYear(), date.getMonth(), 1)); }}><b>{p.name}</b><small>{p.section} · View attendance calendar</small></button><div className="ta-auto-status">{p.today === "Present" ? <span className="present"><Check/> Present</span> : <span className="no-login">No PIN login</span>}</div></div>)}</section></>}
+    {classCalendarOpen && <div className="ta-overlay" onMouseDown={() => setClassCalendarOpen(false)}><section className="ta-modal ta-att-calendar ta-class-calendar" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setClassCalendarOpen(false)}><X/></button><div className="ta-calendar-child"><i><Users/></i><span><h2>Class Attendance Calendar</h2><p>Tap a date to view the PIN login attendance list.</p></span></div><div className="ta-calendar-nav"><button onClick={() => setClassCalendarMonth(new Date(classCalendarMonth.getFullYear(), classCalendarMonth.getMonth() - 1, 1))}><ChevronLeft/></button><b>{new Intl.DateTimeFormat("en-PH", { month: "long", year: "numeric" }).format(classCalendarMonth)}</b><button onClick={() => setClassCalendarMonth(new Date(classCalendarMonth.getFullYear(), classCalendarMonth.getMonth() + 1, 1))}><ChevronRight/></button></div><div className="ta-calendar-week">{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(day => <b key={day}>{day}</b>)}</div><div className="ta-calendar-grid ta-class-calendar-grid">{classMonthDays.map((day, index) => day === null ? <span key={`blank-${index}`}/> : <button className={`${classDateRecorded(day) ? "recorded" : ""} ${classDateKey(day) === selectedDate ? "selected" : ""}`} onClick={() => openClassDate(day)} key={day}><b>{day}</b><small>{classDateRecorded(day) ? "Has login" : "View list"}</small></button>)}</div><p className="ta-class-calendar-note"><Check/> Green dates contain at least one successful child PIN login.</p></section></div>}
+    {calendarStudent && <div className="ta-overlay" onMouseDown={() => setCalendarStudent(null)}><section className="ta-modal ta-att-calendar" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setCalendarStudent(null)}><X/></button><div className="ta-calendar-child"><i>{calendarStudent.avatar}</i><span><h2>{calendarStudent.name}</h2><p>{calendarStudent.section} · PIN login attendance</p></span></div><div className="ta-calendar-nav"><button onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}><ChevronLeft/></button><b>{new Intl.DateTimeFormat("en-PH", { month: "long", year: "numeric" }).format(calendarMonth)}</b><button onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}><ChevronRight/></button></div><div className="ta-calendar-week">{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(day => <b key={day}>{day}</b>)}</div><div className="ta-calendar-grid">{monthDays.map((day, index) => day === null ? <span key={`blank-${index}`}/> : <div className={calendarStatus(day) === "Present" ? "present" : "unmarked"} key={day}><b>{day}</b><small>{calendarStatus(day) === "Present" ? "Present" : "—"}</small></div>)}</div><div className="ta-calendar-legend"><span className="present"><i/>Present via PIN login</span></div></section></div>}
   </>;
+}
+
+function Announcements({ notify }: { notify: Notify }) {
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const send = async () => {
+    if (!title.trim() || !message.trim() || sending) return;
+    setSending(true);
+    try {
+      await sendParentAnnouncement({ title: title.trim(), message: message.trim(), kind: "classroom" });
+      setTitle(""); setMessage("");
+      notify("Announcement sent to all parent accounts");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Announcement was not sent.");
+    } finally {
+      setSending(false);
+    }
+  };
+  return <><Heading eyebrow="PARENT COMMUNICATION" title="Announcements" detail="Send classroom updates to every linked parent. Health notices stay pinned for one parent only."/><section className="ta-card ta-announcement-compose"><header><span><Mail/></span><div><h2>New Parent Announcement</h2><p>This appears in every parent's Announcements feed.</p></div></header><div><label>Announcement title<input value={title} onChange={event => setTitle(event.target.value)} placeholder="Classroom update"/></label><label>Message<textarea maxLength={500} value={message} onChange={event => setMessage(event.target.value)} placeholder="Write your announcement…"/><small>{message.length}/500</small></label><button className="ta-primary" disabled={sending || !title.trim() || !message.trim()} onClick={() => void send()}><Send/>{sending ? "Sending…" : "Send to Parents"}</button></div></section></>;
 }
 
 function Health({ notify }: { notify: Notify }) {
   const [record, setRecord] = useState(false);
-  return <><Heading eyebrow="LEARNER WELLBEING" title="Health Monitoring" detail="Health records will appear after they are entered and saved."><button className="ta-primary" onClick={() => setRecord(true)}><Plus /> Record Health Check</button></Heading><section className="ta-student-state"><HeartPulse/><h3>No health records yet</h3><p>Add the first health check to begin the class health overview.</p></section>{record && <SimpleForm title="Record Health Check" close={() => setRecord(false)} submit={() => { setRecord(false); notify("Health storage is not configured yet; no record was saved."); }} fields={["Learner", "Temperature (°C)", "Height (cm)", "Weight (kg)", "Teacher observation"]} />}</>;
+  const [students, setStudents] = useState<Array<{ id: string; name: string }>>([]);
+  const [studentId, setStudentId] = useState("");
+  const [temperature, setTemperature] = useState("");
+  const [height, setHeight] = useState("");
+  const [weight, setWeight] = useState("");
+  const [observation, setObservation] = useState("");
+  const [records, setRecords] = useState<Array<{ id: string; studentId: string; studentName: string; temperature: string; height: string; weight: string; observation: string; createdAt: string }>>(() => {
+    try { return JSON.parse(localStorage.getItem("learnease.healthRecords") || "[]"); } catch { return []; }
+  });
+  useEffect(() => {
+    void supabase.from("children_accounts").select("id,child_name,first_name,last_name").eq("is_active", true).order("created_at", { ascending: false }).then(({ data }) => {
+      const roster = (data || []).map(row => ({ id: String(row.id), name: row.child_name?.trim() || `${row.first_name || ""} ${row.last_name || ""}`.trim() || "Unnamed learner" }));
+      setStudents(roster);
+      setStudentId(current => current || roster[0]?.id || "");
+    });
+  }, []);
+  const save = () => {
+    const student = students.find(item => item.id === studentId);
+    if (!student) return;
+    const next = [{ id: `${studentId}-${Date.now()}`, studentId, studentName: student.name, temperature, height, weight, observation, createdAt: new Date().toISOString() }, ...records];
+    localStorage.setItem("learnease.healthRecords", JSON.stringify(next));
+    setRecords(next); setRecord(false); setTemperature(""); setHeight(""); setWeight(""); setObservation("");
+    notify(`Health check saved for ${student.name}`);
+  };
+  return <><Heading eyebrow="LEARNER WELLBEING" title="Health Monitoring" detail="Health records will appear after they are entered and saved."><button className="ta-primary" disabled={!students.length} onClick={() => setRecord(true)}><Plus /> Record Health Check</button></Heading>{records.length ? <section className="ta-card ta-health-records"><header><span><HeartPulse/></span><div><h2>Learner Health Records</h2><p>Latest recorded checks</p></div></header>{records.map(item => <article key={item.id}><span><b>{item.studentName}</b><small>{new Date(item.createdAt).toLocaleString("en-PH")}</small></span><em>{item.temperature ? `${item.temperature} °C` : "No temperature"}</em><small>{item.height ? `${item.height} cm` : "—"} · {item.weight ? `${item.weight} kg` : "—"}</small><p>{item.observation || "No observation"}</p></article>)}</section> : <section className="ta-student-state"><HeartPulse/><h3>No health records yet</h3><p>Add the first health check to begin the class health overview.</p></section>}{record && <div className="ta-overlay" onMouseDown={() => setRecord(false)}><form className="ta-modal ta-form" onMouseDown={event => event.stopPropagation()} onSubmit={event => { event.preventDefault(); save(); }}><button type="button" className="ta-close" onClick={() => setRecord(false)}><X/></button><h2>Record Health Check</h2><p>Select a learner from Student Management.</p><label>Learner<select required value={studentId} onChange={event => setStudentId(event.target.value)}>{students.map(student => <option value={student.id} key={student.id}>{student.name}</option>)}</select></label><label>Temperature (°C)<input type="number" step="0.1" value={temperature} onChange={event => setTemperature(event.target.value)} placeholder="Example: 36.5"/></label><label>Height (cm)<input type="number" step="0.1" value={height} onChange={event => setHeight(event.target.value)} placeholder="Enter height"/></label><label>Weight (kg)<input type="number" step="0.1" value={weight} onChange={event => setWeight(event.target.value)} placeholder="Enter weight"/></label><label>Teacher observation<textarea value={observation} onChange={event => setObservation(event.target.value)} placeholder="Enter observation"/></label><button className="ta-primary ta-full" disabled={!studentId}>Save Health Check</button></form></div>}</>;
 }
 
 function Rewards({ notify }: { notify: Notify }) {
@@ -682,5 +874,5 @@ export default function TeacherApp() {
   const notify: Notify = text => { setToast(text); window.setTimeout(() => setToast(""), 2400); };
   const go = (key: PageKey) => { setPage(key); setMenu(false); setProfile(false); setAlerts(false); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const logout = () => { localStorage.removeItem("user"); navigate("/"); };
-  return <div className="teacher-app"><aside className={`ta-sidebar ${menu ? "open" : ""}`}><div className="ta-logo"><img src={logo}/><span><b>LearnEase</b><small>Teacher Portal</small></span><button onClick={() => setMenu(false)}><X/></button></div><nav>{navItems.map(({key,label,icon:Icon}) => <button className={page===key?"active":""} onClick={() => go(key)} key={key}><i><Icon/></i><b>{label}</b></button>)}</nav><div className="ta-side-profile"><i>👩🏻‍🏫</i><span><b>{teacher.name}</b><small>{teacher.role}</small></span><button onClick={logout}><LogOut/></button></div></aside>{menu && <button className="ta-backdrop" onClick={() => setMenu(false)}/>}<main><header className="ta-top"><button className="ta-menu" onClick={() => setMenu(true)}><Menu/></button><div className="ta-mobile-logo"><img src={logo}/><b>LearnEase Kids</b></div><span className="ta-current"><CurrentIcon/><b>{current.label}</b></span><div className="ta-top-actions"><div><button className="ta-bell" onClick={() => {setAlerts(!alerts);setProfile(false)}}><Bell/></button>{alerts && <section className="ta-pop ta-alert-pop"><h3>Notifications</h3><div className="ta-feed-empty"><Bell/><b>No notifications yet</b><small>Recorded alerts will appear here.</small></div></section>}</div><div><button className="ta-top-profile" onClick={() => {setProfile(!profile);setAlerts(false)}}><i>👩🏻‍🏫</i><span><b>{teacher.name}</b><small>{teacher.section || teacher.role}</small></span><ChevronDown/></button>{profile && <section className="ta-pop ta-profile-pop"><button onClick={() => go("settings")}><UserRound/> My Profile</button><button onClick={() => go("settings")}><Settings/> Settings</button><button onClick={logout}><LogOut/> Logout</button></section>}</div></div></header><div className="ta-content">{page === "dashboard" && <Dashboard go={go} notify={notify}/>} {page === "students" && <Students notify={notify}/>} {page === "lessons" && <Lessons notify={notify}/>} {page === "activities" && <Activities notify={notify}/>} {page === "attendance" && <Attendance notify={notify}/>} {page === "health" && <Health notify={notify}/>} {page === "rewards" && <Rewards notify={notify}/>} {page === "settings" && <ProfileSettings notify={notify} logout={logout}/>}</div></main><nav className="ta-bottom">{navItems.slice(0,5).map(({key,label,icon:Icon}) => <button className={page===key?"active":""} onClick={() => go(key)} key={key}><Icon/><span>{label.split(" ")[0]}</span></button>)}<button onClick={() => setMenu(true)}><MoreHorizontal/><span>More</span></button></nav>{toast && <div className="ta-toast"><Check/>{toast}</div>}</div>;
+  return <div className="teacher-app"><aside className={`ta-sidebar ${menu ? "open" : ""}`}><div className="ta-logo"><img src={logo}/><span><b>LearnEase</b><small>Teacher Portal</small></span><button onClick={() => setMenu(false)}><X/></button></div><nav>{navItems.map(({key,label,icon:Icon}) => <button className={page===key?"active":""} onClick={() => go(key)} key={key}><i><Icon/></i><b>{label}</b></button>)}</nav><div className="ta-side-profile"><i>👩🏻‍🏫</i><span><b>{teacher.name}</b><small>{teacher.role}</small></span><button onClick={logout}><LogOut/></button></div></aside>{menu && <button className="ta-backdrop" onClick={() => setMenu(false)}/>}<main><header className="ta-top"><button className="ta-menu" onClick={() => setMenu(true)}><Menu/></button><div className="ta-mobile-logo"><img src={logo}/><b>LearnEase Kids</b></div><span className="ta-current"><CurrentIcon/><b>{current.label}</b></span><div className="ta-top-actions"><div><button className="ta-bell" onClick={() => {setAlerts(!alerts);setProfile(false)}}><Bell/></button>{alerts && <section className="ta-pop ta-alert-pop"><h3>Notifications</h3><div className="ta-feed-empty"><Bell/><b>No notifications yet</b><small>Recorded alerts will appear here.</small></div></section>}</div><div><button className="ta-top-profile" onClick={() => {setProfile(!profile);setAlerts(false)}}><i>👩🏻‍🏫</i><span><b>{teacher.name}</b><small>{teacher.section || teacher.role}</small></span><ChevronDown/></button>{profile && <section className="ta-pop ta-profile-pop"><button onClick={() => go("settings")}><UserRound/> My Profile</button><button onClick={() => go("settings")}><Settings/> Settings</button><button onClick={logout}><LogOut/> Logout</button></section>}</div></div></header><div className="ta-content">{page === "dashboard" && <Dashboard go={go} notify={notify}/>} {page === "students" && <Students notify={notify}/>} {page === "lessons" && <Lessons notify={notify}/>} {page === "activities" && <Activities notify={notify}/>} {page === "attendance" && <Attendance notify={notify}/>} {page === "announcements" && <Announcements notify={notify}/>} {page === "health" && <Health notify={notify}/>} {page === "rewards" && <Rewards notify={notify}/>} {page === "settings" && <ProfileSettings notify={notify} logout={logout}/>}</div></main><nav className="ta-bottom">{navItems.slice(0,5).map(({key,label,icon:Icon}) => <button className={page===key?"active":""} onClick={() => go(key)} key={key}><Icon/><span>{label.split(" ")[0]}</span></button>)}<button onClick={() => setMenu(true)}><MoreHorizontal/><span>More</span></button></nav>{toast && <div className="ta-toast"><Check/>{toast}</div>}</div>;
 }

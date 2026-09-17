@@ -57,7 +57,9 @@ export default function ParentDashboard() {
       }
 
       try {
-        const posts = await getParentAnnouncements();
+        let parentId = "";
+        try { parentId = String(JSON.parse(localStorage.getItem("user") || "{}").id || ""); } catch { /* no active parent id */ }
+        const posts = await getParentAnnouncements(parentId, childId);
         if (!cancelled) setAnnouncements(posts);
       } catch {
         if (!cancelled) setAnnouncements([]);
@@ -125,7 +127,10 @@ export default function ParentDashboard() {
         ) : (
           <ul className="pd-announcement-list">
             {announcements.map((item) => (
-              <li key={item.id} className="pd-announcement-item">
+              <li key={item.id} className={`pd-announcement-item${item.pinned ? " pd-announcement-pinned" : ""}`}>
+                {item.pinned ? (
+                  <span className="pd-announcement-pin">📌 Pinned · Health</span>
+                ) : null}
                 <h3>{item.title}</h3>
                 {item.createdAt && (
                   <p className="pd-announcement-date">

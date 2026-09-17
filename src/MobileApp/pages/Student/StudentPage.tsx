@@ -28,6 +28,7 @@ export default function StudentPage() {
   const [allowedGames, setAllowedGames] = useState<string[]>([]);
   const [musicEnabled, setMusicEnabled] = useState(true);
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
+  const pageActiveRef = useRef(true);
   const greetedRef = useRef(false);
 
   const lessons = [
@@ -94,10 +95,13 @@ export default function StudentPage() {
 
   useEffect(() => {
     const name = childFirstName.trim();
-    if (!name || greetedRef.current) return;
+    const childId = localStorage.getItem("activeChildId");
+    const greetingKey = childId ? `studentGreetingPending:${childId}` : "";
+    const greetingPending = Boolean(greetingKey && sessionStorage.getItem(greetingKey) === "1");
+    if (!name || name === "Child" || greetedRef.current || !greetingPending) return;
 
     const resumeMusic = () => {
-      if (bgMusicRef.current && musicEnabled) {
+      if (pageActiveRef.current && bgMusicRef.current && musicEnabled) {
         bgMusicRef.current.play().catch(() => {});
       }
     };
@@ -105,8 +109,9 @@ export default function StudentPage() {
     const timer = window.setTimeout(() => {
       if (greetedRef.current) return;
       greetedRef.current = true;
+      sessionStorage.removeItem(greetingKey);
       if (bgMusicRef.current && musicEnabled) bgMusicRef.current.pause();
-      speakKidPrompt(`Hi, ${name}! What would you want to learn today?`, {
+      speakKidPrompt(`Hi, ${name}! What would you like to learn today?`, {
         interrupt: true,
         onEnd: resumeMusic,
       });
@@ -116,9 +121,15 @@ export default function StudentPage() {
   }, [childFirstName, musicEnabled]);
 
   useEffect(() => {
+    pageActiveRef.current = true;
+    const pauseForLesson = () => bgMusicRef.current?.pause();
+    window.addEventListener("learnease:pause-background-music", pauseForLesson);
     return () => {
+      pageActiveRef.current = false;
+      window.removeEventListener("learnease:pause-background-music", pauseForLesson);
       cancelNativeSpeech();
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+      bgMusicRef.current?.pause();
     };
   }, []);
 
@@ -140,6 +151,7 @@ export default function StudentPage() {
     return () => {
       if (bgMusicRef.current) {
         bgMusicRef.current.pause();
+        bgMusicRef.current.currentTime = 0;
       }
     };
   }, []);

@@ -6,6 +6,7 @@ import { Maximize2, Minimize2 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { getOrCreateActiveChildId } from "../../../lib/childProgress";
 import { isStudentGameAllowed } from "../../../lib/studentGameAccess";
+import { recordGameOpened } from "../../../lib/gameProgressDb";
 import {
   createOfflineLessonUrl,
   getOfflineLesson,
@@ -61,6 +62,11 @@ export default function LessonPage() {
   const playerRef = useRef<HTMLDivElement | null>(null);
   const [isVideoFullscreen, setIsVideoFullscreen] = useState(false);
 
+  useEffect(() => {
+    // Lesson videos and instructions must never compete with the Student home music.
+    window.dispatchEvent(new Event("learnease:pause-background-music"));
+  }, [category]);
+
   const setPlaybackUrl = (url: string, isBlob = false) => {
     if (blobUrlRef.current && blobUrlRef.current !== url) {
       URL.revokeObjectURL(blobUrlRef.current);
@@ -85,6 +91,12 @@ export default function LessonPage() {
 
   const backgroundImage = bgMap[category || "colors"];
   const dbCategory = CATEGORY_MAP[category || ""] || formattedCategory;
+
+  const startQuest = (path: string, state?: { showStartPopup?: boolean }) => {
+    if (activeChildId && category) void recordGameOpened(activeChildId, category);
+    if (state) navigate(path, { state });
+    else navigate(path);
+  };
 
   useEffect(() => {
     void getOrCreateActiveChildId().then(childId => {
@@ -430,7 +442,7 @@ export default function LessonPage() {
             <button
               type="button"
               className="start-quest-btn"
-              onClick={() => navigate("/student/PhonicsQuestPage")}
+              onClick={() => startQuest("/student/PhonicsQuestPage")}
             >
               &#128266; Start Phonics Quest
             </button>
@@ -441,7 +453,7 @@ export default function LessonPage() {
           <button
             type="button"
             className="start-quest-btn"
-            onClick={() => navigate("/quest/colors")}
+            onClick={() => startQuest("/quest/colors")}
           >
             Start Colors Activity
           </button>
@@ -455,11 +467,7 @@ export default function LessonPage() {
             <button
               type="button"
               className="start-quest-btn"
-              onClick={() =>
-                navigate("/student/LogicQuestPage", {
-                  state: { showStartPopup: true },
-                })
-              }
+              onClick={() => startQuest("/student/LogicQuestPage", { showStartPopup: true })}
             >
               Start Logic Activity
             </button>
@@ -470,7 +478,7 @@ export default function LessonPage() {
           <button
             type="button"
             className="start-quest-btn"
-            onClick={() => navigate("/quest/number")}
+            onClick={() => startQuest("/quest/number")}
           >
             Start Numbers Activity
           </button>
@@ -484,7 +492,7 @@ export default function LessonPage() {
             <button
               type="button"
               className="start-quest-btn"
-              onClick={() => navigate("/quest/letter")}
+              onClick={() => startQuest("/quest/letter")}
             >
               Start Letters Activity
             </button>
@@ -499,7 +507,7 @@ export default function LessonPage() {
             <button
               type="button"
               className="start-quest-btn"
-              onClick={() => navigate("/quest/shapes")}
+              onClick={() => startQuest("/quest/shapes")}
             >
               Start Shapes Activity
             </button>
