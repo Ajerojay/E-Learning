@@ -6,6 +6,7 @@ import logo from "../../../images/learnease logo-no bg.png";
 // ===== SUPABASE DATABASE CONNECTION (same client used by the web app) =====
 import { supabase } from "../../lib/supabase";
 import { getOrCreateActiveChildId } from "../../lib/childProgress";
+import { authenticateOffline, cacheVerifiedLogin } from "../../lib/offlineAuth";
 
 const ADMIN_USERNAME = "admin";
 const ADMIN_PASSWORD = "admin123";
@@ -35,8 +36,20 @@ export default function AppSignIn() {
       return;
     }
 
+    const finishOfflineLogin = async () => {
+      const cached = await authenticateOffline(cleanUsername, cleanPassword);
+      if (!cached) {
+        setError("Offline login is unavailable. Sign in once online on this device first.");
+        return false;
+      }
+      localStorage.setItem("user", JSON.stringify(cached));
+      navigate(cached.role === "teacher" ? "/teacher-dashboard" : "/parent-dashboard");
+      return true;
+    };
+
     try {
       setLoading(true);
+      if (!navigator.onLine) { await finishOfflineLogin(); return; }
       const { data: teacherRows, error: teacherError } = await supabase.rpc(
         "authenticate_teacher",
         { p_username: cleanUsername, p_password: cleanPassword }
@@ -48,10 +61,12 @@ export default function AppSignIn() {
 
       const teacher = Array.isArray(teacherRows) ? teacherRows[0] : teacherRows;
       if (teacher) {
+        const teacherUser = { ...teacher, role: "teacher" as const, source: "mobile-app" };
         localStorage.setItem(
           "user",
-          JSON.stringify({ ...teacher, role: "teacher", source: "mobile-app" })
+          JSON.stringify(teacherUser)
         );
+        await cacheVerifiedLogin(cleanUsername, cleanPassword, teacherUser);
         navigate("/teacher-dashboard");
         return;
       }
@@ -66,7 +81,7 @@ export default function AppSignIn() {
 
       if (loginError) {
         console.error("App login error:", loginError.message);
-        setError("Something went wrong while logging in.");
+        await finishOfflineLogin();
         return;
       }
 
@@ -75,15 +90,14 @@ export default function AppSignIn() {
         return;
       }
 
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
+      const parentUser = {
           role: "parent",
           id: data.id,
           username: data.username,
           source: "mobile-app",
-        })
-      );
+        } as const;
+      localStorage.setItem("user", JSON.stringify(parentUser));
+      await cacheVerifiedLogin(cleanUsername, cleanPassword, parentUser);
 
       // ===== SUPABASE DATABASE: LOAD THE PARENT'S ACTIVE CHILD AND PIN =====
       const { data: childData, error: childError } = await supabase
@@ -110,7 +124,7 @@ export default function AppSignIn() {
       navigate("/parent-dashboard");
     } catch (caughtError) {
       console.error(caughtError);
-      setError("Something went wrong while logging in.");
+      await finishOfflineLogin();
     } finally {
       setLoading(false);
     }
