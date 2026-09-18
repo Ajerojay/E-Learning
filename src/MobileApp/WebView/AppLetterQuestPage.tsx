@@ -1,8 +1,5 @@
-﻿import LetterQuestPage from "../pages/Student/LetterQuestPage";
-import "./AppLetterQuestPage.css";
+﻿import LettersActivityHub from "../pages/Student/LettersActivityHub";
 
-// SUPABASE DATABASE: saves progress through gameProgressDb.ts / record_game_attempt RPC.
 export default function AppLetterQuestPage() {
-  return <LetterQuestPage mobileApp />;
+  return <LettersActivityHub />;
 }
-

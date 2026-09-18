@@ -1,22 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./NumbersQuestPage.css";
+import "../../WebView/AppNumbersQuestPage.css";
 import { getOrCreateActiveChildId } from "../../../lib/childProgress";
 import {
   loadPrimaryGameCodeForCategory,
   recordGameProgressRpc,
 } from "../../../lib/gameProgressDb";
-import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
+import { GameOverlay, GamePopup, Countdown, GamePauseButton, GamePausePopup, GameOverPopup } from "./GamePopup";
 import {
   useLevelIntro,
   LevelIntroOverlay,
   COUNTDOWN_READY_SUBTITLE,
   type LevelIntroContent,
 } from "./levelIntro";
-import bgMusic from "./bg-music-loop.mp3";
 import { speakNative } from "../../nativeTts";
 import QuestLevelSelect from "./QuestLevelSelect";
-import { useQuestLevelGate } from "./questLevelMap";
+import ChildMusicToggle from "./ChildMusicToggle";
+import { useQuestLevelGate, useStarTimeUp, useWrongAttemptGameOver } from "./questLevelMap";
+import { LiveStarHud } from "./LevelStars";
 
 import cloudImg from "./images/cloud.png";
 import bgImg from "./images/numbers-bg.jpg";
@@ -37,7 +39,7 @@ const levels: LevelConfig[] = [
   { name: "Hard", targetMin: 1, targetMax: 9, dropCount: 10 },
 ];
 
-type DropPos = { top: number; left: number };
+type DropPos = { top: string; left: string };
 
 const NUMBERS_GAME_INTRO: LevelIntroContent = {
   title: "Count the raindrops!",
@@ -49,32 +51,32 @@ const NUMBERS_GAME_INTRO: LevelIntroContent = {
 
 const positionsByCount: Record<number, DropPos[]> = {
   5: [
-    { top: 20, left: 350 },
-    { top: 10, left: -90 },
-    { top: 80, left: 240 },
-    { top: 100, left: 10 },
-    { top: 16, left: 125 },
+    { top: "4%", left: "6%" },
+    { top: "0%", left: "36%" },
+    { top: "8%", left: "66%" },
+    { top: "46%", left: "20%" },
+    { top: "50%", left: "50%" },
   ],
   7: [
-    { top: 10, left: -90 },
-    { top: 0, left: 80 },
-    { top: 20, left: 350 },
-    { top: 70, left: -10 },
-    { top: 80, left: 240 },
-    { top: 120, left: 100 },
-    { top: 108, left: 360 },
+    { top: "0%", left: "2%" },
+    { top: "4%", left: "28%" },
+    { top: "0%", left: "54%" },
+    { top: "6%", left: "78%" },
+    { top: "48%", left: "14%" },
+    { top: "52%", left: "40%" },
+    { top: "46%", left: "66%" },
   ],
   10: [
-    { top: 0, left: -90 },
-    { top: 0, left: 80 },
-    { top: 10, left: 260 },
-    { top: 20, left: 430 },
-    { top: 56, left: -30 },
-    { top: 70, left: 140 },
-    { top: 76, left: 320 },
-    { top: 92, left: 480 },
-    { top: 118, left: 70 },
-    { top: 124, left: 380 },
+    { top: "0%", left: "0%" },
+    { top: "2%", left: "22%" },
+    { top: "0%", left: "44%" },
+    { top: "4%", left: "66%" },
+    { top: "32%", left: "10%" },
+    { top: "36%", left: "32%" },
+    { top: "32%", left: "54%" },
+    { top: "64%", left: "18%" },
+    { top: "68%", left: "40%" },
+    { top: "62%", left: "62%" },
   ],
 };
 
@@ -87,14 +89,16 @@ export default function NumbersQuestPage() {
   const [voicesReady, setVoicesReady] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [musicEnabled, setMusicEnabled] = useState(true);
+  const [paused, setPaused] = useState(false);
 
   const [levelIndex, setLevelIndex] = useState(0);
-  const { mapOpen, setMapOpen, unlockedCount, completeLevel } = useQuestLevelGate("numbers");
+  const { mapOpen, setMapOpen, unlockedCount, levelStars, completeLevel, recordLevelResult } = useQuestLevelGate("numbers");
   // A fresh route visit from Start Number Activity owns the one full intro.
   const playSession = 0;
   const [target, setTarget] = useState<number>(3);
   const [selected, setSelected] = useState<number[]>([]);
   const [wrongAttempts, setWrongAttempts] = useState<number>(0);
+  const [gameOverOpen, setGameOverOpen] = useState(false);
   const [locked, setLocked] = useState<boolean>(false);
   const [message, setMessage] = useState<string>(
     "Tap the raindrops that match the number!"
@@ -155,7 +159,7 @@ export default function NumbersQuestPage() {
   useEffect(() => {
     if (!timerRunning) return;
     if (levelIntroActive || countdown !== null) return;
-    if (proceedPromptLevel !== null || levelSummaryOpen || timeUpOpen) return;
+    if (proceedPromptLevel !== null || levelSummaryOpen || timeUpOpen || gameOverOpen || paused) return;
 
     if (timeLeft <= 0) {
       setTimerRunning(false);
@@ -177,6 +181,7 @@ export default function NumbersQuestPage() {
     proceedPromptLevel,
     levelSummaryOpen,
     timeUpOpen,
+    paused,
   ]);
 
   useEffect(() => {
@@ -357,37 +362,6 @@ export default function NumbersQuestPage() {
   }, []);
 
   useEffect(() => {
-    // Initialize background music
-    if (!bgMusicRef.current) {
-      const audio = new Audio(bgMusic);
-      audio.loop = true;
-      audio.volume = 0.3;
-      bgMusicRef.current = audio;
-
-      if (musicEnabled) {
-        audio.play().catch(() => {});
-      }
-    }
-
-    return () => {
-      if (bgMusicRef.current) {
-        bgMusicRef.current.pause();
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    // Handle music enabled/disabled toggle
-    if (bgMusicRef.current) {
-      if (musicEnabled && !isVoiceSpeakingRef.current) {
-        bgMusicRef.current.play().catch(() => {});
-      } else {
-        bgMusicRef.current.pause();
-      }
-    }
-  }, [musicEnabled]);
-
-  useEffect(() => {
     if (levelIntroActive) return;
     if (countdown === null) return;
     if (countdown <= 0) {
@@ -403,7 +377,7 @@ export default function NumbersQuestPage() {
     // 5-second warning voice + beep
     if (!timerRunning) return;
     if (levelIntroActive || countdown !== null) return;
-    if (proceedPromptLevel !== null || levelSummaryOpen || timeUpOpen) return;
+    if (proceedPromptLevel !== null || levelSummaryOpen || timeUpOpen || gameOverOpen || paused) return;
     if (timeLeft > 5 || timeLeft <= 0) return;
     if (warnedSecondsRef.current.has(timeLeft)) return;
 
@@ -421,7 +395,7 @@ export default function NumbersQuestPage() {
   ]);
 
   const handleClick = (id: number) => {
-    if (levelIntroActive || countdown !== null) return;
+    if (levelIntroActive || countdown !== null || paused) return;
     if (locked) return;
     setTimerRunning(true);
     if (selected.includes(id)) return;
@@ -433,7 +407,7 @@ export default function NumbersQuestPage() {
   };
 
   const checkAnswer = () => {
-    if (levelIntroActive || countdown !== null) return;
+    if (levelIntroActive || countdown !== null || paused || gameOverOpen || timeUpOpen) return;
     if (locked || selected.length === 0) return;
 
     setLocked(true);
@@ -451,7 +425,7 @@ export default function NumbersQuestPage() {
         void saveNumbersProgress(pct, finishedAll, wrongAttempts);
 
         if (next >= totalRoundsToComplete) {
-          void completeLevel(levelIndex);
+          void completeLevel(levelIndex, { timeLeft, wrongAttempts });
           if (levelIndex >= 2) {
             setMessage("Amazing! You finished all levels!");
             setIsFinishedAllLevels(true);
@@ -491,6 +465,13 @@ export default function NumbersQuestPage() {
 
   const [correctRounds, setCorrectRounds] = useState(0);
   const totalRoundsToComplete = 3;
+  useStarTimeUp(timeUpOpen, levelIndex, correctRounds > 0 || wrongAttempts > 0, recordLevelResult, wrongAttempts);
+  const onTooManyWrong = useCallback(() => {
+    setGameOverOpen(true);
+    setTimerRunning(false);
+    void recordLevelResult(levelIndex, { finished: false, tried: true, wrongAttempts });
+  }, [levelIndex, recordLevelResult, wrongAttempts]);
+  useWrongAttemptGameOver(wrongAttempts, onTooManyWrong);
   const canProceedAfterTimeUp = false;
 
   const handlePlayAgain = () => {
@@ -498,6 +479,7 @@ export default function NumbersQuestPage() {
     setIsFinishedAllLevels(false);
     setCorrectRounds(0);
     setWrongAttempts(0);
+    setGameOverOpen(false);
     setSelected([]);
     setLocked(false);
     setProceedPromptLevel(null);
@@ -515,77 +497,59 @@ export default function NumbersQuestPage() {
     <div className="nq-page-bg nq-page-bg--no-card" style={{ backgroundImage: `url(${bgImg})` }}>
       {mapOpen && (
         <QuestLevelSelect
-          title="Numbers Quest"
+          title="Number Quest"
           unlockedCount={unlockedCount}
+          levelStars={levelStars}
           onSelectLevel={(index) => {
             setLevelIndex(index);
             setMapOpen(false);
           }}
-          onBack={() => navigate("/lesson/numbers", { replace: true })}
+          onBack={() => navigate("/quest/number", { replace: true })}
         />
       )}
-      <div className="nq-top-bar">
-        <button type="button" className="nq-back-btn" onClick={() => navigate("/lesson/numbers", { replace: true })}>
-          {"\u2190"} Back
-        </button>
-      </div>
-
-      <div className="nq-meta-row nq-meta-row--page">
-        <div className="nq-level-badge">
-          <span>Level {levelIndex + 1}</span>
-          <span className="nq-level-name">: {level.name}</span>
+      <header className="nq-header">
+        <div className="nq-top-bar">
+          <button type="button" className="nq-back-btn" onClick={() => setMapOpen(true)}>
+            {"\u2190"} Back
+          </button>
         </div>
-        <div className="nq-timer">⏱ {timeLeft}s</div>
-        <button
-          type="button"
-          className="nq-sound-toggle nq-music-toggle"
-          onClick={() => {
-            setMusicEnabled((prev) => {
-              const next = !prev;
-              if (bgMusicRef.current) {
-                if (next && !isVoiceSpeakingRef.current) {
-                  bgMusicRef.current.play().catch(() => {});
-                } else {
-                  bgMusicRef.current.pause();
+        <div className="nq-heading">
+          <h2 className="nq-title nq-title--page">Count the Raindrops!</h2>
+          <p className="nq-subtitle nq-subtitle--page">Tap the raindrops that match the number</p>
+        </div>
+        <div className="nq-meta-row nq-meta-row--page">
+          <div className="nq-level-badge">
+            <span>Level {levelIndex + 1}</span>
+            <span className="nq-level-name">: {level.name}</span>
+          </div>
+          <LiveStarHud timeLeft={timeLeft} tried={correctRounds > 0 || wrongAttempts > 0} wrong={wrongAttempts} />
+          <div className="nq-timer">⏱ {timeLeft}s</div>
+          <ChildMusicToggle />
+          <button
+            type="button"
+            className="nq-sound-toggle nq-effects-toggle"
+            onClick={() => {
+              setSoundEnabled((prev) => {
+                const next = !prev;
+                if (!next && "speechSynthesis" in window) {
+                  window.speechSynthesis.cancel();
                 }
-              }
-              return next;
-            });
-          }}
-          aria-label={musicEnabled ? "Turn music off" : "Turn music on"}
-          title={musicEnabled ? "Mute Music" : "Unmute Music"}
-        >
-          {musicEnabled ? "🎵" : "🔇"}
-        </button>
-        <button
-          type="button"
-          className="nq-sound-toggle nq-effects-toggle"
-          onClick={() => {
-            setSoundEnabled((prev) => {
-              const next = !prev;
-              if (!next && "speechSynthesis" in window) {
-                window.speechSynthesis.cancel();
-              }
-              return next;
-            });
-          }}
-          aria-label={soundEnabled ? "Turn sound off" : "Turn sound on"}
-        >
-          <span className="nq-effects-icon">{soundEnabled ? "🔊" : "🔇"}</span>
-          <span className="nq-control-label">{soundEnabled ? " On" : " Off"}</span>
-        </button>
-      </div>
-
-      <h2 className="nq-title nq-title--page">Count the Raindrops!</h2>
-      <p className="nq-subtitle nq-subtitle--page">
-        Tap the raindrops that match the number 💧
-      </p>
+                return next;
+              });
+            }}
+            aria-label={soundEnabled ? "Turn sound off" : "Turn sound on"}
+          >
+            <span className="nq-effects-icon">{soundEnabled ? "🔊" : "🔇"}</span>
+            <span className="nq-control-label">{soundEnabled ? " On" : " Off"}</span>
+          </button>
+          <GamePauseButton onClick={() => setPaused(true)} />
+        </div>
+      </header>
 
       <div className="nq-scene nq-scene--page">
         <div className="nq-cloud-wrapper nq-cloud-wrapper--page">
           <img src={cloudImg} className="nq-cloud-img" alt="" />
           <div className="nq-cloud-number">{target}</div>
-
           <div className="nq-drops-area" data-drop-count={level.dropCount}>
             {positions.map((pos, index) =>
               selected.includes(index) ? null : (
@@ -602,7 +566,6 @@ export default function NumbersQuestPage() {
             )}
           </div>
         </div>
-
       </div>
 
       {!isFinishedAllLevels && <button
@@ -628,7 +591,25 @@ export default function NumbersQuestPage() {
         </GameOverlay>
       )}
 
-      {timeUpOpen && (
+      <GamePausePopup
+        open={paused}
+        subtitle="Ready to count more raindrops?"
+        onPlay={() => setPaused(false)}
+        onMap={() => { setPaused(false); setMapOpen(true); }}
+      />
+
+      <GameOverPopup
+        open={gameOverOpen}
+        onLesson={() => navigate("/lesson/numbers")}
+        onReplay={() => {
+          setGameOverOpen(false);
+          setWrongAttempts(0);
+          setTimeUpOpen(false);
+          setSelected([]);
+          setLocked(false);
+        }}
+      />
+      {timeUpOpen && !gameOverOpen && (
         <GameOverlay isOpen={timeUpOpen}>
           <GamePopup
             title="⏰ Time's up!"
@@ -660,7 +641,7 @@ export default function NumbersQuestPage() {
                   : [
                       {
                         label: "Back to Lesson",
-                        onClick: () => navigate("/lesson/numbers"),
+                        onClick: () => navigate("/quest/number"),
                       },
                       {
                         label: "Replay Level",
@@ -679,7 +660,7 @@ export default function NumbersQuestPage() {
                       label: "Back to Lesson",
                       onClick: () => {
                         setTimeUpOpen(false);
-                        navigate("/lesson/numbers");
+                        navigate("/quest/number");
                       },
                       variant: "secondary",
                     },
@@ -737,7 +718,7 @@ export default function NumbersQuestPage() {
                 label: "Back to Lesson",
                 onClick: () => {
                   setLevelSummaryOpen(false);
-                  navigate("/lesson/numbers");
+                  navigate("/quest/number");
                 },
                 variant: "no",
               },

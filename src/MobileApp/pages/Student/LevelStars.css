@@ -1,0 +1,64 @@
+.level-stars {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px 9px 5px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fffdf6 0%, #ffe9a6 100%);
+  box-shadow: 0 4px 0 #e3a62a, 0 8px 14px rgba(40, 60, 90, 0.18);
+}
+
+.level-star {
+  display: block;
+  flex: 0 0 auto;
+  overflow: visible;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.7));
+}
+
+.level-stars--hud {
+  gap: 2px;
+  padding: 3px 8px 4px;
+  box-shadow: 0 3px 0 #e3a62a, 0 6px 10px rgba(40, 60, 90, 0.14);
+}
+
+.level-stars--hud .level-star {
+  width: 18px;
+  height: 18px;
+}
+
+.level-stars.is-empty {
+  background: linear-gradient(180deg, #fffef8 0%, #efe6d2 100%);
+  box-shadow: 0 3px 0 #cbb88a, 0 6px 10px rgba(40, 60, 90, 0.12);
+}
+
+.level-stars.is-empty .level-star {
+  filter: none;
+  opacity: 0.92;
+}
+
+.level-stars--map .level-star {
+  width: clamp(16px, 2.6vw, 24px);
+  height: clamp(16px, 2.6vw, 24px);
+}
+
+.level-stars--popup .level-star {
+  width: 30px;
+  height: 30px;
+}
+
+.level-star.is-full {
+  animation: level-star-pop 1.8s ease-in-out infinite;
+}
+
+.level-star.is-full:nth-child(2) { animation-delay: 0.15s; }
+.level-star.is-full:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes level-star-pop {
+  50% { transform: translateY(-1px) scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .level-star.is-full { animation: none; }
+}

@@ -1,8 +1,5 @@
-﻿import ShapesQuestPage from "../pages/Student/ShapesQuestPage";
-import "./AppShapesQuestPage.css";
+import ShapesActivityHub from "../pages/Student/ShapesActivityHub";
 
-// SUPABASE DATABASE: saves progress through gameProgressDb.ts / record_game_attempt RPC.
 export default function AppShapesQuestPage() {
-  return <ShapesQuestPage />;
+  return <ShapesActivityHub />;
 }
-

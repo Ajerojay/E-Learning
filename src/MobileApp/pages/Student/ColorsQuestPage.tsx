@@ -14,17 +14,19 @@ import {
 } from "@dnd-kit/core";
 import { getOrCreateActiveChildId } from "../../../lib/childProgress";
 import { recordGameProgressRpc } from "../../../lib/gameProgressDb";
-import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
+import { GameOverlay, GamePopup, Countdown, GamePauseButton, GamePausePopup, GameOverPopup } from "./GamePopup";
 import {
   useLevelIntro,
   LevelIntroOverlay,
   COUNTDOWN_READY_SUBTITLE,
   type LevelIntroContent,
 } from "./levelIntro";
-import bgMusic from "./bg-music-loop.mp3";
 import { speakNative } from "../../nativeTts";
 import QuestLevelSelect from "./QuestLevelSelect";
-import { useQuestLevelGate } from "./questLevelMap";
+import ChildMusicToggle from "./ChildMusicToggle";
+import { useQuestLevelGate, useStarTimeUp, useWrongAttemptGameOver } from "./questLevelMap";
+import { LiveStarHud } from "./LevelStars";
+import { NEXT_LEVEL_SPEECH } from "./ColorsMiniChrome";
 
 const COLORS_LEVEL_INTRO: LevelIntroContent = {
   title: "Sort the colors!",
@@ -138,6 +140,17 @@ const LEVELS: { name: string; colors: ColorKey[]; items: Item[]; time: number }[
   },
 ];
 
+function ItemGlyph({ item, className }: { item: Item; className?: string }) {
+  if (item.color === "white" || item.color === "gray") {
+    return <span className={`cq-item-swatch cq-item-swatch--${item.color} ${className ?? ""}`.trim()} aria-hidden="true" />;
+  }
+  return (
+    <span className={className ?? "cq-item-emoji-only"} aria-hidden="true">
+      {item.emoji}
+    </span>
+  );
+}
+
 function DraggableItem({
   item,
   isPlaced,
@@ -168,9 +181,7 @@ function DraggableItem({
       {...attributes}
       type="button"
     >
-      <span className="cq-item-emoji-only" aria-hidden="true">
-        {item.emoji}
-      </span>
+      <ItemGlyph item={item} className="cq-item-emoji-only" />
       <span className="cq-item-label">
         <span
           className={`cq-item-color-dot cq-item-color-dot--${item.color}`}
@@ -186,15 +197,18 @@ function Basket({
   id,
   label,
   basketColor,
+  isComplete = false,
   children,
 }: {
   id: ColorKey;
   label: string;
   basketColor: ColorKey;
+  isComplete?: boolean;
   children: React.ReactNode;
 }) {
   const { isOver, setNodeRef } = useDroppable({
     id,
+    disabled: isComplete,
   });
 
   const basketSrcByColor: Record<ColorKey, string> = {
@@ -214,9 +228,7 @@ function Basket({
   return (
     <div
       ref={setNodeRef}
-      className={`cq-basket cq-basket-${basketColor} ${
-        isOver ? "cq-basket-over" : ""
-      }`}
+      className={`cq-basket cq-basket-${basketColor}${isOver ? " cq-basket-over" : ""}${isComplete ? " is-complete" : ""}`}
     >
       <img className="cq-basket-art" src={basketSrcByColor[basketColor]} alt="" />
       <div className="cq-basket-dropzone" aria-hidden="true" />
@@ -260,7 +272,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
   const lastPraiseIndexRef = useRef(-1);
 
   const [levelIndex, setLevelIndex] = useState(0);
-  const { mapOpen, setMapOpen, unlockedCount, completeLevel } = useQuestLevelGate("colors");
+  const { mapOpen, setMapOpen, unlockedCount, levelStars, completeLevel, recordLevelResult } = useQuestLevelGate("colors");
   const playSession = 0;
   const [items, setItems] = useState<Item[]>(LEVELS[0].items);
   const [activeColors, setActiveColors] = useState<ColorKey[]>(LEVELS[0].colors);
@@ -270,6 +282,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
     "Drag each object into the correct color basket!"
   );
   const [wrongAttempts, setWrongAttempts] = useState(0);
+  const [gameOverOpen, setGameOverOpen] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(LEVELS[0].time);
   const [timerRunning, setTimerRunning] = useState(false);
@@ -280,6 +293,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
   const [completedItemsBase, setCompletedItemsBase] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [musicEnabled, setMusicEnabled] = useState(true);
+  const [paused, setPaused] = useState(false);
 
   // APP ORIENTATION: pause Colors Quest until the Android device is landscape.
   useEffect(() => {
@@ -308,6 +322,13 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
 
   const totalCorrect = Object.keys(placed).length;
   const totalItems = items.length;
+  useStarTimeUp(timeUpOpen, levelIndex, totalCorrect > 0 || wrongAttempts > 0, recordLevelResult, wrongAttempts);
+  const onTooManyWrong = useCallback(() => {
+    setGameOverOpen(true);
+    setTimerRunning(false);
+    void recordLevelResult(levelIndex, { finished: false, tried: true, wrongAttempts });
+  }, [levelIndex, recordLevelResult, wrongAttempts]);
+  useWrongAttemptGameOver(wrongAttempts, onTooManyWrong);
   // Disable proceed-on-timeout because the level is not actually finished.
   const canProceedAfterTimeUp = false;
 
@@ -323,7 +344,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
   const introEnabled =
     isLandscape &&
     !mapOpen &&
-    !timeUpOpen && !finalCompleteOpen && !levelCompleteOpen && !levelSummaryOpen;
+    !timeUpOpen && !gameOverOpen && !finalCompleteOpen && !levelCompleteOpen && !levelSummaryOpen;
 
   const { levelIntroActive, onLevelStart, startCountdownOnly, cancelIntro } = useLevelIntro({
     content: COLORS_LEVEL_INTRO,
@@ -417,42 +438,6 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
   }, []);
 
   useEffect(() => {
-    // Initialize background music
-    if (!bgMusicRef.current) {
-      const audio = new Audio(bgMusic);
-      audio.loop = true;
-      audio.volume = 0.3; // Set to 30% volume so it doesn't overpower voice
-      bgMusicRef.current = audio;
-
-      if (musicEnabled) {
-        audio.play().catch(() => {
-          // Browser may require user interaction to autoplay
-        });
-      }
-    }
-
-    return () => {
-      // Cleanup on unmount
-      if (bgMusicRef.current) {
-        bgMusicRef.current.pause();
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    // Handle music enabled/disabled toggle
-    if (bgMusicRef.current) {
-      if (musicEnabled && !isVoiceSpeakingRef.current) {
-        bgMusicRef.current.play().catch(() => {
-          // ignore play errors
-        });
-      } else {
-        bgMusicRef.current.pause();
-      }
-    }
-  }, [musicEnabled]);
-
-  useEffect(() => {
     // reset level state when level changes
     const level = LEVELS[levelIndex] ?? LEVELS[0];
     setItems(level.items);
@@ -496,7 +481,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
   useEffect(() => {
     if (!timerRunning || !isLandscape) return;
     if (countdown !== null) return;
-    if (timeUpOpen || finalCompleteOpen || levelCompleteOpen) return;
+    if (timeUpOpen || gameOverOpen || finalCompleteOpen || levelCompleteOpen || paused) return;
     if (timeLeft <= 0) {
       setTimerRunning(false);
       setTimeUpOpen(true);
@@ -521,19 +506,20 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
     totalAllItems,
     wrongAttempts,
     isLandscape,
+    paused,
   ]);
 
   useEffect(() => {
     // 5-second warning voice + beep
     if (!timerRunning) return;
     if (countdown !== null) return;
-    if (timeUpOpen || finalCompleteOpen || levelCompleteOpen) return;
+    if (timeUpOpen || gameOverOpen || finalCompleteOpen || levelCompleteOpen || paused) return;
     if (timeLeft > 5 || timeLeft <= 0) return;
     if (warnedSecondsRef.current.has(timeLeft)) return;
     warnedSecondsRef.current.add(timeLeft);
     sayKid(String(timeLeft), { interrupt: true, skipDedupe: true });
     playKidBeep(timeLeft);
-  }, [timerRunning, countdown, timeLeft, timeUpOpen, finalCompleteOpen, levelCompleteOpen]);
+  }, [timerRunning, countdown, timeLeft, timeUpOpen, finalCompleteOpen, levelCompleteOpen, paused]);
 
   const saveProgress = async (score: number, finished: boolean, attempts: number) => {
     if (!childId) return;
@@ -543,7 +529,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
 
   const handleDragEnd = (event: DragEndEvent) => {
     if (levelIntroActive || countdown !== null) return;
-    if (timeUpOpen || finalCompleteOpen || levelCompleteOpen) return;
+    if (timeUpOpen || gameOverOpen || finalCompleteOpen || levelCompleteOpen || paused) return;
     const itemId = String(event.active.id);
     const overId = event.over?.id ? String(event.over.id) : null;
 
@@ -595,7 +581,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
       void saveProgress(score, finishedAll, wrongAttempts);
 
       if (finishedLevel) {
-        void completeLevel(levelIndex);
+        void completeLevel(levelIndex, { timeLeft, wrongAttempts });
         setTimerRunning(false);
         if (finishedAll) {
           setFinalCompleteOpen(true);
@@ -604,7 +590,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
         } else {
           setLevelCompleteOpen(true);
           setMessage(`Awesome! ${LEVELS[levelIndex]?.name ?? "Level"} complete!`);
-          sayKid("Awesome! Level complete!", { interrupt: true, skipDedupe: true });
+          sayKid(NEXT_LEVEL_SPEECH, { interrupt: true, skipDedupe: true });
         }
       }
     } else {
@@ -679,13 +665,14 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
     <div className="colors-page" data-level={levelIndex + 1} ref={pageRef}>
       {mapOpen && (
         <QuestLevelSelect
-          title="Colors Quest"
+          title="Color Quest"
           unlockedCount={unlockedCount}
+          levelStars={levelStars}
           onSelectLevel={(index) => {
             setLevelIndex(index);
             setMapOpen(false);
           }}
-          onBack={() => navigate("/lesson/colors", { replace: true })}
+          onBack={() => navigate("/quest/colors")}
         />
       )}
       {mobileApp && !isLandscape && (
@@ -696,38 +683,19 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
           <span className="cq-turn-arrow" aria-hidden="true">↻</span>
         </div>
       )}
-      <button className="cq-back-btn" onClick={() => navigate("/lesson/colors", { replace: true })}>
-        {"\u2190"} Back
+      <button className="cq-back-btn" onClick={() => setMapOpen(true)}>
+        {"\u2190"} Map
       </button>
 
       <h1 className="cq-title">Sort the Colors!</h1>
       <div className="cq-level-meta-row">
         <div className="cq-level-meta">
           <strong className="cq-level-pill">Level {levelIndex + 1}</strong>
+          <LiveStarHud timeLeft={timeLeft} tried={totalCorrect > 0 || wrongAttempts > 0} wrong={wrongAttempts} />
           <span className="cq-timer-pill">⏱ {timeLeft}s</span>
         </div>
         <div className="cq-sound-buttons">
-          <button
-            type="button"
-            className="cq-sound-toggle cq-music-toggle"
-            onClick={() => {
-              setMusicEnabled((prev) => {
-                const next = !prev;
-                if (bgMusicRef.current) {
-                  if (next && !isVoiceSpeakingRef.current) {
-                    bgMusicRef.current.play().catch(() => {});
-                  } else {
-                    bgMusicRef.current.pause();
-                  }
-                }
-                return next;
-              });
-            }}
-            aria-label={musicEnabled ? "Mute music" : "Unmute music"}
-            title={musicEnabled ? "Mute Music" : "Unmute Music"}
-          >
-            {musicEnabled ? "🎵" : "🔇"}
-          </button>
+          <ChildMusicToggle />
           <button
             type="button"
             className="cq-sound-toggle cq-effects-toggle"
@@ -745,12 +713,14 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
           >
             {soundEnabled ? "🔊" : "🔇"}
           </button>
+          <GamePauseButton onClick={() => setPaused(true)} />
         </div>
       </div>
 
       <div className="cq-bear" aria-hidden="true">🧸</div>
 
       <DndContext sensors={sensors} onDragMove={handleDragMove} onDragEnd={handleDragEnd}>
+        <div className="cq-play">
         <div className="cq-items-area">
           {items.map((item) => (
             <DraggableItem
@@ -762,22 +732,22 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
         </div>
 
         <div className="cq-baskets-row">
-          {activeColors.filter((c) => !completedBasketColors.has(c)).map((c) => (
+          {activeColors.map((c) => (
             <Basket
               key={c}
               id={c}
               label={`${COLOR_LABELS[c]} Basket`}
               basketColor={c}
+              isComplete={completedBasketColors.has(c)}
             >
               {groupedPlaced[c].map((item) => (
                 <div key={item.id} className="cq-basket-item">
-                  <span className="cq-basket-emoji" aria-hidden="true">
-                    {item.emoji}
-                  </span>
+                  <ItemGlyph item={item} className="cq-basket-emoji" />
                 </div>
               ))}
             </Basket>
           ))}
+        </div>
         </div>
       </DndContext>
 
@@ -793,6 +763,13 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
         content={COLORS_LEVEL_INTRO}
       />
 
+      <GamePausePopup
+        open={paused}
+        subtitle="Ready to keep sorting colors?"
+        onPlay={() => setPaused(false)}
+        onMap={() => { setPaused(false); setMapOpen(true); }}
+      />
+
       {countdown !== null && (
         <GameOverlay isOpen={countdown !== null}>
           <GamePopup
@@ -802,6 +779,19 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
         </GameOverlay>
       )}
 
+      <GameOverPopup
+        open={gameOverOpen}
+        onLesson={() => navigate("/lesson/colors")}
+        onReplay={() => {
+          setGameOverOpen(false);
+          setPlaced({});
+          setWrongAttempts(0);
+          startCountdownOnly();
+          setTimeLeft(LEVELS[levelIndex]?.time ?? 30);
+          setTimerRunning(false);
+          warnedSecondsRef.current = new Set();
+        }}
+      />
       {timeUpOpen && (
         <GameOverlay isOpen={timeUpOpen}>
           <GamePopup

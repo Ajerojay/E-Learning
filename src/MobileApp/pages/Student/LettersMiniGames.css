@@ -1,0 +1,395 @@
+@import "./ShapesMiniGames.css";
+
+.lmm,
+.lat {
+  height: 100dvh;
+  overflow: hidden;
+  background: linear-gradient(180deg, #fff8c4 0%, #ffe98a 55%, #fff3b8 100%);
+  color: #4a3d28;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+
+.lmm .ssm-title,
+.lat .ssm-title {
+  flex: 0 0 auto;
+  margin: 2px 0 0;
+  font-size: clamp(22px, 4.2vw, 34px);
+  text-shadow: 0 2px 0 rgba(255, 255, 255, 0.4);
+}
+
+.lmm .ssm-meta,
+.lat .ssm-meta {
+  flex: 0 0 auto;
+  margin: 4px 0 6px;
+}
+
+.lmm .ssm-board,
+.lat .ssm-board {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  overflow: hidden;
+  padding: 0 56px 4px;
+}
+
+.lmm .cq-panel,
+.lat .cq-panel {
+  position: relative;
+  flex: 0 0 auto;
+  z-index: 10;
+  width: min(720px, calc(100% - 24px));
+  min-height: 44px;
+  margin: 0 auto 6px;
+  padding: 6px 12px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 18px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.lmm .cq-message,
+.lat .cq-message {
+  margin: 0 0 2px;
+  font-size: clamp(13px, 2vw, 18px);
+  font-weight: 700;
+  color: rgba(85, 70, 62, 0.95);
+}
+
+.lmm .cq-score,
+.lat .cq-score {
+  margin: 0;
+  font-size: clamp(12px, 1.7vw, 16px);
+  color: #4e4e4e;
+}
+
+.lmm-play {
+  flex: 1 1 0;
+  min-height: 0;
+  width: min(920px, 100%);
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  align-items: center;
+  justify-items: center;
+  gap: 8px;
+}
+
+.lmm-row {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(12px, 3vw, 32px);
+  flex-wrap: nowrap;
+}
+
+.lmm-drop,
+.lmm-animal {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+  touch-action: none;
+}
+
+.lmm-animal--baby {
+  cursor: grab;
+}
+
+.lmm-animal--ghost {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.lmm-drop.is-over .lmm-card {
+  outline: 4px solid rgba(255, 255, 255, 0.9);
+  transform: translateY(-3px);
+}
+
+.lmm-drop.is-reunited {
+  gap: 4px;
+}
+
+.lmm-heart {
+  color: #e45d6b;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.lmm-card {
+  position: relative;
+  width: clamp(72px, 14vh, 108px);
+  padding: 6px 6px 6px;
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  box-shadow: 0 7px 0 rgba(150, 120, 40, 0.12);
+}
+
+.lmm-card--baby {
+  width: clamp(66px, 12.5vh, 96px);
+}
+
+.lmm-portrait {
+  width: clamp(40px, 8vh, 58px);
+  height: clamp(40px, 8vh, 58px);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.75);
+  font-size: clamp(24px, 5vh, 36px);
+  line-height: 1;
+}
+
+.lmm-card--baby .lmm-portrait {
+  width: clamp(34px, 7vh, 48px);
+  height: clamp(34px, 7vh, 48px);
+  font-size: clamp(20px, 4.4vh, 28px);
+}
+
+.lmm-tile {
+  min-width: 28px;
+  min-height: 26px;
+  padding: 0 7px;
+  border-radius: 8px;
+  font-weight: 900;
+  font-size: clamp(15px, 2.8vh, 20px);
+  box-shadow: 0 3px 0 rgba(80, 60, 20, 0.12);
+}
+
+.lmm-card small {
+  font-weight: 800;
+  color: #6d5c3e;
+  font-size: 11px;
+}
+
+.lmm-pager {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  z-index: 3;
+}
+
+.lmm-pager span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(90, 70, 40, 0.22);
+}
+
+.lmm-pager .is-on {
+  background: #c9a227;
+  transform: scale(1.15);
+}
+
+.lmm-pager .is-done {
+  background: #7cb342;
+}
+
+.lmm .ssm-bear {
+  position: absolute;
+  left: 6px;
+  bottom: 4px;
+  width: clamp(48px, 9vh, 72px);
+  height: auto;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.lat-blocks {
+  width: min(720px, 100%);
+  min-height: 64px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lat-block {
+  appearance: none;
+  width: clamp(46px, 8vh, 62px);
+  height: clamp(46px, 8vh, 62px);
+  border: 0;
+  border-radius: 14px;
+  font: inherit;
+  font-size: clamp(20px, 4vh, 28px);
+  font-weight: 900;
+  color: #4a3d28;
+  box-shadow: 0 6px 0 rgba(120, 90, 40, 0.16);
+  cursor: grab;
+  touch-action: none;
+}
+
+.lat-block--parked {
+  width: clamp(36px, 6.5vh, 48px);
+  height: clamp(36px, 6.5vh, 48px);
+  font-size: clamp(16px, 3.4vh, 24px);
+  box-shadow: 0 4px 0 rgba(120, 90, 40, 0.14);
+  pointer-events: none;
+}
+
+.lat-rail {
+  width: min(960px, 100%);
+  overflow: hidden;
+  padding: 8px 0 18px;
+}
+
+.lat-track {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 8px;
+  min-height: 88px;
+  padding: 8px 8px 0;
+  transform: translateX(0);
+  transition: transform 0.95s cubic-bezier(0.22, 0.8, 0.28, 1);
+  will-change: transform;
+}
+
+.lat-track.is-enter {
+  transform: translateX(110vw);
+  transition: none;
+}
+
+.lat-track.is-parked {
+  transform: translateX(0);
+}
+
+.lat-track.is-exit {
+  transform: translateX(-120vw);
+  transition: transform 0.95s ease-in;
+}
+
+.lat-engine {
+  font-size: clamp(44px, 9vh, 64px);
+  line-height: 1;
+  transform: scaleX(-1);
+  filter: drop-shadow(0 8px 0 rgba(120, 90, 40, 0.12));
+}
+
+.lat-car {
+  width: clamp(52px, 9vh, 72px);
+  height: clamp(42px, 7.5vh, 58px);
+  border: 3px dashed rgba(180, 150, 70, 0.55);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.45);
+  display: grid;
+  place-items: center;
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.lat-car::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -10px;
+  height: 10px;
+  border-radius: 999px;
+  background: repeating-linear-gradient(90deg, #8a7a5a 0 10px, transparent 10px 16px);
+}
+
+.lat-car.is-over {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: #c9a227;
+}
+
+.lat-car.is-filled {
+  border-style: solid;
+  border-color: #c9a227;
+  background: #fff8dc;
+}
+
+.lat-conductor {
+  position: absolute;
+  left: 8px;
+  bottom: 4px;
+  width: clamp(48px, 9vh, 72px);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.lat-conductor img {
+  width: 100%;
+  height: auto;
+}
+
+@media (orientation: landscape) {
+  .lmm .ssm-map-btn,
+  .lat .ssm-map-btn {
+    top: max(8px, env(safe-area-inset-top));
+  }
+
+  .lmm .ssm-title,
+  .lat .ssm-title {
+    font-size: clamp(18px, 3.2vw, 26px);
+    margin-top: 0;
+  }
+
+  .lmm .ssm-meta,
+  .lat .ssm-meta {
+    margin: 2px 0 4px;
+    gap: 6px;
+  }
+
+  .lmm-play {
+    gap: 4px;
+  }
+
+  .lmm-row {
+    gap: clamp(10px, 2.2vw, 22px);
+  }
+
+  .lmm-card {
+    width: 78px;
+    padding: 5px 5px 5px;
+  }
+
+  .lmm-card--baby {
+    width: 70px;
+  }
+
+  .lmm-portrait {
+    width: 38px;
+    height: 38px;
+    font-size: 24px;
+  }
+
+  .lmm-card--baby .lmm-portrait {
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+  }
+
+  .lmm-tile {
+    min-width: 26px;
+    min-height: 22px;
+    font-size: 15px;
+  }
+
+  .lmm .ssm-bear {
+    width: 42px;
+    left: 8px;
+    bottom: 2px;
+  }
+
+  .lat-blocks {
+    min-height: 52px;
+  }
+}

@@ -1,0 +1,16 @@
+.child-music-toggle {
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  color: #31415c;
+  font-size: 18px;
+  line-height: 1;
+  box-shadow: 0 6px 14px rgba(40, 40, 70, 0.14);
+  cursor: pointer;
+}

@@ -14,7 +14,8 @@
 }
 
 .pattern.logic-bg-image {
-  min-height: 100vh;
+  min-height: 100dvh;
+  background-color: #8f7aad;
   background-image: url("./images/logic-bg.jpg");
   background-size: cover;
   background-position: center;

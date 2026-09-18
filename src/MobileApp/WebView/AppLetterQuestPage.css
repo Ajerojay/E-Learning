@@ -22,8 +22,8 @@
   .cq-page .cq-sound-toggle { width: 46px; height: 46px; border-radius: 999px; }
   .cq-page > .game-container { flex: 1 1 auto; min-height: 390px; height: auto; overflow: hidden; }
   /* Keep the falling apples in the playable area and keep all baskets visible. */
-  .cq-page .apple { width: clamp(58px, 15vw, 82px); z-index: 7; }
-  .cq-page .apple--l3 { width: clamp(52px, 13vw, 72px); }
+  .cq-page .apple,
+  .cq-page .apple--l3 { width: clamp(64px, 16vw, 88px); height: clamp(64px, 16vw, 88px); object-fit: cover; object-position: center; top: 8%; z-index: 7; }
   .cq-page .bear { left: 50%; bottom: 74px; width: clamp(130px, 34vw, 190px); transform: translateX(-50%); z-index: 2; }
   .cq-page .basket-set { left: 50%; bottom: 4px; width: min(94%, 430px); transform: translateX(-50%); z-index: 5; }
   .cq-page .basket-img { width: 100%; max-width: 430px; }
@@ -77,33 +77,30 @@
 
 /* APP LANDSCAPE ONLY — responsive phones and tablets. */
 @media (orientation: landscape) and (max-width:1600px) {
-  .cq-page--mobile-app { width:100%; height:100dvh; min-height:0; padding:48px 10px 62px; overflow:hidden; scrollbar-width:none; }
+  .cq-page--mobile-app { width:100%; height:100dvh; min-height:0; padding:44px 10px 56px; overflow:hidden; scrollbar-width:none; }
   .cq-page--mobile-app::-webkit-scrollbar { display:none; }
   .cq-page .cq-back-btn { position:fixed; top:7px; left:8px; min-width:76px; min-height:38px; padding:7px 12px; font-size:13px; }
-  .cq-page .cq-title { position:absolute; top:0; left:0; width:100%; height:48px; transform:none; margin:0; padding:0 245px 0 88px; overflow:hidden; font-size:clamp(22px,3.6vw,31px); line-height:42px; text-align:center; white-space:nowrap; text-overflow:ellipsis; }
+  .cq-page .cq-title { position:absolute; top:0; left:0; width:100%; height:44px; transform:none; margin:0; padding:0 220px 0 88px; overflow:hidden; font-size:clamp(20px,3.4vw,28px); line-height:42px; text-align:center; white-space:nowrap; text-overflow:ellipsis; color:#fff8ee; text-shadow:0 2px 0 rgba(50,70,30,.4),0 4px 12px rgba(0,0,0,.28); }
   .cq-page .cq-level-meta-row { position:fixed; top:7px; right:10px; z-index:20; display:flex; align-items:center; flex-wrap:nowrap; margin:0; gap:5px; }
   .cq-page .cq-level-meta,.cq-page .cq-sound-buttons { display:contents; }
   .cq-page .cq-level-pill,.cq-page .cq-timer-pill { display:flex; align-items:center; justify-content:center; min-height:38px; padding:0 9px; border-radius:999px; font-size:11px; font-weight:800; box-shadow:0 5px 12px rgba(0,0,0,.09); }
   .cq-page .cq-level-pill { background:rgba(255,255,255,.96); }
   .cq-page .cq-timer-pill { background:#dff2ff; }
   .cq-page .cq-sound-toggle { width:38px; height:38px; min-height:38px; padding:0; font-size:17px; }
-  .cq-page--mobile-app > .game-container { flex:0 0 auto; width:min(100%,1050px); height:calc(100dvh - 110px); min-height:340px; margin:0 auto; overflow:hidden; transform:none; }
-  .cq-page--mobile-app .apple { width:clamp(56px,7.5vw,84px); z-index:8; }
-  .cq-page--mobile-app .apple--l3 { width:clamp(56px,7.5vw,84px); }
-  /* Compact landscape staging: bear and baskets stay above the footer. */
-  .cq-page--mobile-app .bear { left:clamp(14%,calc(50% - 250px),28%); bottom:92px; width:clamp(82px,12vw,132px); z-index:3; }
-  .cq-page--mobile-app .basket-set { left:54%; bottom:-13px; width:clamp(245px,38vw,390px); transform:translateX(-50%); z-index:6; }
-  .cq-page--mobile-app .basket-img { width:100%; max-width:390px; object-fit:contain; }
-  .cq-page--mobile-app .level3-baskets { width:100%; flex-wrap:nowrap; gap:4px; padding:0; align-items:flex-end; }
+  .cq-page--mobile-app > .game-container { flex:0 0 auto; width:min(100%,1050px); height:calc(100dvh - 100px); min-height:300px; margin:0 auto; overflow:hidden; transform:none; }
+  .cq-page--mobile-app .apple,
+  .cq-page--mobile-app .apple--l3 { width:72px; height:72px; object-fit:cover; object-position:center; top:9%; z-index:8; }
+  .cq-page--mobile-app .bear { left:12%; bottom:70px; width:clamp(72px,11vw,110px); z-index:3; }
+  .cq-page--mobile-app .basket-set { left:52%; bottom:8px; width:clamp(260px,40vw,400px); transform:translateX(-50%); z-index:6; }
+  .cq-page--mobile-app .basket-img { width:100%; max-width:400px; object-fit:contain; }
+  .cq-page--mobile-app .level3-baskets { width:100%; flex-wrap:nowrap; gap:6px; padding:0; align-items:flex-end; }
   .cq-page--mobile-app .letter-basket-zone { flex:1 1 0; min-width:0; display:grid; place-items:end center; }
-  .cq-page--mobile-app .level3-baskets .basket-img { width:100%; max-width:88px; }
-  /* Level 3 uses four separate basket images; align their floor with the
-     combined A/B/C basket artwork used by Levels 1 and 2. */
-  .cq-page--mobile-app .game-container.level-2 .basket-set { left:54%; bottom:45px; width:clamp(330px,48vw,510px); }
-  .cq-page--mobile-app .game-container.level-2 .level3-baskets { gap:clamp(4px,1vw,12px); }
-  .cq-page--mobile-app .game-container.level-2 .level3-baskets .basket-img { max-width:112px; }
-  .cq-page--mobile-app .game-container.level-2 .apple--l3 { width:clamp(56px,7.5vw,84px); }
-  .cq-page .cq-panel { position:absolute; right:6%; bottom:5px; left:6%; width:auto; min-height:48px; margin:0; padding:6px 12px; }
+  .cq-page--mobile-app .level3-baskets .basket-img { width:100%; max-width:92px; }
+  .cq-page--mobile-app .letter-pool .basket-set { left:52%; bottom:8px; width:clamp(320px,48vw,500px); }
+  .cq-page--mobile-app .letter-pool .level3-baskets { gap:clamp(4px,1vw,12px); }
+  .cq-page--mobile-app .letter-pool .level3-baskets .basket-img { max-width:108px; }
+  .cq-page--mobile-app .letter-pool .apple--l3 { width:72px; height:72px; }
+  .cq-page .cq-panel { position:absolute; right:5%; bottom:6px; left:5%; width:auto; min-height:44px; margin:0; padding:6px 12px; }
   .cq-page .cq-message,.cq-page .cq-score { margin:0; line-height:1.15; font-size:clamp(12px,1.8vw,16px); }
 }
 
@@ -115,13 +112,13 @@
 
 /* Extra-short phones retain the same design and scroll only when necessary. */
 @media (orientation: landscape) and (max-height:390px) {
-  .cq-page--mobile-app > .game-container { min-height:310px; }
-  .cq-page--mobile-app .bear { bottom:70px; width:78px; }
-  .cq-page--mobile-app .basket-set { bottom:-7px; width:235px; }
-  .cq-page--mobile-app .game-container.level-2 .basket-set { bottom:36px; width:310px; }
-  .cq-page--mobile-app .game-container.level-2 .level3-baskets .basket-img { max-width:70px; }
+  .cq-page--mobile-app > .game-container { min-height:280px; }
+  .cq-page--mobile-app .bear { bottom:58px; width:64px; }
+  .cq-page--mobile-app .basket-set,
+  .cq-page--mobile-app .letter-pool .basket-set { bottom:6px; width:250px; }
+  .cq-page--mobile-app .letter-pool .level3-baskets .basket-img { max-width:70px; }
   .cq-page--mobile-app .apple,
-  .cq-page--mobile-app .game-container.level-2 .apple--l3 { width:54px; }
+  .cq-page--mobile-app .letter-pool .apple--l3 { width:58px; height:58px; top:7%; }
 }
 
 @keyframes cqLetterRotatePhone {

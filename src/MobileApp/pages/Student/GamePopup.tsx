@@ -1,18 +1,23 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Map, Pause, Play } from "lucide-react";
+import { speakKidPrompt } from "../../nativeTts";
 import "./GamePopup.css";
 
 type GamePopupVariant = "primary" | "secondary" | "yes" | "no";
+
+type GamePopupButton = {
+  label: React.ReactNode;
+  speak?: string;
+  onClick: () => void;
+  variant?: GamePopupVariant;
+};
 
 interface GamePopupProps {
   isOpen: boolean;
   title?: React.ReactNode;
   subtitle?: React.ReactNode;
   children?: React.ReactNode;
-  buttons?: Array<{
-    label: string;
-    onClick: () => void;
-    variant?: GamePopupVariant;
-  }>;
+  buttons?: GamePopupButton[];
 }
 
 export interface GameConfirmPopupProps {
@@ -60,7 +65,13 @@ const getFriendlyIntro = (title: string, subtitle: string) => {
   if (/proceed to level \d+\?/i.test(subtitle.trim())) {
     return subtitle.replace(/proceed to level (\d+)\?/i, "Do you want to proceed to level $1?");
   }
-  if (/(time'?s up|oops|try again|oh no|not quite|failed|almost)/.test(lower)) {
+  if (/proceed to the next level\?/i.test(subtitle.trim())) {
+    return "Do you want to proceed to the next level?";
+  }
+  if (/(time'?s up|oops|try again|oh no|not quite|failed|almost|game over)/.test(lower)) {
+    if (/game over/i.test(lower)) {
+      return "Oh no! That's game over. Too many tries, so the next level stays locked. You can go back to the lesson, or replay this level.";
+    }
     return `Oh no! ${subtitle}`;
   }
   if (/(level complete|congratulations|great job|awesome|you finished|you sorted|you did it)/.test(lower)) {
@@ -70,6 +81,20 @@ const getFriendlyIntro = (title: string, subtitle: string) => {
     return `Great job! ${subtitle}`;
   }
   return subtitle || title;
+};
+
+const isYesNoButtons = (buttons?: GamePopupButton[]) => {
+  const labels = (buttons ?? []).map((btn) => (btn.speak ?? getText(btn.label)).trim().toLowerCase());
+  return labels.includes("yes") && labels.includes("no");
+};
+
+const nextLevelQuestion = (subtitle: string) => {
+  const numbered = subtitle.match(/proceed to level (\d+)\?/i);
+  if (numbered) return `Do you want to proceed to level ${numbered[1]}?`;
+  if (/proceed to the next level/i.test(subtitle)) return "Do you want to proceed to the next level?";
+  const proceed = subtitle.match(/proceed to ([^?]+)\?/i);
+  if (proceed) return `Do you want to proceed to ${proceed[1].trim()}?`;
+  return "Do you want to proceed to the next level?";
 };
 
 const getVoice = (): SpeechSynthesisVoice | null => {
@@ -90,21 +115,14 @@ const speak = (
     onEnd?: () => void;
   }
 ) => {
-  if (!text || !("speechSynthesis" in window)) return;
-  if (options?.interrupt !== false) {
-    window.speechSynthesis.cancel();
-  }
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "en-US";
-  utterance.rate = 0.9;
-  utterance.pitch = 1.1;
-  utterance.volume = 1;
-  const voice = getVoice();
-  if (voice) utterance.voice = voice;
-  utterance.onstart = () => options?.onStart?.();
-  utterance.onend = () => options?.onEnd?.();
-  utterance.onerror = () => options?.onEnd?.();
-  window.speechSynthesis.speak(utterance);
+  if (!text) return;
+  speakKidPrompt(text, {
+    interrupt: options?.interrupt !== false,
+    rate: 0.92,
+    pitch: 1.22,
+    onEnd: options?.onEnd,
+  });
+  options?.onStart?.();
 };
 
 export function GameOverlay({
@@ -131,14 +149,26 @@ export function GamePopup({
   const titleText = getText(title);
   const subtitleSpeech = getText(subtitle, true);
   const intro = getFriendlyIntro(titleText, subtitleSpeech);
-  const buttonSpeak = buttons?.map((btn) => btn.label).filter(Boolean).join(" or ") ?? "";
+  const yesNoNextLevel =
+    isYesNoButtons(buttons) &&
+    /awesome|congratulations|great job|level complete|you finished|you did it|you sorted/i.test(titleText);
+  const buttonSpeak =
+    buttons
+      ?.map((btn) => btn.speak ?? getText(btn.label))
+      .filter(Boolean)
+      .join(" or ") ?? "";
   const speakText = useMemo(() => {
+    if (/game over/i.test(titleText)) {
+      return [intro, buttonSpeak].map((piece) => piece.trim()).filter(Boolean).join(". ");
+    }
+    if (yesNoNextLevel) {
+      return `${nextLevelQuestion(subtitleSpeech)} Yes, or no?`;
+    }
     const pieces = [titleText];
     if (intro && intro !== titleText) pieces.push(intro);
     if (buttonSpeak) pieces.push(buttonSpeak);
-    if (pieces.length === 0) return "";
-    return pieces.join(". ");
-  }, [titleText, intro, buttonSpeak]);
+    return pieces.map((piece) => piece.trim()).filter(Boolean).join(". ");
+  }, [titleText, intro, buttonSpeak, yesNoNextLevel, subtitleSpeech]);
 
   const [isInitialSpeaking, setIsInitialSpeaking] = useState(false);
   const [initialSpeechStarted, setInitialSpeechStarted] = useState(false);
@@ -171,7 +201,7 @@ export function GamePopup({
   };
 
   return (
-    <div className="game-popup">
+    <div className={`game-popup${/game over/i.test(getText(title)) ? " game-popup--over" : ""}`}>
       {title && <div className="game-popup-title">{title}</div>}
       {subtitle && <div className="game-popup-subtitle">{subtitle}</div>}
       {children && <div className="game-popup-content">{children}</div>}
@@ -181,7 +211,7 @@ export function GamePopup({
             <button
               key={idx}
               onClick={btn.onClick}
-              onMouseEnter={() => handleHover(btn.label)}
+              onMouseEnter={() => handleHover(btn.speak ?? getText(btn.label))}
               className={`game-popup-btn ${btn.variant || "primary"}`}
             >
               {btn.label}
@@ -226,5 +256,117 @@ export function GameConfirmPopup({
 
 export function Countdown({ value }: { value: number }) {
   return <div className="game-countdown">{value}</div>;
+}
+
+export function GamePauseButton({
+  onClick,
+  className,
+}: {
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      className={`game-pause-btn${className ? ` ${className}` : ""}`}
+      onClick={onClick}
+      aria-label="Pause"
+    >
+      <Pause size={18} strokeWidth={2.75} aria-hidden="true" />
+    </button>
+  );
+}
+
+function PausePopupLabel({
+  icon,
+  text,
+}: {
+  icon: React.ReactNode;
+  text: string;
+}) {
+  return (
+    <span className="game-popup-btn-inner">
+      {icon}
+      {text}
+    </span>
+  );
+}
+
+export function GamePausePopup({
+  open,
+  subtitle,
+  onPlay,
+  onMap,
+}: {
+  open: boolean;
+  subtitle?: React.ReactNode;
+  onPlay: () => void;
+  onMap: () => void;
+}) {
+  return (
+    <GameOverlay isOpen={open}>
+      <GamePopup
+        title="Paused"
+        subtitle={subtitle}
+        buttons={[
+          {
+            label: (
+              <PausePopupLabel
+                icon={<Play size={18} strokeWidth={2.4} fill="currentColor" aria-hidden="true" />}
+                text="Play"
+              />
+            ),
+            speak: "Play",
+            variant: "yes",
+            onClick: onPlay,
+          },
+          {
+            label: (
+              <PausePopupLabel
+                icon={<Map size={18} strokeWidth={2.4} aria-hidden="true" />}
+                text="Map"
+              />
+            ),
+            speak: "Map",
+            variant: "no",
+            onClick: onMap,
+          },
+        ]}
+      />
+    </GameOverlay>
+  );
+}
+
+export function GameOverPopup({
+  open,
+  onLesson,
+  onReplay,
+}: {
+  open: boolean;
+  onLesson: () => void;
+  onReplay: () => void;
+}) {
+  return (
+    <GameOverlay isOpen={open}>
+      <GamePopup
+        title="Game Over"
+        subtitle="Too many tries! The next level stays locked until you do better."
+        buttons={[
+          {
+            label: "Back to Lesson",
+            speak: "Back to lesson",
+            variant: "secondary",
+            onClick: onLesson,
+          },
+          {
+            label: "Replay Level",
+            speak: "Replay level",
+            variant: "primary",
+            onClick: onReplay,
+          },
+        ]}
+      />
+    </GameOverlay>
+  );
 }
 

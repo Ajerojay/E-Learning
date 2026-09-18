@@ -6,17 +6,18 @@ import {
   loadPrimaryGameCodeForCategory,
   recordGameProgressRpc,
 } from "../../../lib/gameProgressDb";
-import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
+import { GameOverlay, GamePopup, Countdown, GamePauseButton, GamePausePopup, GameOverPopup } from "./GamePopup";
 import {
   useLevelIntro,
   LevelIntroOverlay,
   COUNTDOWN_READY_SUBTITLE,
   type LevelIntroContent,
 } from "./levelIntro";
-import bgMusic from "./bg-music-loop.mp3";
 import { speakNative } from "../../nativeTts";
 import QuestLevelSelect from "./QuestLevelSelect";
-import { useQuestLevelGate } from "./questLevelMap";
+import ChildMusicToggle from "./ChildMusicToggle";
+import { useQuestLevelGate, useStarTimeUp, useWrongAttemptGameOver } from "./questLevelMap";
+import { LiveStarHud } from "./LevelStars";
 
 import bear from "./images/bear-2.png";
 
@@ -73,11 +74,12 @@ export default function LetterQuestPage({ mobileApp = false }: { mobileApp?: boo
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
   const isVoiceSpeakingRef = useRef(false);
   const [levelIndex, setLevelIndex] = useState(0);
-  const { mapOpen, setMapOpen, unlockedCount, completeLevel } = useQuestLevelGate("letters");
+  const { mapOpen, setMapOpen, unlockedCount, levelStars, completeLevel, recordLevelResult } = useQuestLevelGate("letters");
   const [playSession, setPlaySession] = useState(0);
   const [placedIds, setPlacedIds] = useState<number[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [wrongAttempts, setWrongAttempts] = useState(0);
+  const [gameOverOpen, setGameOverOpen] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [hasPlayed, setHasPlayed] = useState(false);
   const [proceedPromptLevel, setProceedPromptLevel] = useState<number | null>(
@@ -94,6 +96,7 @@ export default function LetterQuestPage({ mobileApp = false }: { mobileApp?: boo
   const [childId, setChildId] = useState<string | null>(null);
   const [gameCode, setGameCode] = useState<string | null>(null);
   const [musicEnabled, setMusicEnabled] = useState(true);
+  const [paused, setPaused] = useState(false);
   const [isLandscape, setIsLandscape] = useState(
     () => !mobileApp || window.matchMedia("(orientation: landscape)").matches
   );
@@ -112,19 +115,42 @@ export default function LetterQuestPage({ mobileApp = false }: { mobileApp?: boo
     offsetY: number;
   } | null>(null);
 
-  const makeLevel3Set = (count = 4) =>
+  const makeLetterPool = (count: number) =>
     [...level3Pool].sort(() => Math.random() - 0.5).slice(0, count);
 
-  const [level3Targets, setLevel3Targets] = useState(() => makeLevel3Set());
+  const [level3Targets, setLevel3Targets] = useState(() => makeLetterPool(3));
   const [level3Remaining, setLevel3Remaining] = useState(() => level3Targets);
+  const [letterDeck, setLetterDeck] = useState(() => makeLetterPool(6));
+  const [poolPage, setPoolPage] = useState(0);
+  const usesLetterPool = levelIndex >= 1;
+  const poolPageSize = 3;
+  const poolPageCount = Math.max(1, Math.ceil(letterDeck.length / poolPageSize));
+
+  const applyPoolPage = (deck: typeof level3Pool, page: number) => {
+    const slice = deck.slice(page * poolPageSize, page * poolPageSize + poolPageSize);
+    setLetterDeck(deck);
+    setPoolPage(page);
+    setLevel3Targets(slice);
+    setLevel3Remaining(slice);
+  };
+
+  const startPoolLevel = () => {
+    applyPoolPage(makeLetterPool(6), 0);
+  };
 
   const currentApples = levels[levelIndex] || [];
-  const totalItems =
-    levelIndex === 2 ? level3Targets.length : currentApples.length;
-  const progress =
-    levelIndex === 2
-      ? level3Targets.length - level3Remaining.length
-      : placedIds.length;
+  const totalItems = usesLetterPool ? letterDeck.length : currentApples.length;
+  const progress = usesLetterPool
+    ? poolPage * poolPageSize + (level3Targets.length - level3Remaining.length)
+    : placedIds.length;
+
+  useStarTimeUp(timeUpOpen, levelIndex, progress > 0 || wrongAttempts > 0, recordLevelResult, wrongAttempts);
+  const onTooManyWrong = useCallback(() => {
+    setGameOverOpen(true);
+    setTimerRunning(false);
+    void recordLevelResult(levelIndex, { finished: false, tried: true, wrongAttempts });
+  }, [levelIndex, recordLevelResult, wrongAttempts]);
+  useWrongAttemptGameOver(wrongAttempts, onTooManyWrong);
 
   const canProceedAfterTimeUp = false;
 
@@ -181,37 +207,6 @@ export default function LetterQuestPage({ mobileApp = false }: { mobileApp?: boo
     };
     void load();
   }, []);
-
-  useEffect(() => {
-    // Initialize background music
-    if (!bgMusicRef.current) {
-      const audio = new Audio(bgMusic);
-      audio.loop = true;
-      audio.volume = 0.3;
-      bgMusicRef.current = audio;
-
-      if (musicEnabled) {
-        audio.play().catch(() => {});
-      }
-    }
-
-    return () => {
-      if (bgMusicRef.current) {
-        bgMusicRef.current.pause();
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    // Handle music enabled/disabled toggle
-    if (bgMusicRef.current) {
-      if (musicEnabled && !isVoiceSpeakingRef.current) {
-        bgMusicRef.current.play().catch(() => {});
-      } else {
-        bgMusicRef.current.pause();
-      }
-    }
-  }, [musicEnabled]);
 
   const persistLetterProgress = (
     levelIdx: number,
@@ -360,16 +355,14 @@ export default function LetterQuestPage({ mobileApp = false }: { mobileApp?: boo
   const resetCurrentLevel = () => {
     resetCommon();
     onLevelStart();
-    if (levelIndex === 2) {
-      const next = makeLevel3Set();
-      setLevel3Targets(next);
-      setLevel3Remaining(next);
+    if (usesLetterPool) {
+      startPoolLevel();
       setFinalCongratsOpen(false);
     }
   };
 
   const handleDragStart = (e: any, letter: string, id: number) => {
-    if (levelIntroActive || countdown !== null || timeUpOpen) return;
+    if (levelIntroActive || countdown !== null || timeUpOpen || gameOverOpen || paused) return;
     e.dataTransfer.setData("application/json", JSON.stringify({ letter, id }));
     setSelected(letter);
     setTimerRunning(true);
@@ -384,7 +377,7 @@ export default function LetterQuestPage({ mobileApp = false }: { mobileApp?: boo
     id: number
   ) => {
     if (e.pointerType === "mouse") return;
-    if (levelIntroActive || countdown !== null || timeUpOpen) return;
+    if (levelIntroActive || countdown !== null || timeUpOpen || gameOverOpen || paused) return;
     e.preventDefault();
 
     // Clear any stale visual state left by a very fast release/re-grab gesture.
@@ -451,7 +444,7 @@ export default function LetterQuestPage({ mobileApp = false }: { mobileApp?: boo
     e.currentTarget.style.pointerEvents = "none";
     const hit = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
     e.currentTarget.style.pointerEvents = previousPointerEvents;
-    const dropTarget = levelIndex === 2
+    const dropTarget = usesLetterPool
       ? hit?.closest<HTMLElement>(".letter-basket-zone")
       : hit?.closest<HTMLElement>(".basket-zone");
 
@@ -472,7 +465,7 @@ export default function LetterQuestPage({ mobileApp = false }: { mobileApp?: boo
   };
 
 const handleDrop = (e: any) => {
-  if (levelIntroActive || countdown !== null || timeUpOpen) return;
+  if (levelIntroActive || countdown !== null || timeUpOpen || gameOverOpen || paused) return;
 
   e.preventDefault();
 
@@ -487,8 +480,8 @@ const handleDrop = (e: any) => {
   setHasPlayed(true);
   setTimerRunning(true);
 
-  // LEVEL 3
-  if (levelIndex === 2) {
+  // LETTER POOL (levels 2 and 3)
+  if (usesLetterPool) {
     const targetLetter = e.currentTarget.dataset.target ?? "";
     const match = level3Remaining.find(
       (b) => b.letter === letter && b.letter === targetLetter
@@ -519,25 +512,37 @@ const handleDrop = (e: any) => {
       setLevel3Remaining(updated);
 
       if (updated.length === 0) {
-        void completeLevel(2);
-        setFinalCongratsOpen(true);
-        sayKid(
-          "Congratulations! Amazing work! You completed all letter levels!",
-          { interrupt: true, skipDedupe: true }
-        );
-
-        persistLetterProgress(
-          2,
-          level3Targets.length,
-          level3Targets.length,
-          true,
-          wrongAttempts
-        );
+        const nextPage = poolPage + 1;
+        const doneCount = nextPage * poolPageSize;
+        if (nextPage < poolPageCount) {
+          persistLetterProgress(levelIndex, doneCount, letterDeck.length, false, wrongAttempts);
+          applyPoolPage(letterDeck, nextPage);
+          setFeedback("Great! More letters are coming!");
+          speakFeedback("More letters!");
+        } else {
+          void completeLevel(levelIndex, { timeLeft, wrongAttempts });
+          persistLetterProgress(
+            levelIndex,
+            letterDeck.length,
+            letterDeck.length,
+            levelIndex >= 2,
+            wrongAttempts
+          );
+          if (levelIndex >= 2) {
+            setFinalCongratsOpen(true);
+            sayKid(
+              "Congratulations! Amazing work! You completed all letter levels!",
+              { interrupt: true, skipDedupe: true }
+            );
+          } else {
+            setProceedPromptLevel(levelIndex);
+          }
+        }
       } else {
         persistLetterProgress(
-          2,
-          level3Targets.length - updated.length,
-          level3Targets.length,
+          levelIndex,
+          poolPage * poolPageSize + (level3Targets.length - updated.length),
+          letterDeck.length,
           false,
           wrongAttempts
         );
@@ -565,9 +570,9 @@ const handleDrop = (e: any) => {
       speakFeedback("Try again!");
 
       persistLetterProgress(
-        2,
-        level3Targets.length - level3Remaining.length,
-        level3Targets.length,
+        levelIndex,
+        poolPage * poolPageSize + (level3Targets.length - level3Remaining.length),
+        letterDeck.length,
         false,
         nextWrong
       );
@@ -621,7 +626,7 @@ const handleDrop = (e: any) => {
     );
 
     if (updated.length === totalItems) {
-      void completeLevel(levelIndex);
+      void completeLevel(levelIndex, { timeLeft, wrongAttempts });
       setProceedPromptLevel(levelIndex);
     }
   } else {
@@ -660,11 +665,7 @@ const handleDrop = (e: any) => {
     resetCommon();
     setFinalCongratsOpen(false);
     setLevelIndex((prev) => Math.min(prev + 1, 2));
-    if (levelIndex + 1 === 2) {
-      const next = makeLevel3Set();
-      setLevel3Targets(next);
-      setLevel3Remaining(next);
-    }
+    if (levelIndex + 1 >= 1) startPoolLevel();
   };
 
   const handlePlayAgain = () => {
@@ -673,9 +674,6 @@ const handleDrop = (e: any) => {
     if (!mobileApp) setPlaySession((p) => p + 1);
     resetCommon();
     setLevelIndex(0);
-    const next = makeLevel3Set();
-    setLevel3Targets(next);
-    setLevel3Remaining(next);
     setFinalCongratsOpen(false);
   };
 
@@ -728,7 +726,7 @@ const handleDrop = (e: any) => {
   useEffect(() => {
     if (!timerRunning) return;
     if (levelIntroActive || countdown !== null) return;
-    if (proceedPromptLevel !== null || levelSummaryOpen || timeUpOpen || isFinished)
+    if (proceedPromptLevel !== null || levelSummaryOpen || timeUpOpen || isFinished || paused)
       return;
 
     if (timeLeft <= 0) {
@@ -750,12 +748,13 @@ const handleDrop = (e: any) => {
     timeUpOpen,
     isFinished,
     timeLeft,
+    paused,
   ]);
 
   useEffect(() => {
     if (!timerRunning) return;
     if (countdown !== null) return;
-    if (proceedPromptLevel !== null || levelSummaryOpen || timeUpOpen || isFinished)
+    if (proceedPromptLevel !== null || levelSummaryOpen || timeUpOpen || isFinished || paused)
       return;
     if (timeLeft > 5 || timeLeft <= 0) return;
     if (warnedSecondsRef.current.has(timeLeft)) return;
@@ -771,19 +770,22 @@ const handleDrop = (e: any) => {
     timeUpOpen,
     isFinished,
     timeLeft,
+    paused,
   ]);
 
   return (
     <div className={`cq-page${mobileApp ? " cq-page--mobile-app" : ""}${isFinished ? " cq-page--finished" : ""}`}>
       {mapOpen && (
         <QuestLevelSelect
-          title="Letters Quest"
+          title="Letter Quest"
           unlockedCount={unlockedCount}
+          levelStars={levelStars}
           onSelectLevel={(index) => {
             setLevelIndex(index);
+            if (index >= 1) startPoolLevel();
             setMapOpen(false);
           }}
-          onBack={() => navigate("/lesson/letters", { replace: true })}
+          onBack={() => navigate("/quest/letter", { replace: true })}
         />
       )}
       {mobileApp && !isLandscape && (
@@ -794,35 +796,19 @@ const handleDrop = (e: any) => {
           <span className="cq-turn-arrow" aria-hidden="true">↻</span>
         </div>
       )}
-      <button className="cq-back-btn" onClick={() => navigate("/lesson/letters", { replace: true })}>{"\u2190"} Back</button>
+      <button className="cq-back-btn" onClick={() => setMapOpen(true)}>{"\u2190"} Map</button>
       <h1 className="cq-title">Match the Letters!</h1>
       <div className="cq-level-meta-row">
         <div className="cq-level-meta">
           <strong className="cq-level-pill">Level {levelIndex + 1}</strong>
+          <LiveStarHud timeLeft={timeLeft} tried={progress > 0 || wrongAttempts > 0} wrong={wrongAttempts} />
+          {usesLetterPool ? (
+            <strong className="cq-level-pill">Page {poolPage + 1}/{poolPageCount}</strong>
+          ) : null}
           <span className="cq-timer-pill">⏱ {timeLeft}s</span>
         </div>
         <div className="cq-sound-buttons">
-          <button
-            type="button"
-            className="cq-sound-toggle cq-music-toggle"
-            onClick={() => {
-              setMusicEnabled((prev) => {
-                const next = !prev;
-                if (bgMusicRef.current) {
-                  if (next && !isVoiceSpeakingRef.current) {
-                    bgMusicRef.current.play().catch(() => {});
-                  } else {
-                    bgMusicRef.current.pause();
-                  }
-                }
-                return next;
-              });
-            }}
-            aria-label={musicEnabled ? "Mute music" : "Unmute music"}
-            title={musicEnabled ? "Mute Music" : "Unmute Music"}
-          >
-            {musicEnabled ? "🎵" : "🔇"}
-          </button>
+          <ChildMusicToggle />
           <button
             type="button"
             className="cq-sound-toggle cq-effects-toggle"
@@ -840,11 +826,12 @@ const handleDrop = (e: any) => {
           >
             {soundEnabled ? "🔊" : "🔇"}
           </button>
+          <GamePauseButton onClick={() => setPaused(true)} />
         </div>
       </div>
 
-      <div className={`game-container level-${levelIndex} ${
-        levelIntroActive || countdown !== null || timeUpOpen ||
+      <div className={`game-container level-${levelIndex}${usesLetterPool ? " letter-pool" : ""} ${
+        levelIntroActive || countdown !== null || timeUpOpen || paused ||
         proceedPromptLevel !== null || levelSummaryOpen || finalCongratsOpen
           ? "apples-paused"
           : ""
@@ -853,6 +840,13 @@ const handleDrop = (e: any) => {
           <LevelIntroOverlay
             isOpen={levelIntroActive && introEnabled}
             content={LETTER_GAME_INTRO}
+          />
+
+          <GamePausePopup
+            open={paused}
+            subtitle="Ready to match more letters?"
+            onPlay={() => setPaused(false)}
+            onMap={() => { setPaused(false); setMapOpen(true); }}
           />
 
           {countdown !== null && (
@@ -864,7 +858,17 @@ const handleDrop = (e: any) => {
             </GameOverlay>
           )}
 
-          {timeUpOpen && (
+          <GameOverPopup
+            open={gameOverOpen}
+            onLesson={() => navigate("/lesson/letters")}
+            onReplay={() => {
+              setGameOverOpen(false);
+              setWrongAttempts(0);
+              setTimeUpOpen(false);
+              setPlaySession((n) => n + 1);
+            }}
+          />
+          {timeUpOpen && !gameOverOpen && (
             <GameOverlay isOpen={timeUpOpen}>
               <GamePopup
                 title="⏰ Time's up!"
@@ -891,10 +895,10 @@ const handleDrop = (e: any) => {
                         ]
                       : [
                           {
-                            label: "Back to Lesson",
+                            label: "Back to Games",
                             onClick: () => {
                               setTimeUpOpen(false);
-                              navigate("/lesson/letters");
+                              navigate("/quest/letter");
                             },
                           },
                           {
@@ -908,10 +912,10 @@ const handleDrop = (e: any) => {
                         ]
                     : [
                         {
-                          label: "Back to Lesson",
+                          label: "Back to Games",
                           onClick: () => {
                             setTimeUpOpen(false);
-                            navigate("/lesson/letters");
+                            navigate("/quest/letter");
                           },
                           variant: "secondary",
                         },
@@ -961,10 +965,10 @@ const handleDrop = (e: any) => {
                 subtitle={`Progress: ${progress}/${totalItems} | Wrong Attempts: ${wrongAttempts}`}
                 buttons={[
                   {
-                    label: "Back to Lesson",
+                    label: "Back to Games",
                     onClick: () => {
                       setLevelSummaryOpen(false);
-                      navigate("/lesson/letters");
+                      navigate("/quest/letter");
                     },
                     variant: "no",
                   },
@@ -982,7 +986,7 @@ const handleDrop = (e: any) => {
           )}
 
           {/* APPLES */}
-          {levelIndex === 2
+          {usesLetterPool
             ? level3Remaining.map((a) => {
                 const slotIndex = level3Targets.findIndex((target) => target.letter === a.letter);
                 return (
@@ -1000,7 +1004,7 @@ const handleDrop = (e: any) => {
                     left: `${
                       level3Targets.length === 1
                         ? 50
-                        : 10 + (slotIndex * 80) / (level3Targets.length - 1)
+                        : 24 + (slotIndex * 52) / (level3Targets.length - 1)
                     }%`,
                   }}
                 />
@@ -1021,9 +1025,11 @@ const handleDrop = (e: any) => {
                       onPointerCancel={handleTouchDragCancel}
                       className={`apple ${selected === a.letter ? "selected" : ""} ${touchDragVisual?.id === a.id ? "apple--touch-dragging" : ""}`}
                       style={{
-                        left: `calc(50% + ${
-                          (i - (currentApples.length - 1) / 2) * 180
-                        }px)`,
+                        left: `${
+                          currentApples.length === 1
+                            ? 50
+                            : 26 + (i * 48) / (currentApples.length - 1)
+                        }%`,
                       }}
                     />
                   )
@@ -1032,7 +1038,7 @@ const handleDrop = (e: any) => {
           <img src={bear} className="bear" />
 
           <div className="basket-set">
-            {levelIndex === 2 ? (
+            {usesLetterPool ? (
               <div className="level3-baskets">
                 {level3Targets.map((b, i) => (
                   <div

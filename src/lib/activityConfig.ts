@@ -14,7 +14,7 @@ export type ActivityConfig = {
 const defaults: Record<SubjectKey, ActivityConfig> = {
   colors: { open: true, passingScore: 75, starReward: 15, levels: ["Easy", "Medium", "Hard"], instructions: "Sort each item into the correct color group.", timeLimit: 0 },
   letters: { open: true, passingScore: 75, starReward: 15, levels: ["Easy", "Medium", "Hard"], instructions: "Match each letter with the correct answer.", timeLimit: 0 },
-  logic: { open: true, passingScore: 75, starReward: 15, levels: ["Easy", "Medium", "Hard"], instructions: "Find the pattern and choose what comes next.", timeLimit: 0 },
+  logic: { open: true, passingScore: 75, starReward: 15, levels: ["Easy", "Medium", "Hard"], instructions: "Pick a logic game, then find patterns, sort by size, or tap the odd one out.", timeLimit: 0 },
   phonics: { open: true, passingScore: 75, starReward: 15, levels: ["Easy", "Medium", "Hard"], instructions: "Listen carefully and select the matching sound.", timeLimit: 0 },
   shapes: { open: true, passingScore: 75, starReward: 15, levels: ["Easy", "Medium", "Hard"], instructions: "Match each shape to the correct place.", timeLimit: 0 },
   numbers: { open: true, passingScore: 75, starReward: 15, levels: ["Easy", "Medium", "Hard"], instructions: "Count carefully and choose the correct number.", timeLimit: 0 },

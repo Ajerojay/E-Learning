@@ -1,0 +1,428 @@
+@import "./LettersMiniGames.css";
+
+.pmini {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  height: 100dvh;
+  min-height: 100dvh;
+  background: linear-gradient(180deg, #ffd6ea 0%, #ffe7f2 48%, #fff6d8 100%);
+  color: #5a3d4a;
+  padding-top: max(8px, env(safe-area-inset-top));
+  padding-right: max(8px, env(safe-area-inset-right));
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+  padding-left: max(8px, env(safe-area-inset-left));
+}
+
+.pmini .ssm-map-btn {
+  top: max(8px, env(safe-area-inset-top));
+  left: max(8px, env(safe-area-inset-left));
+  min-height: 34px;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.pmini .ssm-title {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 0 86px;
+  font-size: clamp(16px, 3.4vw, 24px);
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 2px 0 rgba(255, 255, 255, 0.4);
+}
+
+.pmini .ssm-meta {
+  flex: 0 0 auto;
+  width: min(100%, 520px);
+  margin: 2px 0 4px;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.pmini .ssm-pill,
+.pmini .ssm-sound,
+.pmini .ssm-pause,
+.pmini .game-pause-btn {
+  min-height: 32px;
+  min-width: 32px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.pmini .ssm-stars {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.pmini .ssm-board {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(8px, 1.6vh, 16px);
+  overflow: hidden;
+  padding: 4px 12px;
+}
+
+.pmini .cq-panel {
+  position: relative;
+  flex: 0 0 auto;
+  z-index: 10;
+  width: min(720px, calc(100% - 16px));
+  min-height: 0;
+  margin: 2px auto 4px;
+  padding: 6px 12px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 18px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.pmini .cq-message {
+  margin: 0 0 2px;
+  font-size: clamp(12px, 2.2vh, 16px);
+  line-height: 1.2;
+  font-weight: 700;
+  color: rgba(90, 61, 74, 0.95);
+}
+
+.pmini .cq-score {
+  margin: 0;
+  font-size: clamp(12px, 1.7vw, 16px);
+  color: #4e4e4e;
+}
+
+.pbegin-stage,
+.pvowel-stage {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(8px, 1.6vh, 14px);
+  min-height: 0;
+  padding-right: clamp(88px, 16vw, 128px);
+  box-sizing: border-box;
+}
+
+.pvowel-stage {
+  padding-right: clamp(96px, 18vw, 140px);
+  box-sizing: border-box;
+}
+
+.pbegin-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.pbegin-object,
+.pbegin-letter,
+.pbegin-replay {
+  box-sizing: border-box;
+  font-family: inherit;
+  line-height: 1;
+}
+
+.pbegin-object {
+  appearance: none;
+  width: clamp(136px, 28vh, 210px);
+  height: clamp(136px, 28vh, 210px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 8px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff8c4;
+  box-shadow: 0 8px 0 rgba(255, 210, 90, 0.35);
+  color: #5a3d4a;
+  cursor: pointer;
+}
+
+.pbegin-emoji {
+  font-size: clamp(62px, 14vh, 102px);
+  line-height: 1;
+}
+
+.pbegin-object small,
+.pbegin-replay small {
+  font-weight: 800;
+  text-transform: lowercase;
+  font-size: clamp(11px, 1.8vh, 14px);
+}
+
+.pbegin-letters {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: clamp(6px, 1.4vw, 14px);
+  width: 100%;
+  max-width: min(640px, 100%);
+}
+
+.pbegin-letter {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(82px, 15.5vh, 118px);
+  height: clamp(82px, 15.5vh, 118px);
+  margin: 0;
+  padding: 0;
+  border: 4px solid rgba(255, 255, 255, 0.9);
+  border-radius: 24px;
+  font-size: clamp(34px, 6.8vh, 48px);
+  font-weight: 900;
+  color: #3d3d3d;
+  box-shadow: 0 8px 0 rgba(90, 80, 110, 0.12);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.pbegin-letter span {
+  display: block;
+  line-height: 1;
+  transform: none;
+}
+
+.pbegin-letter:active {
+  transform: translateY(4px);
+  box-shadow: 0 4px 0 rgba(90, 80, 110, 0.12);
+}
+
+.pbegin-letter.is-wrong {
+  animation: pmini-shake 0.35s ease;
+  background: #ffb3b3 !important;
+}
+
+.pbegin-letters--many .pbegin-letter {
+  width: clamp(62px, 12.5vh, 92px);
+  height: clamp(62px, 12.5vh, 92px);
+  font-size: clamp(26px, 5.6vh, 38px);
+  border-radius: 18px;
+}
+
+.pbegin-replay {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 96px;
+  min-height: 96px;
+  margin: 0;
+  padding: 8px 6px;
+  border: 0;
+  border-radius: 20px;
+  background: #ffe38a;
+  color: #5a3d28;
+  font-size: 32px;
+  box-shadow: 0 6px 0 rgba(210, 160, 40, 0.28);
+  cursor: pointer;
+  z-index: 2;
+}
+
+.pbegin-bear,
+.pvowel-bear-row {
+  position: absolute;
+  left: auto;
+  right: max(8px, env(safe-area-inset-right));
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.pbegin-bear,
+.pvowel-bear {
+  width: clamp(72px, 16vh, 112px);
+  height: auto;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.pvowel-bear-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.pvowel-branch {
+  position: relative;
+  width: min(920px, 100%);
+  min-height: 200px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: visible;
+  padding: 8px 0 4px;
+}
+
+.pvowel-twig-art {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 102%;
+  height: auto;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+  transform: translate(-50%, 44%) scaleY(-1);
+  filter: drop-shadow(0 6px 0 rgba(90, 50, 20, 0.12));
+}
+
+.pvowel-birds {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: clamp(8px, 1.8vw, 18px);
+  width: min(760px, 88%);
+  padding-bottom: 10px;
+}
+
+.pvowel-bird {
+  position: relative;
+  z-index: 1;
+  appearance: none;
+  width: clamp(108px, 21vw, 168px);
+  height: clamp(132px, 26vw, 204px);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  font: inherit;
+  cursor: pointer;
+  filter: drop-shadow(0 6px 0 rgba(90, 80, 110, 0.12));
+}
+
+.pvowel-bird img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.pvowel-bird.is-singing,
+.pvowel-bird.is-demo {
+  transform: translateY(-8px) scale(1.08);
+}
+
+.pvowel-bird.is-wrong {
+  animation: pmini-shake 0.4s ease;
+}
+
+.pvowel-bird.is-demo {
+  filter: drop-shadow(0 0 8px #fff) drop-shadow(0 6px 0 rgba(90, 80, 110, 0.12));
+}
+
+.pvowel-notes {
+  font-size: 28px;
+  color: #7a4aa8;
+}
+
+@keyframes pmini-shake {
+  0%,
+  100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+@media (orientation: landscape) {
+  .pmini .ssm-title {
+    font-size: clamp(15px, 3.2vh, 22px);
+    padding: 0 92px;
+  }
+
+  .pmini .ssm-meta {
+    margin: 0 0 2px;
+  }
+
+  .pbegin-object {
+    width: clamp(124px, 30vh, 188px);
+    height: clamp(124px, 30vh, 188px);
+  }
+
+  .pbegin-emoji {
+    font-size: clamp(56px, 13vh, 92px);
+  }
+
+  .pbegin-letter {
+    width: clamp(68px, 16vh, 100px);
+    height: clamp(68px, 16vh, 100px);
+    font-size: clamp(28px, 6.6vh, 42px);
+    border-width: 3px;
+    border-radius: 20px;
+  }
+
+  .pbegin-letters--many .pbegin-letter {
+    width: clamp(58px, 13.5vh, 86px);
+    height: clamp(58px, 13.5vh, 86px);
+    font-size: clamp(24px, 5.8vh, 34px);
+  }
+
+  .pbegin-replay {
+    width: 84px;
+    min-height: 84px;
+    font-size: 30px;
+    padding: 6px 4px;
+  }
+
+  .pbegin-bear,
+  .pvowel-bear {
+    width: clamp(68px, 18vh, 104px);
+  }
+
+  .pvowel-bird {
+    width: clamp(108px, 26vh, 172px);
+    height: clamp(132px, 32vh, 210px);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 420px) {
+  .pmini .ssm-title {
+    font-size: 15px;
+  }
+
+  .pmini .ssm-pill,
+  .pmini .ssm-sound,
+  .pmini .ssm-pause,
+  .pmini .game-pause-btn {
+    min-height: 28px;
+    min-width: 28px;
+    padding: 2px 8px;
+    font-size: 11px;
+  }
+
+  .pbegin-stage {
+    gap: 6px;
+  }
+
+  .pbegin-bear {
+    width: 64px;
+  }
+}

@@ -1,4 +1,4 @@
-﻿.sq-page-bg {
+.sq-page-bg {
   min-height: 100vh;
   background-size: cover;
   background-position: center;
@@ -285,6 +285,7 @@
   left: 50%;
   top: -68px;
   transform: translateX(70px);
+  z-index: 3;
 }
 
 .sq-slot-pos--window {
@@ -293,54 +294,108 @@
   transform: translateX(-92px);
 }
 
-.sq-slot-pos--door {
+.sq-slot-pos--round {
+  left: 12px;
+  top: 18px;
+  transform: none;
+}
+
+.sq-slot-pos--gem {
+  right: 8px;
+  left: auto;
+  top: 96px;
+  transform: none;
+}
+
+.sq-slot-pos--chimney {
   left: 50%;
-  top: 150px;
-  transform: translateX(44px);
+  top: -78px;
+  transform: translateX(-118px);
 }
 
 .sq-slot {
   width: 78px;
   height: 78px;
-  border-radius: 16px;
-  border: 3px dashed rgba(45, 55, 72, 0.55);
-  background: rgba(255, 255, 255, 0.22);
+  border: none;
+  background: transparent;
   display: grid;
   place-items: center;
-  transition: transform 0.15s ease, outline 0.15s ease, background 0.15s ease;
+  padding: 0;
+  overflow: visible;
+  transition: transform 0.15s ease;
 }
 
-.sq-slot--triangle {
-  width: 74px;
-  height: 74px;
-  border-radius: 12px;
+.sq-slot-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
 }
 
-.sq-slot--rectangle {
-  width: 74px;
-  height: 92px;
-  border-radius: 14px;
+.sq-slot-svg-outline {
+  fill: rgba(255, 255, 255, 0.1);
+  stroke: rgba(45, 55, 72, 0.7);
+  stroke-width: 4;
+  stroke-dasharray: 7 6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.sq-slot-svg-fill {
+  stroke: #fff;
+  stroke-width: 3.5;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.12));
 }
 
 .sq-slot--over {
   transform: translateY(-2px);
-  outline: 4px solid rgba(255, 255, 255, 0.55);
 }
 
-.sq-slot--valid {
-  background: rgba(99, 185, 108, 0.18);
-  border-color: rgba(34, 197, 94, 0.85);
+.sq-slot--over .sq-slot-svg-outline {
+  stroke: #fff;
+  fill: rgba(255, 255, 255, 0.28);
 }
 
-.sq-slot--invalid {
-  background: rgba(239, 68, 68, 0.14);
-  border-color: rgba(239, 68, 68, 0.85);
+.sq-slot--valid .sq-slot-svg-outline {
+  stroke: #22c55e;
+  fill: rgba(99, 185, 108, 0.2);
 }
 
-.sq-slot--filled {
-  border-style: solid;
-  border-color: rgba(45, 55, 72, 0.35);
-  background: rgba(255, 255, 255, 0.12);
+.sq-slot--invalid .sq-slot-svg-outline {
+  stroke: #ef4444;
+  fill: rgba(239, 68, 68, 0.16);
+}
+
+.sq-slot--triangle {
+  width: 78px;
+  height: 72px;
+}
+
+.sq-slot--rectangle {
+  width: 36px;
+  height: 96px;
+}
+
+.sq-slot--rectangle .sq-slot-svg-outline,
+.sq-slot--rectangle .sq-slot-svg-fill {
+  stroke-linejoin: miter;
+  stroke-linecap: square;
+}
+
+.sq-slot--diamond {
+  width: 72px;
+  height: 72px;
+}
+
+.sq-slot--hexagon {
+  width: 74px;
+  height: 66px;
+}
+
+.sq-slot--circle {
+  width: 70px;
+  height: 70px;
 }
 
 .sq-slot-hint {
@@ -362,20 +417,36 @@
 }
 
 .sq-slot-shape--rectangle {
-  width: 54px;
-  height: 72px;
+  width: 28px;
+  height: 52px;
   background: #ffe08a;
-  border-radius: 10px;
+  border-radius: 8px 8px 4px 4px;
   box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.45);
 }
 
-.sq-slot-shape--triangle {
-  width: 0;
-  height: 0;
-  border-left: 30px solid transparent;
-  border-right: 30px solid transparent;
-  border-bottom: 56px solid #f7a6b7;
-  filter: drop-shadow(0 2px 0 rgba(255, 255, 255, 0.3));
+.sq-slot-shape--circle {
+  width: 48px;
+  height: 48px;
+  background: #b7f7d1;
+  border-radius: 999px;
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.5);
+}
+
+.sq-slot-shape--diamond {
+  width: 36px;
+  height: 36px;
+  background: #d6c7ff;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  transform: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.sq-slot-shape--hexagon {
+  width: 50px;
+  height: 44px;
+  background: #ffb7d0;
+  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
 }
 
 .sq-bear {
@@ -435,10 +506,10 @@
 }
 
 .sq-shape--rectangle {
-  width: 86px;
-  height: 44px;
+  width: 30px;
+  height: 58px;
   background: #ffe08a;
-  border-radius: 12px;
+  border-radius: 0;
 }
 
 .sq-shape--triangle {
@@ -459,11 +530,12 @@
 }
 
 .sq-shape--diamond {
-  width: 56px;
-  height: 56px;
+  width: 58px;
+  height: 58px;
   background: #d6c7ff;
-  transform: rotate(45deg);
-  border-radius: 12px;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .sq-shape--hexagon {
@@ -478,7 +550,31 @@
     25% 95%,
     0% 50%
   );
-  border-radius: 10px;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.sq-shape--oval {
+  width: 42px;
+  height: 62px;
+  background: #9ad8ff;
+  border-radius: 50%;
+}
+
+.sq-shape--pentagon {
+  width: 60px;
+  height: 58px;
+  background: #ffc48a;
+  clip-path: polygon(50% 0, 100% 38%, 82% 100%, 18% 100%, 0 38%);
+  box-shadow: none;
+}
+
+.sq-shape--star {
+  width: 60px;
+  height: 60px;
+  background: #ff8fab;
+  clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  box-shadow: none;
 }
 
 .sq-panel {

@@ -1,0 +1,263 @@
+.cmini {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+
+.cmini--sky {
+  background: linear-gradient(180deg, #c8f0d6, #eef9e8);
+}
+
+.cmini--canvas {
+  background: #fff8ea;
+}
+
+.cmini .cq-level-meta-row {
+  z-index: 40;
+}
+
+.cmini-pause {
+  width: 38px;
+  height: 38px;
+  border: 2px solid rgba(255, 255, 255, 0.72);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: 0 5px 12px rgba(49, 55, 70, 0.12);
+}
+
+.cmini-progress {
+  margin: 6px 0 0;
+  text-align: center;
+  font-weight: 800;
+  color: #35507a;
+  z-index: 6;
+}
+
+.cmini-bear {
+  position: absolute;
+  left: 8px;
+  bottom: 6px;
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.cmini-sky {
+  position: absolute;
+  inset: 52px 0 0;
+}
+
+.cmini-balloon {
+  position: absolute;
+  bottom: -90px;
+  width: 54px;
+  height: 80px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  animation-name: cmini-float;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+.cmini-balloon-body {
+  display: block;
+  width: 48px;
+  height: 58px;
+  margin: 0 auto;
+  border-radius: 50% 50% 46% 46%;
+  background: currentColor;
+  box-shadow: inset -8px -10px 0 rgba(0, 0, 0, 0.08);
+}
+
+.cmini-balloon-string {
+  display: block;
+  width: 2px;
+  height: 20px;
+  margin: 0 auto;
+  background: #6b7280;
+}
+
+.cmini-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(16px, 3vw, 32px);
+  width: 100%;
+  padding: 8px 10px 10px 124px;
+  box-sizing: border-box;
+}
+
+.cmini-goal {
+  position: absolute;
+  top: 50px;
+  left: 8px;
+  right: auto;
+  z-index: 16;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.06);
+  pointer-events: none;
+}
+
+.cmini-goal--solo {
+  width: 108px;
+  height: 108px;
+  padding: 6px;
+}
+
+.cmini-goal--solo .cmini-goal-art {
+  width: 96px;
+  height: 96px;
+}
+
+.cmini-goal--row {
+  flex-direction: column;
+  width: 72px;
+  height: auto;
+  gap: 4px;
+  padding: 6px 4px;
+}
+
+.cmini-goal--pair {
+  width: 96px;
+  padding: 8px 6px;
+  gap: 8px;
+}
+
+.cmini-goal-art {
+  width: 62px;
+  height: 62px;
+  object-fit: contain;
+}
+
+.cmini-goal--row .cmini-goal-art {
+  width: 36px;
+  height: 36px;
+}
+
+.cmini-goal--pair .cmini-goal-art {
+  width: 78px;
+  height: 78px;
+}
+
+.cmini-drawings {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(10px, 2vw, 22px);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.cmini-drawing {
+  width: auto;
+  height: auto;
+  max-width: min(64vw, 520px);
+  max-height: min(68vh, 360px);
+  flex: 0 0 auto;
+  background: transparent;
+  touch-action: none;
+}
+
+.cmini-drawing--svg {
+  width: min(44vw, 300px);
+  height: min(52vh, 220px);
+}
+
+.cmini-drawings--many .cmini-drawing {
+  max-width: min(28vw, 220px);
+  max-height: min(48vh, 200px);
+}
+
+.cmini-drawings--triple .cmini-drawing {
+  max-width: min(22vw, 170px);
+  max-height: min(42vh, 168px);
+}
+
+.cmini-drawings--triple .cmini-drawing--svg {
+  width: min(22vw, 160px);
+  height: min(42vh, 160px);
+}
+
+.cmini-buckets {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 12px;
+  z-index: 8;
+}
+
+.cmini-buckets--grid {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 6px;
+  align-self: flex-end;
+  margin: 0 4px 8px 0;
+  padding: 6px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.cmini-buckets--grid .cmini-bucket {
+  width: 34px;
+  height: 34px;
+  border-width: 3px;
+  border-radius: 12px;
+}
+
+.cmini .cq-panel {
+  margin-top: auto;
+  z-index: 10;
+}
+
+.cmini-bucket {
+  width: 52px;
+  height: 52px;
+  border: 4px solid #fff;
+  border-radius: 16px;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+}
+
+.cmini-bucket.is-on {
+  outline: 4px solid #334155;
+}
+
+@keyframes cmini-float {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-120vh);
+  }
+}
+
+@media (max-height: 420px) {
+  .cmini-bear {
+    width: 44px;
+    height: 44px;
+  }
+
+  .cmini-drawing {
+    height: min(64vh, 200px);
+  }
+}

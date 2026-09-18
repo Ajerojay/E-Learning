@@ -14,18 +14,21 @@ body {
 
 .phonics-page.game-container {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
   font-family: "Poppins", sans-serif;
-  padding: 40px;
-  min-height: 100vh;
-  width: 100vw;
-  max-width: none;
-  margin-left: calc(50% - 50vw);
-  margin-right: calc(50% - 50vw);
+  padding: 10px 12px 8px;
+  width: 100%;
+  max-width: 100vw;
+  height: 100dvh;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
   background: linear-gradient(135deg, #d0f0ff, #fce4ec);
   box-sizing: border-box;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .phonics-page.game-container.phonics-bg-image {
@@ -47,10 +50,10 @@ body {
 
 .phonics-page .pq-back-btn {
   position: absolute;
-  top: 20px;
-  left: 20px;
-  padding: 10px 18px;
-  font-size: 16px;
+  top: 10px;
+  left: 10px;
+  padding: 7px 12px;
+  font-size: 14px;
   font-weight: bold;
   border: none;
   border-radius: 30px;
@@ -69,20 +72,37 @@ body {
 }
 
 .phonics-page .pq-page-title {
-  margin: 14px auto 10px;
-  margin-top: 9px !important;
-  width: fit-content;
-  max-width: min(980px, 92vw);
-  padding: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 0 4px;
+  padding: 0 8px 0 86px;
+  box-sizing: border-box;
   position: relative;
-  top: -25px;
+  top: 0;
+}
+
+.phonics-page .pq-page-title > br {
+  display: none;
 }
 
 .phonics-page .pq-main-title {
-  font-size: 45px;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: clamp(16px, 2.8vw, 26px);
   font-weight: 700;
+  line-height: 1.15;
   color: #1f2937;
   text-shadow: 0 2px 10px rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
 }
 
 .phonics-page .pq-level-text {
@@ -94,18 +114,19 @@ body {
 }
 
 .phonics-page .pq-meta-row {
-  margin-top: 12px;
+  margin: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 6px;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
 }
 
 .phonics-page .pq-level-pill,
 .phonics-page .pq-timer-pill,
 .phonics-page .pq-sound-toggle {
-  min-height: 42px;
+  min-height: 34px;
   border-radius: 999px;
   border: 2px solid rgba(255, 255, 255, 0.78);
   background: rgba(255, 255, 255, 0.82);
@@ -119,8 +140,8 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 16px;
-  font-size: 16px;
+  padding: 0 10px;
+  font-size: 13px;
   font-weight: 900;
 }
 
@@ -136,13 +157,14 @@ body {
 }
 
 .phonics-page .pq-sound-toggle {
-  width: 46px;
-  height: 46px;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
   display: inline-grid;
   place-items: center;
   padding: 0;
   cursor: pointer;
-  font-size: 22px;
+  font-size: 16px;
   transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
 }
 
@@ -157,49 +179,65 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 30px;
+  gap: clamp(6px, 1.4vh, 14px);
   width: 100%;
-  max-width: 1100px;
-  margin: 20px auto 0;
+  max-width: 980px;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0 auto;
 }
 
 .phonics-page .sound-circle-wrapper {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 15px;
+  gap: clamp(6px, 1.4vw, 14px);
   width: 100%;
+  min-height: 0;
 }
 
 .phonics-page .sound-circle {
-  width: 190px;
-  height: 190px;
+  width: clamp(96px, 22vh, 160px);
+  height: clamp(96px, 22vh, 160px);
   background: #e3f2fd;
   border-radius: 50%;
-  font-size: 90px;
+  font-size: clamp(36px, 8.5vh, 64px);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
   transition: transform 0.2s ease, background 0.2s ease;
-  border: 5px solid white;
+  border: 4px solid white;
   color: #1e3a5f;
   flex-direction: column;
   font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Poppins", sans-serif;
   line-height: 1;
+  flex: 0 0 auto;
 }
 
 .phonics-page .sound-guide-img {
-  width: 170px;
+  width: clamp(110px, 26vh, 188px);
   height: auto;
+  max-height: 36vh;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 15px rgba(0,0,0,0.1));
+}
+
+.phonics-page .sound-guide-emoji {
+  display: grid;
+  place-items: center;
+  width: clamp(110px, 26vh, 188px);
+  height: clamp(110px, 26vh, 188px);
+  font-size: clamp(56px, 14vh, 96px);
+  line-height: 1;
   filter: drop-shadow(0 5px 15px rgba(0,0,0,0.1));
 }
 
 .phonics-page .sound-circle small {
   display: block;
-  margin-top: 4px;
-  font-size: 14px;
+  margin-top: 2px;
+  font-size: clamp(11px, 2vh, 15px);
   font-weight: 900;
   color: #1e3a5f;
   white-space: nowrap;
@@ -214,26 +252,31 @@ body {
 .phonics-page .choices {
   display: flex;
   justify-content: center;
-  gap: 25px;
+  align-items: stretch;
+  gap: clamp(10px, 2vw, 18px);
   width: 100%;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-height: 0;
 }
 
 .phonics-page .choice-btn {
-  font-size: clamp(30px, 5vw, 45px);
+  font-size: clamp(26px, 6.4vh, 42px);
   margin: 0;
-  padding: clamp(8px, 1.5vw, 15px);
-  border-radius: 20px;
+  padding: clamp(8px, 1.4vh, 12px) 10px;
+  border-radius: 22px;
   border: 2px solid rgba(255, 255, 255, 0.85);
   cursor: pointer;
   background: linear-gradient(180deg, #fff8ef 0%, #ffeccf 100%);
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
-  min-width: 70px;
+  min-width: 0;
+  flex: 1 1 0;
+  max-width: 168px;
+  height: clamp(78px, 18vh, 118px);
 }
 
 .phonics-page .choice-btn span { display: block; line-height: 1; font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Poppins", sans-serif; }
-.phonics-page .choice-btn small { display: block; margin-top: 6px; color: #503f46; font-size: 13px; font-weight: 900; text-transform: capitalize; }
+.phonics-page .choice-btn small { display: block; margin-top: 4px; color: #503f46; font-size: clamp(12px, 2.2vh, 16px); font-weight: 900; text-transform: capitalize; }
 
 .pq-rotate-notice { display: none; }
 
@@ -272,30 +315,32 @@ body {
 
 /* PANEL */
 .phonics-page .pq-panel {
-  margin: 24px auto 24px;
-  width: fit-content;
-  max-width: calc(100% - 48px);
+  flex: 0 0 auto;
+  margin: 4px auto 6px;
+  width: min(92vw, 640px);
+  max-width: calc(100% - 16px);
   text-align: center;
-  background: rgba(255, 255, 255, 0.75);
-  padding: 18px 24px;
-  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.86);
+  padding: 6px 14px;
+  border-radius: 16px;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.1);
-  min-width: min(92vw, 600px);
+  min-width: 0;
+  min-height: 0;
 }
 
 .phonics-page .pq-message {
-  margin: 0 0 10px;
-  font-size: 22px;
+  margin: 0 0 2px;
+  font-size: clamp(13px, 2.2vh, 18px);
   font-weight: 700;
   color: #6d5650;
-  line-height: 1.25;
+  line-height: 1.15;
 }
 
 .phonics-page .pq-progress {
   margin: 0;
-  font-size: 18px;
+  font-size: clamp(11px, 1.8vh, 14px);
   color: #4e4e4e;
-  line-height: 1.25;
+  line-height: 1.15;
 }
 
 .phonics-page .pq-actions {
@@ -433,62 +478,34 @@ body {
 
 @media (max-width: 768px) {
   .phonics-page.game-container {
-    padding: 28px 16px;
+    padding: 10px 12px 8px;
   }
 
   .phonics-page .pq-main-title {
-    font-size: 32px;
+    font-size: clamp(16px, 4.4vw, 22px);
   }
 
   .phonics-page .pq-meta-row {
-    gap: 8px;
+    gap: 6px;
   }
 
   .phonics-page .pq-level-pill,
   .phonics-page .pq-timer-pill {
-    min-height: 38px;
-    padding: 0 12px;
-    font-size: 14px;
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
   }
 
   .phonics-page .pq-sound-toggle {
-    width: 42px;
-    height: 42px;
-    font-size: 20px;
-  }
-
-  .phonics-page .sound-circle {
-    width: 120px;
-    height: 120px;
-    font-size: 62px;
+    width: 32px;
+    height: 32px;
+    font-size: 15px;
   }
 
   .phonics-page .lion-guide {
     position: static;
     margin-top: 10px;
     width: 180px;
-  }
-
-  .phonics-page .choices {
-    margin-top: 30px !important;
-    flex-wrap: wrap;
-    gap: 18px !important;
-  }
-
-  .phonics-page .choice-btn {
-    font-size: 48px;
-    padding: 16px;
-  }
-
-  .phonics-page .pq-panel {
-    margin-top: 40px;
-    padding: 16px;
-    border-radius: 18px;
-  }
-
-  .phonics-page .pq-message,
-  .phonics-page .pq-progress {
-    font-size: 18px;
   }
 
   .phonics-page .pq-actions {

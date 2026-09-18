@@ -6,10 +6,7 @@ import { speakNative, cancelNativeSpeech } from "../../nativeTts";
 export const LEVEL_INTRO_MIN_DISPLAY_MS = 2200;
 
 /** Brief pause after speech ends before the 3-2-1 countdown appears. */
-const POST_INTRO_PAUSE_MS = 600;
-
-/** Safety cap so a stuck voice engine cannot block the game forever. */
-const INTRO_SAFETY_MAX_MS = 14000;
+const POST_INTRO_PAUSE_MS = 160;
 
 export type LevelIntroContent = {
   title: string;
@@ -17,6 +14,8 @@ export type LevelIntroContent = {
   speech: string;
   /** Optional exact overlay duration for games that require fixed timing. */
   displayMs?: number;
+  /** Shorter pause before 3-2-1. Use on the extra Colors mini-games. */
+  compact?: boolean;
 };
 
 export function getKidFriendlyVoice(): SpeechSynthesisVoice | null {
@@ -38,10 +37,23 @@ export function getKidFriendlyVoice(): SpeechSynthesisVoice | null {
 }
 
 /** Estimate how long the instruction overlay should stay visible (reading + speech). */
-export function getIntroMinDisplayMs(text: string): number {
+export function getIntroMinDisplayMs(text: string, compact = false): number {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
-  const fromText = 1400 + words * 130;
-  return Math.max(LEVEL_INTRO_MIN_DISPLAY_MS, Math.min(9000, fromText));
+  if (compact) {
+    return Math.max(1400, Math.min(3200, 700 + words * 90));
+  }
+  const fromText = 1100 + words * 90;
+  return Math.max(1600, Math.min(3600, fromText));
+}
+
+function estimateNativeSpeechMs(text: string, compact: boolean) {
+  const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+  if (compact) {
+    // Android TTS has no onDone callback. Keep this long enough that a full
+    // kid instruction is not cancelled when 3-2-1 starts.
+    return Math.max(3400, Math.min(7800, 1300 + wordCount * 270));
+  }
+  return Math.max(2400, Math.min(4800, 700 + wordCount * 190));
 }
 
 /**
@@ -52,9 +64,11 @@ export function speakKidLevelIntro(
   text: string,
   soundEnabled: boolean,
   onDone: () => void,
-  fixedDisplayMs?: number
+  fixedDisplayMs?: number,
+  compact = false
 ): () => void {
   let cancelled = false;
+  let finishedCleanly = false;
   let speechDone = !soundEnabled;
   let minDisplayDone = false;
   let pauseTimer: number | null = null;
@@ -62,18 +76,24 @@ export function speakKidLevelIntro(
   let safetyTimer: number | null = null;
   let utterance: SpeechSynthesisUtterance | null = null;
 
-  const minDisplayMs = fixedDisplayMs ?? getIntroMinDisplayMs(text);
+  const minDisplayMs = fixedDisplayMs ?? getIntroMinDisplayMs(text, compact);
+  const postPauseMs = compact ? 80 : POST_INTRO_PAUSE_MS;
+  const safetyMs = compact ? 9000 : 8000;
 
   const tryComplete = () => {
     if (cancelled || !minDisplayDone || (!fixedDisplayMs && !speechDone)) return;
     if (fixedDisplayMs) {
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+      finishedCleanly = true;
       onDone();
       return;
     }
     pauseTimer = window.setTimeout(() => {
-      if (!cancelled) onDone();
-    }, POST_INTRO_PAUSE_MS);
+      if (!cancelled) {
+        finishedCleanly = true;
+        onDone();
+      }
+    }, postPauseMs);
   };
 
   let voicesHandler: (() => void) | null = null;
@@ -94,10 +114,10 @@ export function speakKidLevelIntro(
       utterance.onend = null;
       utterance.onerror = null;
     }
-    if ("speechSynthesis" in window) {
+    if ("speechSynthesis" in window && !finishedCleanly) {
       window.speechSynthesis.cancel();
     }
-    cancelNativeSpeech();
+    if (!finishedCleanly) cancelNativeSpeech();
   };
 
   minTimer = window.setTimeout(() => {
@@ -109,20 +129,13 @@ export function speakKidLevelIntro(
     speechDone = true;
     minDisplayDone = true;
     tryComplete();
-  }, INTRO_SAFETY_MAX_MS);
+  }, safetyMs);
 
   if (soundEnabled && speakNative(text, { interrupt: true, rate: 0.88, pitch: 1.3 })) {
     // The JavaScript bridge cannot report Android TTS's onDone event yet, so
     // use a conservative reading duration. The former short estimate closed
     // the intro and started 3-2-1 while Android was still speaking.
-    const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
-    // Android's bridge has no onDone callback. At the child-friendly 0.88
-    // speech rate, this conservative word-based window prevents 3-2-1 from
-    // interrupting the final instruction words on slower phone TTS engines.
-    const nativeSpeechWaitMs = Math.max(
-      5200,
-      Math.min(12000, 1600 + wordCount * 430)
-    );
+    const nativeSpeechWaitMs = estimateNativeSpeechMs(text, compact);
     window.setTimeout(() => { speechDone = true; tryComplete(); }, nativeSpeechWaitMs);
     return cleanup;
   }
@@ -220,9 +233,7 @@ export function useLevelIntro({
 
   /** Call when a level begins: intro on first session level only, else 3-2-1. */
   const onLevelStart = useCallback(() => {
-    if (introFinished) {
-      startCountdownOnly();
-    }
+    if (introFinished) startCountdownOnly();
   }, [introFinished, startCountdownOnly]);
 
   useEffect(() => {
@@ -243,7 +254,8 @@ export function useLevelIntro({
       content.speech,
       soundEnabled,
       beginCountdown,
-      content.displayMs
+      content.displayMs,
+      content.compact
     );
 
     return () => {
@@ -257,6 +269,7 @@ export function useLevelIntro({
     soundEnabled,
     content.speech,
     content.displayMs,
+    content.compact,
     beginCountdown,
   ]);
 

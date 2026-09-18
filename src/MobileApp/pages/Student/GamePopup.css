@@ -1,9 +1,9 @@
-﻿/* Shared Game Popup Styles */
+/* Shared Game Popup Styles */
 
 .game-overlay {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 80;
   display: grid;
   place-items: center;
   background: rgba(20, 20, 25, 0.35);
@@ -59,6 +59,37 @@
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
+.game-popup-btn-inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.game-pause-btn {
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  color: #31415c;
+  box-shadow: 0 5px 12px rgba(40, 40, 70, 0.16);
+  cursor: pointer;
+}
+
+.game-pause-btn:hover,
+.game-pause-btn:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 7px 14px rgba(40, 40, 70, 0.2);
+}
+
 .game-popup-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
@@ -82,6 +113,16 @@
 .game-popup-btn.no {
   background: #ff4d4f;
   color: white;
+}
+
+.game-popup--over {
+  border-color: rgba(196, 92, 92, 0.55);
+  background: linear-gradient(180deg, #fff7f4 0%, #ffe8e0 100%);
+}
+
+.game-popup--over .game-popup-title {
+  color: #c45c5c;
+  font-size: 28px;
 }
 
 .game-countdown {

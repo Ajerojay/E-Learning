@@ -9,44 +9,119 @@
   background-repeat: no-repeat;
   background-position: center;
   background-size: cover;
-  font-family: "Comic Neue", "Comic Sans MS", "Nunito", cursive, sans-serif;
+  font-family: "Nunito", "Comic Neue", "Comic Sans MS", sans-serif;
+}
+
+.qlm-head {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 0 max(10px, env(safe-area-inset-left));
 }
 
 .qlm-back {
-  position: absolute;
-  top: max(10px, env(safe-area-inset-top));
-  left: max(10px, env(safe-area-inset-left));
-  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   min-height: 40px;
-  padding: 7px 14px;
+  padding: 7px 14px 7px 12px;
   border: 0;
   border-radius: 999px;
   background: #fff;
-  color: #3b3b3b;
+  color: #35506a;
   font: inherit;
   font-weight: 800;
+  font-size: 15px;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
   cursor: pointer;
 }
 
-.qlm-title {
+.qlm-heading {
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.qlm-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(100%, 520px);
+}
+
+.qlm-sparkle {
+  flex: 0 0 auto;
+  color: #f4c84a;
+  font-size: clamp(16px, 2.4vw, 22px);
+  line-height: 1;
+  text-shadow: 0 2px 0 #fff, 0 0 10px rgba(255, 220, 90, 0.7);
+  animation: qlm-twinkle 1.7s ease-in-out infinite;
+}
+
+.qlm-sparkle:last-child {
+  animation-delay: 0.45s;
+}
+
+.qlm-banner-inner {
   position: relative;
-  z-index: 2;
-  margin: max(10px, env(safe-area-inset-top)) 72px 0;
-  color: #35506a;
-  font-size: clamp(18px, 3.6vw, 32px);
-  font-weight: 800;
+  min-width: 0;
+  padding: 7px 22px 9px;
+  border: 3px solid #fff;
+  border-radius: 26px;
+  background: linear-gradient(180deg, #fffef6 0%, #ffe9a8 58%, #ffd56a 100%);
+  box-shadow:
+    0 8px 0 #e3a62a,
+    0 14px 22px rgba(40, 60, 90, 0.18);
   text-align: center;
-  text-shadow: 0 2px 0 rgba(255, 255, 255, 0.7);
+}
+
+.qlm-kicker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin: 0 0 3px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #3d86d6;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  box-shadow: 0 2px 0 #2a5fa0;
+}
+
+.qlm-title {
+  margin: 0;
+  overflow: hidden;
+  color: #24386a;
+  font-size: clamp(20px, 4vw, 32px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 0 #fff, 0 3px 0 rgba(255, 255, 255, 0.45);
+}
+
+.qlm-toggles {
+  display: flex;
+  align-items: center;
+  justify-self: end;
+  gap: 8px;
 }
 
 .qlm-hint {
   position: relative;
   z-index: 2;
-  margin: 2px 24px 0;
+  margin: 6px 24px 0;
   color: #4d6478;
   font-size: clamp(12px, 2vw, 15px);
-  font-weight: 700;
+  font-weight: 800;
   text-align: center;
 }
 
@@ -73,7 +148,7 @@
   position: absolute;
   left: max(8px, env(safe-area-inset-left));
   right: max(8px, env(safe-area-inset-right));
-  top: 18%;
+  top: 22%;
   bottom: max(8px, env(safe-area-inset-bottom));
   display: flex;
   align-items: flex-end;
@@ -102,6 +177,7 @@
   height: auto;
   aspect-ratio: 1.7 / 1;
   padding: 0;
+  overflow: visible;
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -110,7 +186,8 @@
 
 .qlm-node--1 { align-self: flex-end; margin-bottom: 1%; }
 .qlm-node--2 { align-self: center; max-width: 300px; }
-.qlm-node--3 { align-self: flex-start; margin-top: 0; max-width: 320px; flex: 1.2 1 0; }
+.qlm-node--3 { align-self: flex-start; margin-top: 4%; max-width: 280px; flex: 1.1 1 0; }
+.qlm-node--4 { align-self: flex-start; margin-top: -1%; max-width: 260px; }
 
 .qlm-cloud {
   position: absolute;
@@ -127,7 +204,7 @@
 .qlm-label {
   position: absolute;
   left: 50%;
-  top: 54%;
+  top: 48%;
   transform: translate(-50%, -50%);
   color: #35506a;
   font-size: clamp(13px, 2.1vw, 22px);
@@ -136,8 +213,17 @@
   text-shadow: 0 1px 0 #fff;
 }
 
+.qlm-stars {
+  position: absolute;
+  left: 50%;
+  top: 86%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 4;
+}
+
 .qlm-node.is-locked .qlm-label {
-  top: 66%;
+  top: 50%;
   font-size: clamp(12px, 1.9vw, 18px);
 }
 
@@ -154,17 +240,37 @@
   animation: qlm-bob 2.4s ease-in-out infinite;
 }
 
+.qlm-node.is-spotlight {
+  z-index: 3;
+  animation: none;
+  transform: scale(1.1);
+  filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.95)) drop-shadow(0 10px 12px rgba(70, 90, 110, 0.28));
+}
+
+.qlm-node.is-dim {
+  opacity: 0.45;
+  filter: grayscale(0.2) brightness(0.9);
+}
+
 .qlm-node--2.is-open { animation-delay: 0.2s; }
 .qlm-node--3.is-open { animation-delay: 0.4s; }
+.qlm-node--4.is-open { animation-delay: 0.55s; }
 
 @keyframes qlm-bob {
   50% { transform: translateY(-6px); }
 }
 
+@keyframes qlm-twinkle {
+  50% { transform: scale(1.18) rotate(12deg); opacity: 0.75; }
+}
+
 @media (orientation: landscape) and (max-height: 500px) {
-  .qlm-title { margin-top: max(6px, env(safe-area-inset-top)); font-size: 18px; }
+  .qlm-banner-inner { padding: 4px 16px 6px; border-radius: 20px; box-shadow: 0 5px 0 #e3a62a, 0 10px 16px rgba(40, 60, 90, 0.16); }
+  .qlm-title { font-size: 20px; }
+  .qlm-kicker { font-size: 9px; margin-bottom: 1px; }
+  .qlm-sparkle { font-size: 14px; }
   .qlm-hint { display: none; }
-  .qlm-stage { top: 14%; gap: 2px; }
+  .qlm-stage { top: 16%; gap: 2px; }
   .qlm-bear { width: min(11vw, 82px); }
   .qlm-node { max-width: 220px; }
   .qlm-node--3 { max-width: 250px; }
@@ -177,14 +283,16 @@
     align-items: center;
     justify-content: space-evenly;
   }
-  .qlm-bear { width: min(26vw, 110px); order: 4; margin: 0; }
   .qlm-node { width: min(58vw, 220px); max-width: none; flex: 0 0 auto; }
-  .qlm-node--3 { order: 1; align-self: center; margin: 0; }
-  .qlm-node--2 { order: 2; align-self: center; margin: 0; }
-  .qlm-node--1 { order: 3; align-self: center; margin: 0; }
+  .qlm-node--4 { order: 1; align-self: center; margin: 0; }
+  .qlm-node--3 { order: 2; align-self: center; margin: 0; }
+  .qlm-node--2 { order: 3; align-self: center; margin: 0; }
+  .qlm-node--1 { order: 4; align-self: center; margin: 0; }
+  .qlm-bear { width: min(26vw, 110px); order: 5; margin: 0; }
   .qlm-trail { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .qlm-node.is-open { animation: none; }
+  .qlm-node.is-open,
+  .qlm-sparkle { animation: none; }
 }

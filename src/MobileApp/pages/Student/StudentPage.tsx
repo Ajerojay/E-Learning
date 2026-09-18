@@ -8,7 +8,8 @@ import { cacheOfflineChild, getOfflineChildById } from "../../../lib/offlineSqli
 import { getStudentGameAccess } from "../../../lib/studentGameAccess";
 import { isActivityOpen } from "../../../lib/activityConfig";
 import { cancelNativeSpeech, speakKidPrompt } from "../../nativeTts";
-import bgMusic from "./bg-music-loop.mp3";
+import { holdChildMusic, releaseChildMusic } from "../../../lib/childMusic";
+import ChildMusicToggle from "./ChildMusicToggle";
 
 import { FaFont, FaShapes, FaPuzzlePiece } from "react-icons/fa";
 import { MdNumbers, MdColorLens } from "react-icons/md";
@@ -26,9 +27,6 @@ export default function StudentPage() {
     return getRememberedChildFirstName(childId) || "Child";
   });
   const [allowedGames, setAllowedGames] = useState<string[]>([]);
-  const [musicEnabled, setMusicEnabled] = useState(true);
-  const bgMusicRef = useRef<HTMLAudioElement | null>(null);
-  const pageActiveRef = useRef(true);
   const greetedRef = useRef(false);
 
   const lessons = [
@@ -100,17 +98,13 @@ export default function StudentPage() {
     const greetingPending = Boolean(greetingKey && sessionStorage.getItem(greetingKey) === "1");
     if (!name || name === "Child" || greetedRef.current || !greetingPending) return;
 
-    const resumeMusic = () => {
-      if (pageActiveRef.current && bgMusicRef.current && musicEnabled) {
-        bgMusicRef.current.play().catch(() => {});
-      }
-    };
+    const resumeMusic = () => releaseChildMusic();
 
     const timer = window.setTimeout(() => {
       if (greetedRef.current) return;
       greetedRef.current = true;
       sessionStorage.removeItem(greetingKey);
-      if (bgMusicRef.current && musicEnabled) bgMusicRef.current.pause();
+      holdChildMusic();
       speakKidPrompt(`Hi, ${name}! What would you like to learn today?`, {
         interrupt: true,
         onEnd: resumeMusic,
@@ -118,54 +112,14 @@ export default function StudentPage() {
     }, 650);
 
     return () => window.clearTimeout(timer);
-  }, [childFirstName, musicEnabled]);
+  }, [childFirstName]);
 
   useEffect(() => {
-    pageActiveRef.current = true;
-    const pauseForLesson = () => bgMusicRef.current?.pause();
-    window.addEventListener("learnease:pause-background-music", pauseForLesson);
     return () => {
-      pageActiveRef.current = false;
-      window.removeEventListener("learnease:pause-background-music", pauseForLesson);
       cancelNativeSpeech();
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-      bgMusicRef.current?.pause();
     };
   }, []);
-
-  useEffect(() => {
-    // Initialize background music
-    if (!bgMusicRef.current) {
-      const audio = new Audio(bgMusic);
-      audio.loop = true;
-      audio.volume = 0.3;
-      bgMusicRef.current = audio;
-
-      if (musicEnabled) {
-        audio.play().catch(() => {
-          // Browser may require user interaction to autoplay
-        });
-      }
-    }
-
-    return () => {
-      if (bgMusicRef.current) {
-        bgMusicRef.current.pause();
-        bgMusicRef.current.currentTime = 0;
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    // Handle music enabled/disabled toggle
-    if (bgMusicRef.current) {
-      if (musicEnabled) {
-        bgMusicRef.current.play().catch(() => {});
-      } else {
-        bgMusicRef.current.pause();
-      }
-    }
-  }, [musicEnabled]);
 
   return (
     <div className="student-page">
@@ -187,15 +141,7 @@ export default function StudentPage() {
           <img src={logo} alt="LearnEase bear" className="student-logo" />
           <span className="student-brand-text">LearnEase Kids</span>
         </div>
-        <button
-          type="button"
-          className="student-music-toggle"
-          onClick={() => setMusicEnabled((prev) => !prev)}
-          aria-label={musicEnabled ? "Mute music" : "Unmute music"}
-          title={musicEnabled ? "Mute Music" : "Unmute Music"}
-        >
-          {musicEnabled ? "\u{1F3B5}" : "\u{1F507}"}
-        </button>
+        <ChildMusicToggle className="student-music-toggle" />
       </header>
 
       <section className="student-welcome">

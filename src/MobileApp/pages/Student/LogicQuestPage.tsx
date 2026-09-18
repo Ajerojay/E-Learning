@@ -14,17 +14,18 @@ import {
 import lion_think from "../../../img/lion_think.png";
 import { recordGameProgressRpc, loadPrimaryGameCodeForCategory } from "../../../lib/gameProgressDb";
 import { getOrCreateActiveChildId } from "../../../lib/childProgress";
-import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
+import { GameOverlay, GamePopup, Countdown, GamePauseButton, GamePausePopup, GameOverPopup } from "./GamePopup";
 import {
   useLevelIntro,
   LevelIntroOverlay,
   COUNTDOWN_READY_SUBTITLE,
   type LevelIntroContent,
 } from "./levelIntro";
-import bgMusic from "./bg-music-loop.mp3";
 import { speakNative } from "../../nativeTts";
 import QuestLevelSelect from "./QuestLevelSelect";
-import { useQuestLevelGate } from "./questLevelMap";
+import ChildMusicToggle from "./ChildMusicToggle";
+import { useQuestLevelGate, useStarTimeUp, useWrongAttemptGameOver } from "./questLevelMap";
+import { LiveStarHud } from "./LevelStars";
 
 const LOGIC_GAME_INTRO: LevelIntroContent = {
   title: "What comes next?",
@@ -147,11 +148,12 @@ export default function Level2Pattern() {
 
   const [popup, setPopup] = useState("");
   const [wrong, setWrong] = useState(0);
+  const [gameOverOpen, setGameOverOpen] = useState(false);
   const [score, setScore] = useState(0);
   const [dropped, setDropped] = useState<string | null>(null);
   const [time, setTime] = useState(30);
   const [level, setLevel] = useState(0);
-  const { mapOpen, setMapOpen, unlockedCount, completeLevel } = useQuestLevelGate("logic");
+  const { mapOpen, setMapOpen, unlockedCount, levelStars, completeLevel, recordLevelResult } = useQuestLevelGate("logic");
   const [proceedPromptLevel, setProceedPromptLevel] = useState<number | null>(null);
   const [showCongratsPanel, setShowCongratsPanel] = useState(false);
   const [showNoPrompt, setShowNoPrompt] = useState(false);
@@ -159,6 +161,7 @@ export default function Level2Pattern() {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [musicEnabled, setMusicEnabled] = useState(true);
+  const [paused, setPaused] = useState(false);
   const [message, setMessage] = useState("Drag the correct symbol into the box!");
   const [childId, setChildId] = useState<string | null>(null);
   const [gameCode, setGameCode] = useState<string | null>(null);
@@ -166,6 +169,13 @@ export default function Level2Pattern() {
   const warnedSecondsRef = useRef<Set<number>>(new Set());
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
   const [isFinished, setIsFinished] = useState(false);
+  useStarTimeUp(popup === "TIME_UP", level, score > 0 || wrong > 0, recordLevelResult, wrong);
+  const onTooManyWrong = useCallback(() => {
+    setGameOverOpen(true);
+    setPopup("");
+    void recordLevelResult(level, { finished: false, tried: true, wrongAttempts: wrong });
+  }, [level, recordLevelResult, wrong]);
+  useWrongAttemptGameOver(wrong, onTooManyWrong);
 
   const currentLevel = logicLevels[level];
   const canProceedAfterTimeUp = false;
@@ -271,30 +281,6 @@ export default function Level2Pattern() {
   };
 
   useEffect(() => {
-    if (!bgMusicRef.current) {
-      const audio = new Audio(bgMusic);
-      audio.loop = true;
-      audio.volume = 0.25;
-      bgMusicRef.current = audio;
-      if (musicEnabled) audio.play().catch(() => {});
-    }
-
-    return () => {
-      bgMusicRef.current?.pause();
-    };
-  }, []);
-
-  useEffect(() => {
-    const audio = bgMusicRef.current;
-    if (!audio) return;
-    if (musicEnabled) {
-      audio.play().catch(() => {});
-    } else {
-      audio.pause();
-    }
-  }, [musicEnabled]);
-
-  useEffect(() => {
     if (levelIntroActive) return;
     if (!isStarted) return;
     if (countdown === null) return;
@@ -336,6 +322,7 @@ export default function Level2Pattern() {
     if (isFinished) return;
     if (levelIntroActive || countdown !== null) return;
     if (popup) return;
+    if (paused) return;
     if (proceedPromptLevel !== null) return; // ✅ pause timer kapag level complete popup lumabas
   
     if (time === 0) {
@@ -353,7 +340,7 @@ export default function Level2Pattern() {
     }, 1000);
   
     return () => clearInterval(timer);
-  }, [time, isFinished, isStarted, countdown, proceedPromptLevel, popup, score, wrong]);
+  }, [time, isFinished, isStarted, countdown, proceedPromptLevel, popup, score, wrong, paused]);
 
   useEffect(() => {
     if (!isStarted) return;
@@ -386,7 +373,7 @@ export default function Level2Pattern() {
   };
 
   const handleDropChoice = (value: string) => {
-    if (!isStarted || levelIntroActive || countdown !== null || popup === "TIME_UP" || time === 0)
+    if (!isStarted || levelIntroActive || countdown !== null || popup === "TIME_UP" || gameOverOpen || time === 0 || paused)
       return;
 
     setDropped(value);
@@ -399,7 +386,7 @@ export default function Level2Pattern() {
       setScore(nextScore);
       speakFeedback("Great job!");
       void saveProgress(percent, finished, wrong);
-      void completeLevel(level);
+      void completeLevel(level, { timeLeft: time, wrongAttempts: wrong });
 
       if (finished) {
         setIsFinished(true);
@@ -423,7 +410,7 @@ export default function Level2Pattern() {
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    if (!isStarted || levelIntroActive || countdown !== null || popup === "TIME_UP" || time === 0)
+    if (!isStarted || levelIntroActive || countdown !== null || popup === "TIME_UP" || gameOverOpen || time === 0)
       return;
 
     const dragged = String(event.active.id);
@@ -434,7 +421,7 @@ export default function Level2Pattern() {
   };
 
   const handleBack = () => {
-    navigate("/lesson/logic", { replace: true });
+    navigate("/quest/logic", { replace: true });
   };
 
   const handleRestart = () => {
@@ -443,6 +430,7 @@ export default function Level2Pattern() {
     setTime(30);
     setScore(0);
     setWrong(0);
+    setGameOverOpen(false);
     setDropped(null);
     setLevel(0);
     setProceedPromptLevel(null);
@@ -479,6 +467,7 @@ export default function Level2Pattern() {
         <QuestLevelSelect
           title="Logic Quest"
           unlockedCount={unlockedCount}
+          levelStars={levelStars}
           onSelectLevel={(index) => {
             setLevel(index);
             setMapOpen(false);
@@ -486,24 +475,17 @@ export default function Level2Pattern() {
           onBack={handleBack}
         />
       )}
-      <button className="lq-back-btn" onClick={handleBack}>
-        {"\u2190"} Back
+      <button className="lq-back-btn" onClick={() => setMapOpen(true)}>
+        {"\u2190"} Map
       </button>
 
       <h2 className="lq-main-title">What comes next?</h2>
 
       <div className="lq-meta-row">
         <span className="lq-level-pill">Level {level + 1}</span>
+        <LiveStarHud timeLeft={time} tried={score > 0 || wrong > 0} wrong={wrong} />
         <span className={`timer ${time <= 5 ? "timer-warning" : ""}`}>⏱ {time}s</span>
-        <button
-          type="button"
-          className="lq-sound-toggle lq-music-toggle"
-          onClick={() => setMusicEnabled((prev) => !prev)}
-          aria-label={musicEnabled ? "Mute music" : "Unmute music"}
-          title={musicEnabled ? "Mute Music" : "Unmute Music"}
-        >
-          {musicEnabled ? "🎵" : "🔇"}
-        </button>
+        <ChildMusicToggle />
         <button
           type="button"
           className="lq-sound-toggle lq-effects-toggle"
@@ -521,6 +503,7 @@ export default function Level2Pattern() {
         >
           {soundEnabled ? "🔊" : "🔇"}
         </button>
+        <GamePauseButton onClick={() => setPaused(true)} />
       </div>
 
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
@@ -573,12 +556,8 @@ export default function Level2Pattern() {
               title="🎉 Amazing!"
               subtitle="You completed all logic levels!"
               buttons={[
-                { label: "Play Again", onClick: handleRestart, variant: "yes" },
-                {
-                  label: "View Progress",
-                  onClick: () => navigate("/parent-progress"),
-                  variant: "secondary",
-                },
+                { label: "Games", onClick: handleBack, variant: "yes" },
+                { label: "Play Again", onClick: handleRestart, variant: "secondary" },
               ]}
             >
               Progress: {score}/{logicLevels.length} | Wrong Attempts: {wrong}
@@ -619,10 +598,10 @@ export default function Level2Pattern() {
             subtitle={`Progress: ${score}/${logicLevels.length} | Wrong Attempts: ${wrong}`}
             buttons={[
               {
-                label: "Back to Lesson",
+                label: "Games",
                 onClick: () => {
                   setShowNoPrompt(false);
-                  navigate("/lesson/logic");
+                  handleBack();
                 },
                 variant: "secondary",
               },
@@ -644,6 +623,13 @@ export default function Level2Pattern() {
         content={LOGIC_GAME_INTRO}
       />
 
+      <GamePausePopup
+        open={paused}
+        subtitle="Ready to finish the pattern?"
+        onPlay={() => setPaused(false)}
+        onMap={() => { setPaused(false); setMapOpen(true); }}
+      />
+
       {countdown !== null && !popup && !isFinished && (
         <GameOverlay isOpen={countdown !== null}>
           <GamePopup
@@ -653,7 +639,17 @@ export default function Level2Pattern() {
         </GameOverlay>
       )}
 
-{popup === "TIME_UP" && (
+      <GameOverPopup
+        open={gameOverOpen}
+        onLesson={() => navigate("/lesson/logic")}
+        onReplay={() => {
+          setGameOverOpen(false);
+          setWrong(0);
+          setDropped(null);
+          setPopup("");
+        }}
+      />
+{popup === "TIME_UP" && !gameOverOpen && (
   <GameOverlay isOpen={popup === "TIME_UP"}>
     <GamePopup
       title="⏰ Time's up!"
@@ -674,8 +670,11 @@ export default function Level2Pattern() {
               ]
             : [
                 {
-                  label: "Back to Lesson",
-                  onClick: handleBack,
+                  label: "Map",
+                  onClick: () => {
+                    setPopup("");
+                    setMapOpen(true);
+                  },
                 },
                 {
                   label: "Replay Level",
@@ -685,7 +684,7 @@ export default function Level2Pattern() {
               ]
           : [
               {
-                label: "Back to Lesson",
+                label: "Games",
                 onClick: handleBack,
                 variant: "secondary",
               },

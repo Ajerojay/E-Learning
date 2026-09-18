@@ -1,7 +1,14 @@
 import { createPortal } from "react-dom";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import mapBg from "./images/quest-map-scenery.png";
 import bear from "./images/bear-2.png";
+import ChildMusicToggle from "./ChildMusicToggle";
+import ChildVoiceToggle from "./ChildVoiceToggle";
+import LevelStarRow from "./LevelStars";
+import { cancelNativeSpeech, speakKidPrompt } from "../../nativeTts";
+import { holdChildMusic, releaseChildMusic } from "../../../lib/childMusic";
+import { useChildVoiceEnabled } from "../../../lib/childVoice";
 import "./QuestLevelSelect.css";
 
 type QuestLevelSelectProps = {
@@ -9,13 +16,17 @@ type QuestLevelSelectProps = {
   unlockedCount: number;
   onSelectLevel: (levelIndex: number) => void;
   onBack: () => void;
+  levelCount?: number;
+  levelStars?: number[];
 };
 
-const LEVELS = [
-  { index: 0, label: "Level 1", className: "qlm-node--1" },
-  { index: 1, label: "Level 2", className: "qlm-node--2" },
-  { index: 2, label: "Level 3", className: "qlm-node--3" },
-];
+function mapLevels(count: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    index,
+    label: `Level ${index + 1}`,
+    className: `qlm-node--${index + 1}`,
+  }));
+}
 
 function CloudShape() {
   return (
@@ -30,14 +41,24 @@ function CloudShape() {
   );
 }
 
+function speechMs(text: string) {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1200, Math.min(3200, 600 + words * 260));
+}
+
 export default function QuestLevelSelect({
   title,
   unlockedCount,
   onSelectLevel,
   onBack,
+  levelCount = 3,
+  levelStars = [],
 }: QuestLevelSelectProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const [pathD, setPathD] = useState("");
+  const [spotlightIndex, setSpotlightIndex] = useState<number | null>(null);
+  const [voiceEnabled] = useChildVoiceEnabled();
+  const levels = mapLevels(levelCount);
 
   useLayoutEffect(() => {
     const stage = stageRef.current;
@@ -45,7 +66,7 @@ export default function QuestLevelSelect({
 
     const draw = () => {
       const nodes = [...stage.querySelectorAll<HTMLElement>(".qlm-node")];
-      if (nodes.length < 3) return;
+      if (nodes.length < 2) return;
       const box = stage.getBoundingClientRect();
       const points = nodes.map((node) => {
         const rect = node.getBoundingClientRect();
@@ -54,8 +75,7 @@ export default function QuestLevelSelect({
           y: rect.top + rect.height * 0.52 - box.top,
         };
       });
-      const [start, mid, end] = points;
-      setPathD(`M ${start.x} ${start.y} L ${mid.x} ${mid.y} L ${end.x} ${end.y}`);
+      setPathD(points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" "));
     };
 
     draw();
@@ -68,28 +88,105 @@ export default function QuestLevelSelect({
       window.removeEventListener("resize", draw);
       window.removeEventListener("orientationchange", draw);
     };
-  }, []);
+  }, [levelCount]);
+
+  useEffect(() => {
+    if (!voiceEnabled) {
+      setSpotlightIndex(null);
+      cancelNativeSpeech();
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+      return;
+    }
+
+    let cancelled = false;
+    let holding = true;
+    const timers: number[] = [];
+    holdChildMusic();
+
+    const wait = (ms: number) =>
+      new Promise<void>((resolve) => {
+        timers.push(window.setTimeout(resolve, ms));
+      });
+
+    const say = async (text: string) => {
+      if (cancelled) return;
+      speakKidPrompt(text, { interrupt: true, rate: 0.95, pitch: 1.28 });
+      await wait(speechMs(text));
+    };
+
+    const run = async () => {
+      await wait(400);
+      if (cancelled) return;
+      await say(`This is ${title}`);
+      for (let index = 0; index < levelCount; index += 1) {
+        if (cancelled) return;
+        setSpotlightIndex(index);
+        await say(`Level ${index + 1}`);
+      }
+      if (cancelled) return;
+      setSpotlightIndex(null);
+      await say("Pick a cloud to play");
+    };
+
+    void run().finally(() => {
+      if (holding) {
+        holding = false;
+        releaseChildMusic();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      timers.forEach((id) => window.clearTimeout(id));
+      setSpotlightIndex(null);
+      cancelNativeSpeech();
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+      if (holding) {
+        holding = false;
+        releaseChildMusic();
+      }
+    };
+  }, [title, levelCount, voiceEnabled]);
 
   return createPortal(
     <div className="qlm" style={{ backgroundImage: `url(${mapBg})` }}>
-      <button type="button" className="qlm-back" onClick={onBack}>
-        {"\u2190"} Back
-      </button>
-      <h1 className="qlm-title">{title}</h1>
-      <p className="qlm-hint">Pick a level. Finish Level 1 to open the next clouds.</p>
+      <header className="qlm-head">
+        <button type="button" className="qlm-back" onClick={onBack}>
+          <ArrowLeft size={18} strokeWidth={2.75} aria-hidden="true" />
+          Back
+        </button>
+        <div className="qlm-heading">
+          <div className="qlm-banner">
+            <span className="qlm-sparkle" aria-hidden="true">✦</span>
+            <div className="qlm-banner-inner">
+              <p className="qlm-kicker">
+                <span aria-hidden="true">🗺️</span>
+                Level Map
+              </p>
+              <h1 className="qlm-title">{title}</h1>
+            </div>
+            <span className="qlm-sparkle" aria-hidden="true">✦</span>
+          </div>
+        </div>
+        <div className="qlm-toggles">
+          <ChildVoiceToggle />
+          <ChildMusicToggle />
+        </div>
+      </header>
+      <p className="qlm-hint">Pick a cloud. Finish a level to open the next one.</p>
 
       <div className="qlm-stage" ref={stageRef}>
         <svg className="qlm-trail" aria-hidden="true">
           <path d={pathD} />
         </svg>
         <img className="qlm-bear" src={bear} alt="" />
-        {LEVELS.map((level) => {
+        {levels.map((level) => {
           const locked = level.index >= unlockedCount;
           return (
             <button
               key={level.index}
               type="button"
-              className={`qlm-node ${level.className}${locked ? " is-locked" : " is-open"}`}
+              className={`qlm-node ${level.className}${locked ? " is-locked" : " is-open"}${spotlightIndex === level.index ? " is-spotlight" : ""}${spotlightIndex !== null && spotlightIndex !== level.index ? " is-dim" : ""}`}
               onClick={() => {
                 if (!locked) onSelectLevel(level.index);
               }}
@@ -101,6 +198,9 @@ export default function QuestLevelSelect({
                 <span className="qlm-lock" aria-hidden="true">{"\u{1F512}"}</span>
               ) : null}
               <span className="qlm-label">{level.label}</span>
+              <span className="qlm-stars">
+                <LevelStarRow stars={levelStars[level.index] ?? 0} />
+              </span>
             </button>
           );
         })}

@@ -437,14 +437,14 @@ export default function LessonPage() {
         {category === "phonics" && (
           <>
             <p className="lesson-activity-meta">
-              listening choices &mdash; tap the speaker, then pick the animal!
+              pick a phonics game, then play its 3 levels!
             </p>
             <button
               type="button"
               className="start-quest-btn"
-              onClick={() => startQuest("/student/PhonicsQuestPage")}
+              onClick={() => startQuest("/quest/phonics")}
             >
-              &#128266; Start Phonics Quest
+              Start Phonics Activity
             </button>
           </>
         )}
@@ -462,12 +462,12 @@ export default function LessonPage() {
         {category === "logic" && (
           <>
             <p className="lesson-activity-meta">
-              logic choices &mdash; drag the correct symbol into the box!
+              pick a logic game, then play its 3 levels!
             </p>
             <button
               type="button"
               className="start-quest-btn"
-              onClick={() => startQuest("/student/LogicQuestPage", { showStartPopup: true })}
+              onClick={() => startQuest("/quest/logic")}
             >
               Start Logic Activity
             </button>
@@ -475,19 +475,24 @@ export default function LessonPage() {
         )}
 
         {category === "numbers" && (
-          <button
-            type="button"
-            className="start-quest-btn"
-            onClick={() => startQuest("/quest/number")}
-          >
-            Start Numbers Activity
-          </button>
+          <>
+            <p className="lesson-activity-meta">
+              pick a numbers game, then play its 3 levels!
+            </p>
+            <button
+              type="button"
+              className="start-quest-btn"
+              onClick={() => startQuest("/quest/number")}
+            >
+              Start Numbers Activity
+            </button>
+          </>
         )}
 
         {category === "letters" && (
           <>
             <p className="lesson-activity-meta">
-              match each apple to the right letter basket!
+              pick a letters game, then play its 3 levels!
             </p>
             <button
               type="button"

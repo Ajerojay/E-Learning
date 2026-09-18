@@ -1,10 +1,11 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import "./PhonicsQuestPage.css";
+import "../../WebView/AppPhonicsQuestPage.css";
 import { useNavigate } from "react-router-dom";
 // ===== SUPABASE DATABASE CONNECTION: shared by web and AppPhonicsQuestPage =====
 import { recordGameProgressRpc, loadPrimaryGameCodeForCategory } from "../../../lib/gameProgressDb";
 import { getOrCreateActiveChildId } from "../../../lib/childProgress";
-import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
+import { GameOverlay, GamePopup, Countdown, GamePauseButton, GamePausePopup, GameOverPopup } from "./GamePopup";
 import {
   useLevelIntro,
   LevelIntroOverlay,
@@ -22,33 +23,64 @@ import catSound from "../../../img/cat-meow.mp3";
 import dogSound from "../../../img/dog-bark.mp3";
 import cowSound from "../../../img/cow-moo.mp3";
 import chickenSound from "../../../img/chicken-sound.mp3";
-import bgMusic from "./bg-music-loop.mp3";
 import { speakNative, cancelNativeSpeech } from "../../nativeTts";
 import QuestLevelSelect from "./QuestLevelSelect";
-import { useQuestLevelGate } from "./questLevelMap";
+import ChildMusicToggle from "./ChildMusicToggle";
+import { useQuestLevelGate, useStarTimeUp, useWrongAttemptGameOver } from "./questLevelMap";
+import { LiveStarHud } from "./LevelStars";
 
-const shuffleArray = (array: any[]) => {
+type SoundAnimal = {
+  name: string;
+  emoji: string;
+  fileSound?: string;
+  voiceSound?: string;
+  image?: string;
+};
+
+const shuffleArray = <T,>(array: T[]): T[] => {
   return [...array].sort(() => Math.random() - 0.5);
 };
 
-const animals = [
-  { name: "cat", emoji: "🐱" },
-  { name: "dog", emoji: "🐶" },
-  { name: "cow", emoji: "🐮" },
-  { name: "lion", emoji: "🦁" },
-  { name: "chicken", emoji: "🐔" },
+const ANIMALS: SoundAnimal[] = [
+  { name: "cat", emoji: "🐱", fileSound: catSound, image: cat },
+  { name: "dog", emoji: "🐶", fileSound: dogSound, image: dog },
+  { name: "cow", emoji: "🐮", fileSound: cowSound, image: cow },
+  { name: "chicken", emoji: "🐔", fileSound: chickenSound, image: chicken },
+  { name: "lion", emoji: "🦁", fileSound: rawrSound, image: lion },
+  { name: "pig", emoji: "🐷", voiceSound: "oink oink" },
+  { name: "duck", emoji: "🦆", voiceSound: "quack quack" },
+  { name: "sheep", emoji: "🐑", voiceSound: "baa baa" },
+  { name: "horse", emoji: "🐴", voiceSound: "neigh" },
+  { name: "frog", emoji: "🐸", voiceSound: "ribbit ribbit" },
+  { name: "bird", emoji: "🐦", voiceSound: "tweet tweet" },
+  { name: "owl", emoji: "🦉", voiceSound: "hoot hoot" },
 ];
 
-const levels = [
-  { answer: "cat", sound: catSound, image: cat },
-  { answer: "dog", sound: dogSound, image: dog },
-  { answer: "cow", sound: cowSound, image: cow },
-  { answer: "chicken", sound: chickenSound, image: chicken },
-  { answer: "lion", sound: rawrSound, image: lion },
-];
+const LEVEL_CONFIG = [
+  { pages: 3, choices: 3, time: 40, animals: ["cat", "dog", "cow"] },
+  { pages: 4, choices: 4, time: 50, animals: ["chicken", "lion", "pig", "duck"] },
+  { pages: 5, choices: 5, time: 60, animals: ["sheep", "horse", "frog", "bird", "owl"] },
+] as const;
+
+function animalsByName(names: readonly string[]): SoundAnimal[] {
+  return names.map((name) => {
+    const animal = ANIMALS.find((item) => item.name === name);
+    if (!animal) throw new Error(`Missing phonics animal: ${name}`);
+    return animal;
+  });
+}
+
+function buildLevelRound(levelIndex: number) {
+  const config = LEVEL_CONFIG[levelIndex] ?? LEVEL_CONFIG[0];
+  const pool = animalsByName(config.animals);
+  return {
+    pool,
+    pages: shuffleArray(pool).slice(0, config.pages),
+    config,
+  };
+}
 
 const ANIMAL_SOUND_VOLUME = 0.35;
-const PHONICS_LEVEL_TIME = 30;
 
 const PHONICS_GAME_INTRO = {
   title: "Listen!",
@@ -68,19 +100,30 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
   );
 
   const [wrong, setWrong] = useState(0);
-  const [score, setScore] = useState(0);
-  const [level, setLevel] = useState(0);
-  const { mapOpen, setMapOpen, unlockedCount, completeLevel } = useQuestLevelGate("phonics");
+  const [pageScore, setPageScore] = useState(0);
+  const [levelIndex, setLevelIndex] = useState(0);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [round, setRound] = useState(() => buildLevelRound(0));
+  const { mapOpen, setMapOpen, unlockedCount, levelStars, completeLevel, recordLevelResult } = useQuestLevelGate("phonics");
   const [showNext, setShowNext] = useState(false);
   const [showNoPrompt, setShowNoPrompt] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
-  const [timeLeft, setTimeLeft] = useState(PHONICS_LEVEL_TIME);
+  const [timeLeft, setTimeLeft] = useState<number>(LEVEL_CONFIG[0].time);
   const [timerRunning, setTimerRunning] = useState(false);
   const [timeUpOpen, setTimeUpOpen] = useState(false);
+  const [gameOverOpen, setGameOverOpen] = useState(false);
+  useStarTimeUp(timeUpOpen, levelIndex, pageScore > 0 || wrong > 0, recordLevelResult, wrong);
+  const onTooManyWrong = useCallback(() => {
+    setGameOverOpen(true);
+    setTimerRunning(false);
+    void recordLevelResult(levelIndex, { finished: false, tried: true, wrongAttempts: wrong });
+  }, [levelIndex, recordLevelResult, wrong]);
+  useWrongAttemptGameOver(wrong, onTooManyWrong);
   const [wrongThisLevel, setWrongThisLevel] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [musicEnabled, setMusicEnabled] = useState(true);
+  const [paused, setPaused] = useState(false);
   const [childId, setChildId] = useState<string | null>(null);
   const [gameCode, setGameCode] = useState("phonics_sound_match");
   // A new component mount (from Start Phonics Quest) is the only intro session.
@@ -90,13 +133,17 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
   const [isSoundAnimating, setIsSoundAnimating] = useState(false);
   const [choiceAnimating, setChoiceAnimating] = useState<string | null>(null);
 
-  const [shuffledAnimals, setShuffledAnimals] = useState(animals);
+  const [shuffledAnimals, setShuffledAnimals] = useState<SoundAnimal[]>(() => round.pool);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
   const wrongChoiceTimerRef = useRef<number | null>(null);
   const warnedSecondsRef = useRef<Set<number>>(new Set());
-  const currentLevel = levels[level];
+  const advancingRef = useRef(false);
+  const currentAnimal = round.pages[pageIndex] ?? round.pages[0];
+  const currentAnimalRef = useRef(currentAnimal);
+  currentAnimalRef.current = currentAnimal;
+  const pageCount = round.config.pages;
 
   const startCountdown = useCallback(() => setCountdown(3), []);
 
@@ -117,10 +164,19 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-    const audio = new Audio(currentLevel.sound);
-    audio.volume = ANIMAL_SOUND_VOLUME;
-    audioRef.current = audio;
-    audio.play().catch(() => {});
+    cancelNativeSpeech();
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    const animal = currentAnimalRef.current;
+    if (animal.fileSound) {
+      const audio = new Audio(animal.fileSound);
+      audio.volume = ANIMAL_SOUND_VOLUME;
+      audioRef.current = audio;
+      audio.play().catch(() => {});
+      return;
+    }
+    if (animal.voiceSound) {
+      speakNative(animal.voiceSound, { interrupt: true, rate: 0.9, pitch: 1.2 });
+    }
   };
 
   const sayKid = (text: string) => {
@@ -215,33 +271,36 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
     if (musicEnabled) bgMusicRef.current?.play().catch(() => {});
   }, [isLandscape, musicEnabled]);
 
-  useEffect(() => {
-    setShuffledAnimals(shuffleArray(animals));
+  const startLevel = useCallback((index: number) => {
+    const next = buildLevelRound(index);
+    setLevelIndex(index);
+    setPageIndex(0);
+    setPageScore(0);
+    setRound(next);
+    setShuffledAnimals(shuffleArray(next.pool));
     setWrongChoice(null);
     setWrongThisLevel(0);
+    setShowNext(false);
+    setShowNoPrompt(false);
+    setIsFinished(false);
     setCountdown(null);
-    setTimeLeft(PHONICS_LEVEL_TIME);
+    setTimeLeft(next.config.time);
     setTimerRunning(false);
     setTimeUpOpen(false);
+    setGameOverOpen(false);
     warnedSecondsRef.current = new Set();
-    if (!mapOpen) onLevelStart();
-  }, [level, onLevelStart, mapOpen]);
+    setMessage("Tap the sound and choose the animal!");
+    advancingRef.current = false;
+  }, []);
 
   useEffect(() => {
-    if (!bgMusicRef.current) {
-      const audio = new Audio(bgMusic);
-      audio.loop = true;
-      audio.volume = 0.25;
-      bgMusicRef.current = audio;
-      if (musicEnabled) {
-        audio.play().catch(() => {});
-      }
-    }
+    setShuffledAnimals(shuffleArray(round.pool));
+    setWrongChoice(null);
+  }, [pageIndex, round]);
 
-    return () => {
-      bgMusicRef.current?.pause();
-    };
-  }, []);
+  useEffect(() => {
+    if (!mapOpen) onLevelStart();
+  }, [levelIndex, onLevelStart, mapOpen]);
 
   useEffect(() => {
     if (levelIntroActive) setTimerRunning(false);
@@ -256,18 +315,8 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
   }, []);
 
   useEffect(() => {
-    const audio = bgMusicRef.current;
-    if (!audio) return;
-    if (musicEnabled) {
-      audio.play().catch(() => {});
-    } else {
-      audio.pause();
-    }
-  }, [musicEnabled]);
-
-  useEffect(() => {
     if (countdown === null || !isLandscape || mapOpen) return;
-    if (showNext || showNoPrompt || timeUpOpen || isFinished) return;
+    if (showNext || showNoPrompt || timeUpOpen || isFinished || paused) return;
 
     setTimerRunning(false);
     if (countdown <= 0) {
@@ -296,13 +345,13 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
   useEffect(() => {
     if (!timerRunning || !isLandscape || mapOpen) return;
     if (countdown !== null) return;
-    if (showNext || showNoPrompt || timeUpOpen || isFinished) return;
+    if (showNext || showNoPrompt || timeUpOpen || isFinished || paused) return;
 
     if (timeLeft <= 0) {
       setTimerRunning(false);
       setTimeUpOpen(true);
       setMessage("Time's up!");
-      const pct = Math.round((score / levels.length) * 100);
+      const pct = Math.round((pageScore / pageCount) * 100);
       void saveProgress(pct, false, wrong);
       return;
     }
@@ -317,16 +366,18 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
     showNoPrompt,
     timeUpOpen,
     isFinished,
-    score,
+    pageScore,
+    pageCount,
     wrong,
     isLandscape,
     mapOpen,
+    paused,
   ]);
 
   useEffect(() => {
     if (!timerRunning || !isLandscape || mapOpen) return;
     if (countdown !== null) return;
-    if (showNext || showNoPrompt || timeUpOpen || isFinished) return;
+    if (showNext || showNoPrompt || timeUpOpen || isFinished || paused) return;
     if (timeLeft > 5 || timeLeft <= 0) return;
     if (warnedSecondsRef.current.has(timeLeft)) return;
 
@@ -357,31 +408,41 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
 
   const handleGuess = (animal: string) => {
     if (!isLandscape) return;
-    if (levelIntroActive || countdown !== null || timeUpOpen) return;
-    if (showNext || isFinished) return;
+    if (levelIntroActive || countdown !== null || timeUpOpen || gameOverOpen || paused) return;
+    if (showNext || isFinished || advancingRef.current) return;
 
     setChoiceAnimating(animal);
     setTimeout(() => setChoiceAnimating(null), 600);
 
-    if (animal === currentLevel.answer) {
-      const nextScore = score + 1;
-      const percent = Math.round((nextScore / levels.length) * 100);
-      const finished = level === levels.length - 1;
+    if (animal === currentAnimal.name) {
+      const nextScore = pageScore + 1;
+      const percent = Math.round((nextScore / pageCount) * 100);
+      const lastPage = pageIndex >= pageCount - 1;
 
-      setScore(nextScore);
-      setMessage(`Great job! You matched ${currentLevel.answer}!`);
+      setPageScore(nextScore);
+      setMessage("Great job!");
       speakFeedback("Great job!");
-      saveProgress(percent, finished, wrong);
-      void completeLevel(Math.min(level, 2));
+      saveProgress(percent, lastPage && levelIndex >= 2, wrong);
 
-      if (finished) {
+      if (lastPage) {
+        advancingRef.current = true;
         setTimerRunning(false);
-        setIsFinished(true);
-        setMessage("Amazing! You completed all phonics sound levels!");
-        sayKid("Congratulations! Amazing work! You completed all phonics sound levels!");
+        void completeLevel(levelIndex, { timeLeft, wrongAttempts: wrong });
+        if (levelIndex >= LEVEL_CONFIG.length - 1) {
+          setIsFinished(true);
+          setMessage("Amazing! You completed all phonics sound levels!");
+          sayKid("Congratulations! Amazing work!");
+        } else {
+          window.setTimeout(() => setShowNext(true), 500);
+        }
       } else {
-        setTimerRunning(false);
-        setTimeout(() => setShowNext(true), 500);
+        advancingRef.current = true;
+        window.setTimeout(() => {
+          setPageIndex((current) => current + 1);
+          setMessage("Tap the sound and choose the animal!");
+          advancingRef.current = false;
+          window.setTimeout(playSound, 280);
+        }, 650);
       }
     } else {
       const nextWrong = wrong + 1;
@@ -397,54 +458,33 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
         wrongChoiceTimerRef.current = null;
       }, 650);
       setMessage("Oops! Try again!");
-      if (nextWrongThisLevel % 2 === 0) {
-        speakFeedback(`The sound is ${currentLevel.answer}. Listen again.`);
-        window.setTimeout(playSound, 900);
-      } else {
-        speakFeedback("Try again!");
-      }
-      const pct = Math.round((score / levels.length) * 100);
+      speakFeedback("Oops! Try again. Listen again.");
+      window.setTimeout(playSound, 700);
+      const pct = Math.round((pageScore / pageCount) * 100);
       void saveProgress(pct, false, nextWrong);
     }
   };
 
   const goNextLevel = () => {
-    setLevel((l) => l + 1);
+    startLevel(levelIndex + 1);
     setShowNext(false);
-    setMessage("Tap the sound and choose the animal!");
   };
 
   const replayLevel = () => {
+    startLevel(levelIndex);
     setTimeUpOpen(false);
-    setWrongThisLevel(0);
-    setWrongChoice(null);
     cancelIntro();
     startCountdownOnly();
-    setTimeLeft(PHONICS_LEVEL_TIME);
-    setTimerRunning(true);
-    warnedSecondsRef.current = new Set();
-    setMessage("Tap the sound and choose the animal!");
     window.setTimeout(playSound, 250);
   };
 
   const handlePlayAgain = () => {
-    // The full instruction belongs only to a fresh visit from
-    // "Start Phonics Quest". Replays go straight to 3-2-1.
     cancelIntro();
     setWrong(0);
-    setScore(0);
-    setLevel(0);
+    startLevel(0);
     setShowNext(false);
     setShowNoPrompt(false);
     setIsFinished(false);
-    setWrongChoice(null);
-    setWrongThisLevel(0);
-    setTimeUpOpen(false);
-    setCountdown(null);
-    setTimeLeft(PHONICS_LEVEL_TIME);
-    setTimerRunning(false);
-    warnedSecondsRef.current = new Set();
-    setMessage("Tap the sound and choose the animal!");
     window.setTimeout(() => startCountdownOnly(), 120);
   };
 
@@ -452,13 +492,14 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
     <div className="game-container phonics-bg-image phonics-page">
       {mapOpen && (
         <QuestLevelSelect
-          title="Phonics Quest"
+          title="Sound Quest"
           unlockedCount={unlockedCount}
+          levelStars={levelStars}
           onSelectLevel={(index) => {
-            setLevel(index);
+            startLevel(index);
             setMapOpen(false);
           }}
-          onBack={() => navigate("/lesson/phonics", { replace: true })}
+          onBack={() => navigate("/quest/phonics", { replace: true })}
         />
       )}
       <div className="pq-rotate-notice" role="status">
@@ -468,8 +509,8 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
         <span className="pq-turn-arrow" aria-hidden="true">↻</span>
       </div>
 
-      <button className="pq-back-btn" onClick={() => navigate("/lesson/phonics", { replace: true })}>
-        {"\u2190"} Back
+      <button className="pq-back-btn" onClick={() => setMapOpen(true)}>
+        {"\u2190"} Map
       </button>
 
       <h2 className="pq-page-title">
@@ -480,19 +521,12 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
   <br />
 
    <div className="pq-meta-row">
-    <span className="pq-level-pill">Level {level + 1}</span>
+    <span className="pq-level-pill">Level {levelIndex + 1}</span>
+    <LiveStarHud timeLeft={timeLeft} tried={pageScore > 0 || wrong > 0} wrong={wrong} />
     <span className={`pq-timer-pill ${timeLeft <= 5 ? "pq-timer-pill--warning" : ""}`}>
       ⏱ {timeLeft}s
     </span>
-    <button
-      type="button"
-      className="pq-sound-toggle pq-music-toggle"
-      onClick={() => setMusicEnabled((prev) => !prev)}
-      aria-label={musicEnabled ? "Mute music" : "Unmute music"}
-      title={musicEnabled ? "Mute Music" : "Unmute Music"}
-    >
-      {musicEnabled ? "🎵" : "🔇"}
-    </button>
+    <ChildMusicToggle />
     <button
       type="button"
       className="pq-sound-toggle pq-effects-toggle"
@@ -511,6 +545,7 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
     >
       {soundEnabled ? "🔊" : "🔇"}
     </button>
+    <GamePauseButton onClick={() => setPaused(true)} />
   </div>
   
 </h2> 
@@ -526,11 +561,20 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
             <span className="pq-sound-icon" aria-hidden="true">{"\uD83D\uDD0A"}</span>
             <small>Tap me!</small>
           </button>
-          <img
-            src={currentLevel.image}
-            className={`sound-guide-img ${isSoundAnimating ? "pq-pulse-animate" : ""}`}
-            alt="Animal guide"
-          />
+          {currentAnimal.image ? (
+            <img
+              src={currentAnimal.image}
+              className={`sound-guide-img ${isSoundAnimating ? "pq-pulse-animate" : ""}`}
+              alt=""
+            />
+          ) : (
+            <span
+              className={`sound-guide-emoji ${isSoundAnimating ? "pq-pulse-animate" : ""}`}
+              aria-hidden="true"
+            >
+              {currentAnimal.emoji}
+            </span>
+          )}
         </div>
 
         <div className="choices">
@@ -554,7 +598,7 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
       {!isFinished && <div className="pq-panel">
         <p className="pq-message">{message}</p>
         <p className="pq-progress">
-          Progress: {score}/{levels.length} | Wrong Attempts: {wrong}
+          Progress: {pageScore}/{pageCount} | Wrong Attempts: {wrong}
         </p>
       </div>}
 
@@ -576,7 +620,7 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
                 },
               ]}
             >
-              Progress: {score}/{levels.length} | Wrong Attempts: {wrong}
+              Progress: {pageScore}/{pageCount} | Wrong Attempts: {wrong}
             </GamePopup>
           </GameOverlay>
         </div>
@@ -586,7 +630,7 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
         <GameOverlay isOpen={showNext}>
           <GamePopup
             title="🎉 Awesome!"
-            subtitle={`Level ${level + 1} complete! Proceed to Level ${level + 2}?`}
+            subtitle={`Level ${levelIndex + 1} complete! Proceed to Level ${levelIndex + 2}?`}
             buttons={[
               {
                 label: "Yes",
@@ -622,15 +666,27 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
         </GameOverlay>
       )}
 
-      {timeUpOpen && (
+      <GamePausePopup
+        open={paused}
+        subtitle="Ready to listen for more sounds?"
+        onPlay={() => setPaused(false)}
+        onMap={() => { setPaused(false); setMapOpen(true); }}
+      />
+
+      <GameOverPopup
+        open={gameOverOpen}
+        onLesson={() => navigate("/lesson/phonics")}
+        onReplay={() => startLevel(levelIndex)}
+      />
+      {timeUpOpen && !gameOverOpen && (
         <GameOverlay isOpen={timeUpOpen}>
           <GamePopup
             title="⏰ Time's up!"
-            subtitle={`You matched ${score}/${levels.length} animals in Level ${level + 1}.`}
+            subtitle={`You matched ${pageScore}/${pageCount} sounds in Level ${levelIndex + 1}.`}
             buttons={[
               {
-                label: "Back to Lesson",
-                onClick: () => navigate("/lesson/phonics"),
+                label: "Games",
+                onClick: () => navigate("/quest/phonics"),
               },
               {
                 label: "Replay Level",
@@ -646,13 +702,13 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
         <GameOverlay isOpen={showNoPrompt}>
           <GamePopup
             title="Keep playing?"
-            subtitle={`Progress: ${score}/${levels.length} | Wrong Attempts: ${wrong}`}
+            subtitle={`Progress: ${pageScore}/${pageCount} | Wrong Attempts: ${wrong}`}
             buttons={[
               {
-                label: "Back to Lesson",
+                label: "Games",
                 onClick: () => {
                   setShowNoPrompt(false);
-                  navigate("/lesson/phonics");
+                  navigate("/quest/phonics");
                 },
                 variant: "secondary",
               },

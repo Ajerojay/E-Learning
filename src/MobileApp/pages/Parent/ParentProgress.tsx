@@ -302,7 +302,7 @@ export default function ParentProgress() {
           onlineAction: "Replay Logic Game",
           onlineDesc:
             "Encourage her to replay the pattern game and explain why each choice is correct.",
-          onlineRoute: "/student/LogicQuestPage",
+          onlineRoute: "/quest/logic",
           offlineTitle: "PARENT TIME (10m)",
           offlineAction: "Pattern at Home",
           offlineDesc:

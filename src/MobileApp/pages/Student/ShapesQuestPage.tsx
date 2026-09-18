@@ -12,24 +12,25 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import "./ShapesQuestPage.css";
+import "../../WebView/AppShapesQuestPage.css";
 import { getOrCreateActiveChildId } from "../../../lib/childProgress";
 import {
   loadPrimaryGameCodeForCategory,
   recordGameProgressRpc,
 } from "../../../lib/gameProgressDb";
-import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
+import { GameOverlay, GamePopup, GamePauseButton, GamePausePopup, GameOverPopup } from "./GamePopup";
+import ChildMusicToggle from "./ChildMusicToggle";
 import {
-  useLevelIntro,
-  LevelIntroOverlay,
-  COUNTDOWN_READY_SUBTITLE,
   type LevelIntroContent,
 } from "./levelIntro";
 
 import gameBg from "./images/shapes-bg.jpg";
-import { speakNative } from "../../nativeTts";
-import QuestLevelSelect from "./QuestLevelSelect";
-import { useQuestLevelGate } from "./questLevelMap";
 import bearImg from "./images/bear-3.png";
+import { speakKidPrompt, speakNative } from "../../nativeTts";
+import { useQuestLevelGate, useStarTimeUp, useWrongAttemptGameOver } from "./questLevelMap";
+import { ShapesMiniChrome, shapesNextLevelButtons } from "./ShapesMiniChrome";
+import { useColorsMiniClock } from "./useColorsMiniClock";
+import "./ShapesMiniGames.css";
 
 type ShapeKind =
   | "square"
@@ -37,7 +38,10 @@ type ShapeKind =
   | "triangle"
   | "circle"
   | "diamond"
-  | "hexagon";
+  | "hexagon"
+  | "oval"
+  | "pentagon"
+  | "star";
 
 type ShapeItem = {
   id: string;
@@ -45,27 +49,35 @@ type ShapeItem = {
   label: string;
 };
 
+type SlotPos = "roof" | "window" | "door" | "round" | "gem" | "chimney";
+
+type HouseShape = Exclude<ShapeKind, "oval" | "pentagon" | "star">;
+
 type Slot = {
   id: string;
-  accepts: Exclude<ShapeKind, "circle" | "diamond" | "hexagon">;
+  accepts: HouseShape;
   label: string;
+  pos: SlotPos;
 };
 
-const slots: Slot[] = [
-  { id: "slot-roof", accepts: "triangle", label: "Roof" },
-  { id: "slot-window", accepts: "square", label: "Window" },
-  { id: "slot-door", accepts: "rectangle", label: "Door" },
-];
+const SLOT_ROOF: Slot = { id: "slot-roof", accepts: "triangle", label: "Triangle", pos: "roof" };
+const SLOT_WINDOW: Slot = { id: "slot-window", accepts: "square", label: "Square", pos: "window" };
+const SLOT_DOOR: Slot = { id: "slot-door", accepts: "rectangle", label: "Rectangle", pos: "door" };
+const SLOT_ROUND: Slot = { id: "slot-round", accepts: "circle", label: "Circle", pos: "round" };
+const SLOT_GEM: Slot = { id: "slot-gem", accepts: "diamond", label: "Diamond", pos: "gem" };
+const SLOT_CHIMNEY: Slot = { id: "slot-chimney", accepts: "hexagon", label: "Hexagon", pos: "chimney" };
 
 type Level = {
   name: "Easy" | "Medium" | "Hard";
   shapes: ShapeItem[];
+  slots: Slot[];
   showHintsOnStart: boolean;
 };
 
 const levels: Level[] = [
   {
     name: "Easy",
+    slots: [SLOT_ROOF, SLOT_WINDOW, SLOT_DOOR],
     shapes: [
       { id: "easy-square", kind: "square", label: "Square" },
       { id: "easy-rectangle", kind: "rectangle", label: "Rectangle" },
@@ -75,26 +87,31 @@ const levels: Level[] = [
   },
   {
     name: "Medium",
+    slots: [SLOT_ROOF, SLOT_WINDOW, SLOT_DOOR, SLOT_ROUND],
     shapes: [
       { id: "med-square", kind: "square", label: "Square" },
+      { id: "med-star", kind: "star", label: "Star" },
       { id: "med-rectangle", kind: "rectangle", label: "Rectangle" },
       { id: "med-triangle", kind: "triangle", label: "Triangle" },
       { id: "med-circle", kind: "circle", label: "Circle" },
-      { id: "med-diamond", kind: "diamond", label: "Diamond" },
     ],
     showHintsOnStart: true,
   },
   {
     name: "Hard",
+    slots: [SLOT_ROOF, SLOT_WINDOW, SLOT_DOOR, SLOT_ROUND, SLOT_GEM, SLOT_CHIMNEY],
     shapes: [
+      { id: "hard-star", kind: "star", label: "Star" },
       { id: "hard-square", kind: "square", label: "Square" },
+      { id: "hard-oval", kind: "oval", label: "Oval" },
       { id: "hard-rectangle", kind: "rectangle", label: "Rectangle" },
       { id: "hard-triangle", kind: "triangle", label: "Triangle" },
+      { id: "hard-pentagon", kind: "pentagon", label: "Pentagon" },
       { id: "hard-circle", kind: "circle", label: "Circle" },
       { id: "hard-diamond", kind: "diamond", label: "Diamond" },
       { id: "hard-hexagon", kind: "hexagon", label: "Hexagon" },
     ],
-    showHintsOnStart: false,
+    showHintsOnStart: true,
   },
 ];
 
@@ -145,10 +162,36 @@ function DraggableShape({
   );
 }
 
+const SLOT_PATHS: Record<HouseShape, string> = {
+  square: "M14 14 H86 V86 H14 Z",
+  rectangle: "M4 4 H36 V96 H4 Z",
+  triangle: "M50 8 L94 90 H6 Z",
+  circle: "M50 10 A40 40 0 1 1 49.9 10 Z",
+  diamond: "M50 6 L94 50 L50 94 L6 50 Z",
+  hexagon: "M28 12 H72 L94 50 L72 88 H28 L6 50 Z",
+};
+
+const SLOT_VIEWBOX: Record<HouseShape, string> = {
+  square: "0 0 100 100",
+  rectangle: "0 0 40 100",
+  triangle: "0 0 100 100",
+  circle: "0 0 100 100",
+  diamond: "0 0 100 100",
+  hexagon: "0 0 100 100",
+};
+
+const SLOT_FILL: Record<HouseShape, string> = {
+  square: "#a7d6ff",
+  rectangle: "#ffe08a",
+  triangle: "#f7a6b7",
+  circle: "#b7f7d1",
+  diamond: "#d6c7ff",
+  hexagon: "#ffb7d0",
+};
+
 function DropSlot({
   slot,
   filledBy,
-  showHint,
 }: {
   slot: Slot;
   filledBy: ShapeItem | null;
@@ -162,6 +205,7 @@ function DropSlot({
   const activeKind = (active?.data?.current as { kind?: ShapeKind } | undefined)
     ?.kind;
   const isValidOver = isOver && activeKind === slot.accepts;
+  const kind = (filledBy?.kind ?? slot.accepts) as HouseShape;
 
   return (
     <div
@@ -177,11 +221,13 @@ function DropSlot({
         .join(" ")}
       aria-label={slot.label}
     >
-      {filledBy ? (
-        <div className={`sq-slot-shape sq-slot-shape--${filledBy.kind}`} />
-      ) : (
-        showHint && <div className="sq-slot-hint">{slot.accepts}</div>
-      )}
+      <svg className="sq-slot-svg" viewBox={SLOT_VIEWBOX[kind]} aria-hidden="true">
+        <path
+          d={SLOT_PATHS[kind]}
+          className={filledBy ? "sq-slot-svg-fill" : "sq-slot-svg-outline"}
+          style={filledBy ? { fill: SLOT_FILL[kind] } : undefined}
+        />
+      </svg>
     </div>
   );
 }
@@ -207,8 +253,7 @@ export default function ShapesQuestPage() {
   const lastPraiseIndexRef = useRef(-1);
 
   const [levelIndex, setLevelIndex] = useState(0);
-  const { mapOpen, setMapOpen, unlockedCount, completeLevel } = useQuestLevelGate("shapes");
-  const playSession = 0;
+  const { mapOpen, setMapOpen, unlockedCount, levelStars, completeLevel, recordLevelResult } = useQuestLevelGate("shapes");
   const [placed, setPlaced] = useState<Record<string, string>>({});
   const [wrongAttempts, setWrongAttempts] = useState(0);
   const [message, setMessage] = useState(
@@ -216,45 +261,42 @@ export default function ShapesQuestPage() {
   );
   const [hasPlayed, setHasPlayed] = useState(false);
   const [finalCongratsOpen, setFinalCongratsOpen] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(30);
-  const [timerRunning, setTimerRunning] = useState(false);
-  const [proceedPromptLevel, setProceedPromptLevel] = useState<number | null>(
-    null
-  );
-  const [levelSummaryOpen, setLevelSummaryOpen] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null);
+  const [paused, setPaused] = useState(false);
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const [gameOverOpen, setGameOverOpen] = useState(false);
   const [voicesReady, setVoicesReady] = useState(false);
-  const [timeUpOpen, setTimeUpOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [childId, setChildId] = useState<string | null>(null);
   const [gameCode, setGameCode] = useState<string | null>(null);
 
   const level = levels[levelIndex] ?? levels[0];
+  const slots = level.slots;
   const activeShapes = level.shapes;
 
   const SHAPES_GAME_INTRO: LevelIntroContent = {
-    title: "Build the house!",
+    title: "Build the House!",
     subtitle: "Drag each shape to the roof, window, or door.",
     speech: "Build the house! Drag each shape to the roof, window, or door.",
+    compact: true,
   };
 
-  const startCountdown = useCallback(() => setCountdown(3), []);
-
-  const introEnabled =
-    !mapOpen &&
-    !finalCongratsOpen &&
-    !timeUpOpen &&
-    proceedPromptLevel === null &&
-    levelSummaryOpen === false;
-
-  const { levelIntroActive, onLevelStart, startCountdownOnly, cancelIntro } = useLevelIntro({
-    content: SHAPES_GAME_INTRO,
+  const clock = useColorsMiniClock({
+    intro: SHAPES_GAME_INTRO,
+    mapOpen,
+    isLandscape: true,
+    paused,
+    blocked: finalCongratsOpen || completeOpen || gameOverOpen,
+    timeLimit: 35 + levelIndex * 15,
+    levelIndex,
     soundEnabled,
-    enabled: introEnabled,
-    sessionKey: playSession,
-    onStartCountdown: startCountdown,
   });
+  useStarTimeUp(clock.timeUpOpen, levelIndex, Object.keys(placed).length > 0 || wrongAttempts > 0, recordLevelResult, wrongAttempts);
+  const onTooManyWrong = useCallback(() => {
+    setGameOverOpen(true);
+    void recordLevelResult(levelIndex, { finished: false, tried: true, wrongAttempts });
+  }, [levelIndex, recordLevelResult, wrongAttempts]);
+  useWrongAttemptGameOver(wrongAttempts, onTooManyWrong);
 
   const placedShapeIds = useMemo(() => new Set(Object.values(placed)), [placed]);
   const availableShapes = useMemo(
@@ -264,8 +306,6 @@ export default function ShapesQuestPage() {
 
   const progress = Object.keys(placed).length;
   const total = slots.length;
-  const levelComplete = progress === total;
-  const canProceedAfterTimeUp = false;
   const isFinished = finalCongratsOpen;
 
   const slotToShape = useMemo(() => {
@@ -276,7 +316,7 @@ export default function ShapesQuestPage() {
       result[slot.id] = shapeId ? byId.get(shapeId) ?? null : null;
     }
     return result;
-  }, [activeShapes, placed]);
+  }, [activeShapes, placed, slots]);
 
   useEffect(() => {
     const load = async () => {
@@ -298,7 +338,7 @@ export default function ShapesQuestPage() {
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    if (levelIntroActive || countdown !== null) return;
+    if (!clock.playing || gameOverOpen) return;
     const activeId = String(event.active.id);
     const overId = event.over?.id ? String(event.over.id) : null;
 
@@ -308,7 +348,6 @@ export default function ShapesQuestPage() {
     if (!slot || !shape) return;
 
     setHasPlayed(true);
-    setTimerRunning(true);
 
     const activeKind = (event.active.data.current as { kind?: ShapeKind } | null)
       ?.kind;
@@ -351,41 +390,13 @@ setMessage(randomHappy);
   );
 
   if (nextProgress === total) {
-    void completeLevel(levelIndex);
+    void completeLevel(levelIndex, { timeLeft: clock.timeLeftRef.current, wrongAttempts });
+    if (soundEnabled) speakKidPrompt("Awesome! Level complete!", { interrupt: true });
     if (levelIndex >= 2) {
       setFinalCongratsOpen(true);
-      sayKid("Congratulations! Amazing building! You finished all shape levels!");
-
-      const finishMessages = [
-        "Amazing! You finished all levels! 🎉",
-        "You're a superstar learner! ⭐",
-        "Wonderful job! 🌈",
-        "You completed everything! 🧸",
-      ];
-
-      setMessage(
-        finishMessages[
-          Math.floor(Math.random() * finishMessages.length)
-        ]
-      );
-
       persistShapesProgress(100, true, wrongAttempts);
     } else {
-      setProceedPromptLevel(levelIndex);
-      setTimerRunning(false);
-
-      const completeMessages = [
-        `Great job! Level ${levelIndex + 1} complete! 🎉`,
-        "Awesome work superstar! ⭐",
-        "You did amazing! 🌈",
-      ];
-
-      setMessage(
-        completeMessages[
-          Math.floor(Math.random() * completeMessages.length)
-        ]
-      );
-
+      setCompleteOpen(true);
       persistShapesProgress(
         Math.min(99, pctForLevel),
         false,
@@ -458,19 +469,16 @@ speakFeedback("Try again!");
     setWrongAttempts(0);
     setHasPlayed(false);
     setMessage("Drag the shapes into the correct spots to build the house!");
-    setTimeLeft(30);
-    setTimerRunning(false);
-    setProceedPromptLevel(null);
-    setLevelSummaryOpen(false);
-    setCountdown(null);
-    setTimeUpOpen(false);
+    setCompleteOpen(false);
+    setGameOverOpen(false);
+    setPaused(false);
     warnedSecondsRef.current = new Set();
   };
 
   const resetCurrentLevel = () => {
     resetCommon();
     setFinalCongratsOpen(false);
-    onLevelStart();
+    clock.replayLevel();
   };
 
   const handleProceed = () => {
@@ -480,36 +488,22 @@ speakFeedback("Try again!");
   };
 
   const handlePlayAgain = () => {
-    // Replay skips the instruction card and begins directly at 3, 2, 1.
-    cancelIntro();
     resetCommon();
     setFinalCongratsOpen(false);
     setLevelIndex(0);
-    window.setTimeout(() => startCountdownOnly(), 120);
-  };
-
-  const handleBack = () => {
-    // Always return to the Shapes lesson, regardless of the current level/history.
-    navigate("/lesson/shapes", { replace: true });
+    window.setTimeout(() => clock.replayLevel(), 120);
   };
 
   useEffect(() => {
-    // Reset timer whenever level changes
-    setTimeLeft(30);
-    setTimerRunning(false);
     setHasPlayed(false);
     setPlaced({});
     setMessage("Drag the shapes into the correct spots to build the house!");
-    // keep wrongAttempts across levels? requirement says fast, but keep per level:
     setWrongAttempts(0);
     setFinalCongratsOpen(false);
-    setProceedPromptLevel(null);
-    setLevelSummaryOpen(false);
-    setCountdown(null);
-    setTimeUpOpen(false);
+    setCompleteOpen(false);
+    setPaused(false);
     warnedSecondsRef.current = new Set();
-    if (!mapOpen) onLevelStart();
-  }, [levelIndex, onLevelStart, mapOpen]);
+  }, [levelIndex, mapOpen]);
 
   const getOrCreateAudio = () => {
     const existing = audioRef.current;
@@ -729,84 +723,9 @@ speakFeedback("Try again!");
   }, []);
 
   useEffect(() => {
-    if (levelIntroActive) setTimerRunning(false);
-  }, [levelIntroActive]);
-
-  useEffect(() => {
-    if (levelIntroActive) return;
-    if (countdown === null) return;
-    setTimerRunning(false);
-
-    if (countdown <= 0) {
-      setCountdown(null);
-      setTimerRunning(true);
-      playKidBeep(0);
-      sayKid("Go!");
-      startBgSong();
-      return;
-    }
-
-    if (countdown === 3) {
-      playOpeningSong();
-    }
-    playKidBeep(countdown);
-    sayKid(String(countdown));
-    const t = window.setTimeout(() => {
-      setCountdown((p) => (p === null ? null : p - 1));
-    }, 850);
-    return () => window.clearTimeout(t);
+    stopBgSong();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [countdown, levelIntroActive]);
-
-  useEffect(() => {
-    // Pause background music during popups / finished / countdown
-    const popupOpen = proceedPromptLevel !== null || levelSummaryOpen;
-    if (isFinished || countdown !== null || popupOpen) {
-      stopBgSong();
-      return;
-    }
-    if (timerRunning && musicEnabled) startBgSong();
-    else stopBgSong();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timerRunning, proceedPromptLevel, levelSummaryOpen, isFinished, countdown, musicEnabled]);
-
-  useEffect(() => {
-    if (!timerRunning || levelComplete || isFinished) return;
-
-    if (timeLeft <= 0) {
-      setTimerRunning(false);
-      setProceedPromptLevel(null);
-      setLevelSummaryOpen(false);
-      warnedSecondsRef.current = new Set();
-
-      setMessage("Time's up!");
-      setTimeUpOpen(true);
-      return;
-    }
-
-    const t = window.setTimeout(() => setTimeLeft((p) => p - 1), 1000);
-    return () => window.clearTimeout(t);
-  }, [timerRunning, timeLeft, levelComplete, isFinished]);
-
-  useEffect(() => {
-    // Last 5 seconds warning + spoken countdown
-    if (!timerRunning) return;
-    if (countdown !== null) return;
-    if (proceedPromptLevel !== null || levelSummaryOpen) return;
-    if (levelComplete || isFinished) return;
-    if (timeLeft > 5 || timeLeft <= 0) return;
-
-    if (warnedSecondsRef.current.has(timeLeft)) return;
-    warnedSecondsRef.current.add(timeLeft);
-
-    if (timeLeft === 5) {
-      sayKid("Hurry! Five seconds left!");
-    } else {
-      sayKid(String(timeLeft));
-    }
-    playKidBeep(timeLeft);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeLeft, timerRunning, countdown, proceedPromptLevel, levelSummaryOpen, levelComplete, isFinished]);
+  }, [clock.playing, clock.countdown, completeOpen, paused, isFinished, musicEnabled]);
 
   useEffect(() => {
     return () => {
@@ -824,338 +743,133 @@ speakFeedback("Try again!");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // NOTE: proceed is handled via popup (like LetterQuestPage)
-
   return (
-    <div className="sq-page-bg" ref={pageRef} style={{ backgroundImage: `url(${gameBg})` }}>
-      {mapOpen && (
-        <QuestLevelSelect
-          title="Shapes Quest"
-          unlockedCount={unlockedCount}
-          onSelectLevel={(index) => {
-            setLevelIndex(index);
-            setMapOpen(false);
-          }}
-          onBack={handleBack}
-        />
-      )}
-      <div className="sq-top-bar">
-        <button
-          type="button"
-          className="sq-back-btn"
-          onClick={handleBack}
-        >
-          {"\u2190"} Back
-        </button>
-      </div>
-<div className="sq-title-wrapper">
-
-  <h2 className="sq-title">
-    Build the House!
-  </h2>
-
-  <p className="sq-subtitle">
-    Drag the shapes onto the matching outlines
-    to complete the house!
-  </p>
-
-</div>
-
-      <div className="sq-mobile-meta-row" aria-label="Game controls">
-        <div className="sq-level-badge">Level {levelIndex + 1}: {level.name}</div>
-        <button
-          type="button"
-          className="sq-sound-toggle sq-music-toggle"
-          onClick={() => setMusicEnabled((prev) => !prev)}
-          aria-label={musicEnabled ? "Mute music" : "Unmute music"}
-        >
-          {musicEnabled ? "🎵" : "🔇"}
-        </button>
-        <div className="sq-timer" aria-label="Time remaining">⏱ {timeLeft}s</div>
-        <button
-          type="button"
-          className={`sq-sound-toggle sq-effects-toggle ${soundEnabled ? "" : "is-muted"}`}
-          onClick={() => {
-            setSoundEnabled((prev) => {
-              const next = !prev;
-              if (!next && "speechSynthesis" in window) window.speechSynthesis.cancel();
-              return next;
-            });
-          }}
-          aria-label={soundEnabled ? "Mute voice" : "Unmute voice"}
-        >
-          {soundEnabled ? "🔊" : "🔇"}
-        </button>
-      </div>
-
-      <div className="sq-game-card">
-        <div className="sq-game-container">
-          <div className="sq-tag">Shapes</div>
-          <div className="sq-meta-row">
-            <div className="sq-level-badge">
-              Level {levelIndex + 1}: {level.name}
-            </div>
-            <div className="sq-timer" aria-label="Time remaining">
-              ⏱ {timeLeft}s
-            </div>
-            <button
-              type="button"
-              className="sq-sound-toggle sq-music-toggle"
-              onClick={() => setMusicEnabled((prev) => !prev)}
-              aria-label={musicEnabled ? "Mute music" : "Unmute music"}
-              title={musicEnabled ? "Mute Music" : "Unmute Music"}
-            >
-              {musicEnabled ? "🎵" : "🔇"}
-            </button>
-            <button
-              type="button"
-              className={`sq-sound-toggle sq-effects-toggle ${soundEnabled ? "" : "is-muted"}`}
-              onClick={() => {
-                setSoundEnabled((prev) => {
-                  const next = !prev;
-                  if (!next && "speechSynthesis" in window) {
-                    window.speechSynthesis.cancel();
-                  }
-                  return next;
-                });
+    <div className="sq-page-bg ssm ssm--house" ref={pageRef} style={{ backgroundImage: `url(${gameBg})` }}>
+      <ShapesMiniChrome
+        mapTitle="Shape Quest"
+        mapOpen={mapOpen}
+        setMapOpen={setMapOpen}
+        unlockedCount={unlockedCount}
+        levelStars={levelStars}
+        onSelectLevel={(index) => {
+          setLevelIndex(index);
+        }}
+        title="Build the House!"
+        levelIndex={levelIndex}
+        timeLeft={clock.timeLeft}
+        soundEnabled={soundEnabled}
+        setSoundEnabled={setSoundEnabled}
+        intro={SHAPES_GAME_INTRO}
+        introActive={clock.levelIntroActive}
+        introEnabled={clock.introEnabled}
+        countdown={clock.countdown}
+        extraHeader={
+          <>
+            <ChildMusicToggle />
+            <GamePauseButton onClick={() => setPaused(true)} />
+          </>
+        }
+        footerMessage={message}
+        progress={progress}
+        total={total}
+        wrongAttempts={wrongAttempts}
+        hideFooter={completeOpen || finalCongratsOpen}
+      >
+        <div className="sq-game-card">
+          <div className="sq-game-container">
+            <DndContext
+              sensors={sensors}
+              onDragMove={handleDragMove}
+              onDragStart={(event) => {
+                if (!clock.playing) return;
+                const kind = (event.active.data.current as { kind?: ShapeKind } | null)?.kind;
+                if (!kind) return;
+                sayKid(kind.charAt(0).toUpperCase() + kind.slice(1));
               }}
-              aria-label={soundEnabled ? "Turn sound off" : "Turn sound on"}
+              onDragEnd={handleDragEnd}
             >
-              {soundEnabled ? "🔊 On" : "🔇 Off"}
-            </button>
+              <div className="sq-scene">
+                <div className="sq-house-fit">
+                <div className="sq-house">
+                  <div className="sq-house-face">
+                    <span className="sq-eye left" />
+                    <span className="sq-eye right" />
+                    <span className="sq-mouth" />
+                    <span className="sq-blush left" />
+                    <span className="sq-blush right" />
+                  </div>
+                  <div className="sq-house-slots">
+                    {slots.map((slot) => (
+                      <div key={slot.id} className={`sq-slot-pos sq-slot-pos--${slot.pos}`}>
+                        <DropSlot slot={slot} filledBy={slotToShape[slot.id]} showHint={level.showHintsOnStart && !hasPlayed} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                </div>
+                <img className="sq-bear" src={bearImg} alt="" aria-hidden="true" />
+              </div>
+              <div className="sq-tray">
+                <div className="sq-tray-inner">
+                  {availableShapes.map((shape) => (
+                    <DraggableShape
+                      key={shape.id}
+                      shape={shape}
+                      disabled={!clock.playing}
+                      onSpeak={(label) => sayKid(label)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </DndContext>
           </div>
-
-          <DndContext
-            sensors={sensors}
-            onDragMove={handleDragMove}
-            onDragStart={(event) => {
-              if (levelIntroActive || countdown !== null) return;
-              if (timeUpOpen) return;
-              const kind = (
-                event.active.data.current as { kind?: ShapeKind } | null
-              )?.kind;
-              if (!kind) return;
-              const spoken = kind.charAt(0).toUpperCase() + kind.slice(1);
-              sayKid(spoken);
-            }}
-            onDragEnd={handleDragEnd}
-          >
-            <div className="sq-scene">
-              <div className="sq-house">
-                <div className="sq-house-face">
-                  <span className="sq-eye left" />
-                  <span className="sq-eye right" />
-                  <span className="sq-mouth" />
-                  <span className="sq-blush left" />
-                  <span className="sq-blush right" />
-                </div>
-
-                <div className="sq-house-slots">
-                  <div className="sq-slot-pos sq-slot-pos--roof">
-                    <DropSlot
-                      slot={slots[0]}
-                      filledBy={slotToShape[slots[0].id]}
-                      showHint={level.showHintsOnStart && !hasPlayed}
-                    />
-                  </div>
-                  <div className="sq-slot-pos sq-slot-pos--window">
-                    <DropSlot
-                      slot={slots[1]}
-                      filledBy={slotToShape[slots[1].id]}
-                      showHint={level.showHintsOnStart && !hasPlayed}
-                    />
-                  </div>
-                  <div className="sq-slot-pos sq-slot-pos--door">
-                    <DropSlot
-                      slot={slots[2]}
-                      filledBy={slotToShape[slots[2].id]}
-                      showHint={level.showHintsOnStart && !hasPlayed}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <img className="sq-bear" src={bearImg} alt="" aria-hidden="true" />
-            </div>
-
-            <div className="sq-tray">
-              <div className="sq-tray-inner">
-                {availableShapes.map((shape) => (
-                  <DraggableShape
-                    key={shape.id}
-                    shape={shape}
-                    disabled={levelIntroActive || countdown !== null}
-                    onSpeak={(label) => sayKid(label)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <LevelIntroOverlay
-              isOpen={levelIntroActive && introEnabled}
-              content={SHAPES_GAME_INTRO}
-            />
-
-            {countdown !== null && (
-              <GameOverlay isOpen={countdown !== null}>
-                <GamePopup
-                  title={<Countdown value={countdown} />}
-                  subtitle={COUNTDOWN_READY_SUBTITLE}
-                />
-              </GameOverlay>
-            )}
-
-            {timeUpOpen && (
-              <GameOverlay isOpen={timeUpOpen}>
-                <GamePopup
-                  title="⏰ Time's up!"
-                  subtitle={`Level ${levelIndex + 1} | Progress: ${progress}/${total} | Wrong Attempts: ${wrongAttempts}`}
-                  buttons={
-                    levelIndex < 2
-                      ? canProceedAfterTimeUp
-                        ? [
-                            {
-                              label: `Proceed to Level ${levelIndex + 2}`,
-                              onClick: () => {
-                                setTimeUpOpen(false);
-                                handleProceed();
-                              },
-                            },
-                            {
-                              label: "Replay Level",
-                              onClick: () => {
-                                setTimeUpOpen(false);
-                                resetCurrentLevel();
-                              },
-                              variant: "secondary",
-                            },
-                          ]
-                        : [
-                            {
-                              label: "Back to Lesson",
-                              onClick: () => navigate("/lesson/shapes"),
-                            },
-                            {
-                              label: "Replay Level",
-                              onClick: () => {
-                                setTimeUpOpen(false);
-                                resetCurrentLevel();
-                              },
-                              variant: "secondary",
-                            },
-                          ]
-                      : [
-                          {
-                            label: "Back to Lesson",
-                            onClick: () => {
-                              setTimeUpOpen(false);
-                              navigate("/lesson/shapes");
-                            },
-                            variant: "secondary",
-                          },
-                          {
-                            label: "Replay Level",
-                            onClick: () => {
-                              setTimeUpOpen(false);
-                              resetCurrentLevel();
-                            },
-                          },
-                        ]
-                  }
-                />
-              </GameOverlay>
-            )}
-
-            {proceedPromptLevel !== null && levelIndex < 2 && (
-              <GameOverlay isOpen={proceedPromptLevel !== null}>
-                <GamePopup
-                  title="🎉 Awesome!"
-                  subtitle={`Level ${levelIndex + 1} complete! Proceed to the next level?`}
-                  buttons={[
-                    {
-                      label: "Yes",
-                      onClick: handleProceed,
-                      variant: "yes",
-                    },
-                    {
-                      label: "No",
-                      onClick: () => {
-                        setProceedPromptLevel(null);
-                        setLevelSummaryOpen(true);
-                      },
-                      variant: "no",
-                    },
-                  ]}
-                />
-              </GameOverlay>
-            )}
-
-            {levelSummaryOpen && levelIndex < 2 && (
-              <GameOverlay isOpen={levelSummaryOpen}>
-                <GamePopup
-                  title={message ? message : "Great job!"}
-                  subtitle={`Progress: ${progress}/${total} | Wrong Attempts: ${wrongAttempts}`}
-                  buttons={[
-                    {
-                      label: "Back to Lesson",
-                      onClick: () => {
-                        setLevelSummaryOpen(false);
-                        navigate("/lesson/shapes");
-                      },
-                      variant: "no",
-                    },
-                    {
-                      label: "Replay Level",
-                      onClick: () => {
-                        setLevelSummaryOpen(false);
-                        resetCurrentLevel();
-                      },
-                      variant: "yes",
-                    },
-                  ]}
-                />
-              </GameOverlay>
-            )}
-          </DndContext>
         </div>
-      </div>
+      </ShapesMiniChrome>
 
-      {!isFinished && <div className="sq-panel">
-        <div className="sq-message">
-          {!hasPlayed
-            ? "Drag the shapes to match the outlines!"
-            : isFinished
-              ? "Congrats! You finished all levels!"
-              : message}
-        </div>
-        <div className="sq-score">
-          Progress: {progress}/{total} | Wrong Attempts: {wrongAttempts}
-        </div>
-
-      </div>}
-
-      {finalCongratsOpen && (
-        <div className="sq-finish-overlay">
-          <GameOverlay isOpen={finalCongratsOpen}>
-            <GamePopup
-              title="🎉 Congratulations!"
-              subtitle="You finished all shape levels!"
-              buttons={[
-                { label: "Play Again", onClick: handlePlayAgain, variant: "yes" },
-                {
-                  label: "View Progress",
-                  onClick: () => navigate("/parent-progress"),
-                  variant: "secondary",
-                },
-              ]}
-            >
-              Progress: {total}/{total} | Wrong Attempts: {wrongAttempts}
-            </GamePopup>
-          </GameOverlay>
-        </div>
-      )}
+      <GamePausePopup
+        open={paused}
+        subtitle="Ready to keep building?"
+        onPlay={() => setPaused(false)}
+        onMap={() => { setPaused(false); setMapOpen(true); }}
+      />
+      <GameOverPopup
+        open={gameOverOpen}
+        onLesson={() => navigate("/lesson/shapes")}
+        onReplay={() => { setGameOverOpen(false); resetCurrentLevel(); }}
+      />
+      <GameOverlay isOpen={clock.timeUpOpen && !gameOverOpen}>
+        <GamePopup
+          title="Time's up!"
+          subtitle={`Progress: ${progress}/${total} | Wrong Attempts: ${wrongAttempts}`}
+          buttons={[
+            { label: "Replay Level", onClick: () => { clock.setTimeUpOpen(false); resetCurrentLevel(); } },
+            { label: "Map", variant: "secondary", onClick: () => { clock.setTimeUpOpen(false); setMapOpen(true); } },
+          ]}
+        />
+      </GameOverlay>
+      <GameOverlay isOpen={completeOpen}>
+        <GamePopup
+          title="Awesome!"
+          subtitle={`Level ${levelIndex + 1} complete! Proceed to the next level? Progress: ${progress}/${total} | Wrong Attempts: ${wrongAttempts}`}
+          buttons={shapesNextLevelButtons({
+            levelIndex,
+            lastIndex: 2,
+            onYes: handleProceed,
+            onNo: () => { setCompleteOpen(false); setMapOpen(true); },
+            onGames: () => navigate("/quest/shapes"),
+          })}
+        />
+      </GameOverlay>
+      <GameOverlay isOpen={finalCongratsOpen}>
+        <GamePopup
+          title="Congratulations!"
+          subtitle={`You finished all Build the House levels! Progress: ${total}/${total} | Wrong Attempts: ${wrongAttempts}`}
+          buttons={[
+            { label: "Play Again", onClick: handlePlayAgain, variant: "yes" },
+            { label: "Games", variant: "no", onClick: () => navigate("/quest/shapes") },
+          ]}
+        />
+      </GameOverlay>
     </div>
   );
 }
-
-

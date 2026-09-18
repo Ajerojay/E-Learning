@@ -1,0 +1,132 @@
+.rewards-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: end center;
+  padding: 12px;
+  background: rgba(40, 32, 70, 0.45);
+}
+
+.rewards-sheet {
+  position: relative;
+  width: min(460px, 100%);
+  max-height: min(86dvh, 680px);
+  overflow-y: auto;
+  padding: 22px 18px 20px;
+  border-radius: 24px 24px 18px 18px;
+  background: #fffaf1;
+  box-shadow: 0 16px 36px rgba(50, 40, 80, 0.22);
+  text-align: left;
+  color: #3d3558;
+}
+
+.rewards-x {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: #efe7ff;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.rewards-sheet h2 {
+  margin: 0 8px 6px 0;
+  font-size: 24px;
+}
+
+.rewards-stars {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 800;
+  color: #d48b00;
+}
+
+.rewards-copy,
+.rewards-empty {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.rewards-sheet h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.rewards-stickers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.rewards-sticker {
+  min-height: 78px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 14px;
+  background: #ece8f4;
+  opacity: 0.55;
+}
+
+.rewards-sticker span {
+  font-size: 26px;
+}
+
+.rewards-sticker b {
+  font-size: 11px;
+}
+
+.rewards-sticker.is-earned {
+  opacity: 1;
+  background: #fff3c4;
+}
+
+.rewards-sticker.is-gold {
+  background: #ffe08a;
+  box-shadow: inset 0 0 0 2px #e0b000;
+}
+
+.rewards-certs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rewards-certs button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 14px;
+  background: #eef5ff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rewards-certs span:first-child {
+  font-size: 22px;
+}
+
+.rewards-certs b,
+.rewards-certs small {
+  display: block;
+}
+
+.rewards-certs small {
+  color: #66708a;
+  font-weight: 600;
+}

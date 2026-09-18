@@ -15,7 +15,7 @@ declare global {
   }
 }
 
-const GAME_PATHS = new Set([
+const GAME_HUB_PATHS = new Set([
   "/app/phonics-quest",
   "/app/logic-quest",
   "/app/colors-quest",
@@ -23,19 +23,53 @@ const GAME_PATHS = new Set([
   "/app/numbers-quest",
   "/app/letters-quest",
   "/quest/colors",
+  "/quest/shapes",
+  "/quest/letter",
+  "/quest/number",
+  "/quest/numbers",
+  "/quest/phonics",
+  "/quest/logic",
+]);
+
+const GAME_PATHS = new Set([
   "/student/PhonicsQuestPage",
   "/student/sound",
   "/student/LogicQuestPage",
   "/student/pattern",
-  "/quest/number",
-  "/quest/numbers",
-  "/quest/letter",
-  "/quest/shapes",
 ]);
 
-// Every child quest is landscape-only. Keeping this derived from GAME_PATHS
-// also covers route aliases without accidentally leaving a portrait version.
-const LANDSCAPE_ONLY_PATHS = new Set(GAME_PATHS);
+function isColorsQuestPath(pathname: string) {
+  return pathname === "/quest/colors" || pathname.startsWith("/quest/colors/");
+}
+
+function isShapesQuestPath(pathname: string) {
+  return pathname === "/quest/shapes" || pathname.startsWith("/quest/shapes/");
+}
+
+function isLettersQuestPath(pathname: string) {
+  return pathname === "/quest/letter" || pathname.startsWith("/quest/letter/");
+}
+
+function isNumbersQuestPath(pathname: string) {
+  return pathname === "/quest/number" || pathname.startsWith("/quest/number/") || pathname.startsWith("/quest/numbers") || pathname.startsWith("/app/numbers-quest");
+}
+
+function isPhonicsQuestPath(pathname: string) {
+  return pathname === "/quest/phonics" || pathname.startsWith("/quest/phonics/") || pathname.startsWith("/app/phonics-quest");
+}
+
+function isLogicQuestPath(pathname: string) {
+  return pathname === "/quest/logic" || pathname.startsWith("/quest/logic/") || pathname.startsWith("/app/logic-quest");
+}
+
+function isGameHubPath(pathname: string) {
+  return GAME_HUB_PATHS.has(pathname);
+}
+
+function isLandscapeGamePath(pathname: string) {
+  if (isGameHubPath(pathname)) return false;
+  return GAME_PATHS.has(pathname) || isColorsQuestPath(pathname) || isShapesQuestPath(pathname) || isLettersQuestPath(pathname) || isNumbersQuestPath(pathname) || isPhonicsQuestPath(pathname) || isLogicQuestPath(pathname);
+}
 
 /** Android app only: games may rotate; every other app page stays portrait. */
 export default function MobileOrientationController() {
@@ -43,7 +77,7 @@ export default function MobileOrientationController() {
 
   useEffect(() => {
     if (!isMobileApp()) return;
-    const isStudentPage = pathname === "/student" || pathname === "/student-access" || pathname.startsWith("/lesson/") || GAME_PATHS.has(pathname);
+    const isStudentPage = pathname === "/student" || pathname === "/student-access" || pathname.startsWith("/lesson/") || isGameHubPath(pathname) || isLandscapeGamePath(pathname);
     if (!isStudentPage) return;
     const childId = localStorage.getItem("activeChildId");
     if (!childId) return;
@@ -71,12 +105,10 @@ export default function MobileOrientationController() {
     if (!isMobileApp()) return;
 
     const applyOrientation = () => {
-      if (LANDSCAPE_ONLY_PATHS.has(pathname)) {
+      if (isLandscapeGamePath(pathname)) {
         window.AndroidOrientation?.lockLandscape?.();
       } else if (pathname.startsWith("/lesson/")) {
         // Lesson videos can go fullscreen and follow the device if auto-rotate is on.
-        window.AndroidOrientation?.allowGameRotation();
-      } else if (GAME_PATHS.has(pathname)) {
         window.AndroidOrientation?.allowGameRotation();
       } else {
         window.AndroidOrientation?.lockPortrait();
