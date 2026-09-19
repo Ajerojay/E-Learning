@@ -158,6 +158,9 @@
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.92);
   color: #31415c;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 800;
   box-shadow: 0 5px 12px rgba(40, 40, 70, 0.12);
 }
 
@@ -495,6 +498,47 @@
 }
 
 @media (orientation: landscape) {
+  .ssm:not(.nfeed):not(.ndots):not(.ssm--house) .ssm-map-btn {
+    top: 7px;
+    left: 8px;
+    z-index: 40;
+  }
+
+  .ssm:not(.nfeed):not(.ndots):not(.ssm--house) .ssm-title {
+    box-sizing: border-box;
+    width: 100%;
+    max-height: 44px;
+    margin: 0;
+    padding: 0 210px 0 88px;
+    overflow: hidden;
+    font-size: clamp(16px, 2.6vw, 24px);
+    line-height: 42px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .ssm:not(.nfeed):not(.ndots):not(.ssm--house) .ssm-title.kid-game-title--slot {
+    width: auto;
+    max-height: none;
+    padding: 0;
+    line-height: 1.2;
+    color: #6a3e10;
+    text-shadow: none;
+    font-size: inherit;
+  }
+
+  .ssm:not(.nfeed):not(.ndots):not(.ssm--house) .ssm-meta {
+    position: absolute;
+    top: 5px;
+    right: 8px;
+    z-index: 40;
+    width: auto;
+    margin: 0;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 5px;
+  }
+
   .ssm-bear,
   .sst-bear {
     width: 52px;

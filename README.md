@@ -86,36 +86,140 @@ Do this after `npm install` and a working `.env`.
 
 ### Offline APK (app uses the last web build)
 
+Use this for a packaged install that does **not** pick up file saves until you build again.
+
 ```bash
 npm run android:offline
 ```
 
 That runs `npm run build` and `npx cap sync android`. Then in **Android Studio**:
 
-1. **File → Open** and select the `android` folder
-2. Wait for Gradle sync
-3. Pick a device or emulator
-4. Click **Run**
+1. **File → Open** and select the `android` folder (not the repo root)
+2. Wait for Gradle sync to finish
+3. Pick a device or emulator in the device dropdown
+4. Click **Run** (green play)
 
-### Live reload on a physical phone
+---
 
-Phone and computer must be on the **same Wi‑Fi**. USB debugging should be on.
+### Live reload in Android Studio (see code changes on the phone)
 
-1. Start the Vite server so the phone can reach it:
+This is the flow to use while you are coding. The Android WebView loads Vite at **http://YOUR_LAN_IP:5174**, so saving a file in Cursor updates the app without a new APK.
 
-   ```bash
-   npm run dev:android
-   ```
+**Need:** Android Studio, USB debugging (phone) or an emulator, and the phone/emulator able to reach your PC (same Wi‑Fi for a physical phone).
 
-2. In another terminal, replace the host IP in `package.json` (`android:live`) with **your computer’s LAN IP**, then run:
+#### Step 1 — Enable the phone (skip if you use an emulator)
 
-   ```bash
-   npm run android:live
-   ```
+1. On the phone: **Settings → About phone** → tap **Build number** 7 times
+2. **Settings → Developer options** → turn on **USB debugging**
+3. Plug in USB, accept the **Allow USB debugging** prompt
+4. Keep the phone awake and unlocked
 
-   Or open the `android` folder in Android Studio and run from there after `npx cap sync android`.
+#### Step 2 — Start Vite and leave it running
 
-Live reload uses `http://YOUR_LAN_IP:5174`. If the phone shows a blank screen, check Windows Firewall, that Vite is running, and that the IP is current (`ipconfig` on Windows).
+In the project root (`e-learning`), PowerShell:
+
+```powershell
+npm.cmd run dev:android
+```
+
+(`npm.cmd` avoids a Windows error where PowerShell blocks `npm.ps1`.)
+
+If you prefer to allow npm scripts in PowerShell for this user account (one time):
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+Then `npm run dev:android` works as usual.
+
+Leave this terminal open. You should see something like:
+
+```
+Local:   http://localhost:5174/
+Network: http://192.168.x.x:5174/
+```
+
+The **Network** address is what the phone will use. If you only see Local, that is still OK as long as the next step can detect your LAN IP.
+
+If you get **Port 5174 is already in use**, Vite is already running. Do **not** start a second server. Leave that other terminal open and continue to Step 3. To start fresh, stop the old Vite window with `Ctrl+C`, or run:
+
+```powershell
+netstat -ano | findstr :5174
+taskkill /PID <the_pid> /F
+```
+
+Then run `npm.cmd run dev:android` again.
+
+#### Step 3 — Point the Android project at that Vite server
+
+Open a **second** PowerShell in the **same project root**. Do **not** close the Vite window.
+
+```powershell
+$env:CAP_LIVE="1"
+npx.cmd cap sync android
+```
+
+`CAP_LIVE=1` writes your current Wi‑Fi IPv4 into Capacitor (`capacitor.config.ts`) so the app loads the live site instead of `dist/`.
+
+If your laptop IP changed (new Wi‑Fi, VPN), run those two lines again.
+
+#### Step 4 — Run from Android Studio
+
+1. Open **Android Studio**
+2. **File → Open** → choose `c:\xampp\htdocs\e-learning\android` (the `android` folder)
+3. Wait until Gradle sync finishes (bottom status bar)
+4. Select your phone or emulator in the device list (top toolbar)
+5. Click **Run** (green play) or **Shift+F10**
+
+The first launch can take a few minutes. After that, keep **both** Android Studio and the `npm run dev:android` terminal running.
+
+#### Step 5 — Confirm live updates
+
+1. Change a React/CSS file (for example the Great Job popup) and **save**
+2. The app WebView should refresh by itself
+3. If it does not, pull down to refresh is not available — press **Run** again, or reload after `r` in the Vite terminal
+
+You do **not** need `npm run android:offline` on every save while live reload is on.
+
+#### When you are done coding
+
+The Android project still points at your laptop until you sync without live mode. Switch back to a normal packaged app:
+
+```powershell
+Remove-Item Env:CAP_LIVE -ErrorAction SilentlyContinue
+npm run android:offline
+```
+
+Then **Run** again from Android Studio.
+
+#### Blank screen / phone cannot load the app
+
+| Check | What to do |
+| --- | --- |
+| Vite is not running | Start `npm run dev:android` first and leave it open |
+| IP changed | Run `$env:CAP_LIVE="1"; npx cap sync android` again, then Run in Android Studio |
+| Firewall | Allow **Node.js** on private networks, or allow inbound TCP **5174** |
+| Different Wi‑Fi | Phone and PC must be on the same LAN (or use USB + the steps below) |
+| Emulator | Host IP is often `10.0.2.2`. If LAN IP fails, ask a teammate or set live URL to `http://10.0.2.2:5174` |
+| USB only, no Wi‑Fi | With the phone plugged in: `adb reverse tcp:5174 tcp:5174`, sync with live URL `http://127.0.0.1:5174`, then Run |
+
+To see your PC IPv4 on Windows:
+
+```powershell
+ipconfig
+```
+
+Use the **IPv4 Address** of Wi‑Fi or Ethernet (not `127.0.0.1`).
+
+#### Optional: one command instead of Android Studio
+
+If Capacitor can see the device (`adb devices`), you can install without clicking Run:
+
+1. Terminal A: `npm run dev:android`
+2. Edit `package.json` script `android:live` and set `--host` to **your** IPv4 (the value in the file may be an old IP)
+3. Terminal B: `npm run android:live`
+
+Android Studio is still the usual way to pick the device, read Logcat, and press Run.
 
 ## Project layout
 
@@ -135,8 +239,9 @@ android/                         Capacitor Android project
 | Problem | What to try |
 | --- | --- |
 | Blank page or login always fails | Confirm `.env` exists in the project root, then stop and restart `npm run dev` |
-| Port already in use | Close the other process using **5174**, or stop other Vite windows |
-| Phone cannot open the laptop URL | Same Wi‑Fi, use the laptop LAN IP, allow Node/Vite through the firewall |
+| `npm.ps1 cannot be loaded` / running scripts is disabled | Use `npm.cmd run dev:android` (and `npx.cmd`), or run `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned` once |
+| Port 5174 is already in use | Vite is already running. Skip starting it again and go to `$env:CAP_LIVE="1"; npx.cmd cap sync android`. Or stop the old Vite terminal with Ctrl+C |
+| Live Android app is blank | Keep `npm run dev:android` running, re-run `$env:CAP_LIVE="1"; npx cap sync android`, then Run in Android Studio |
 | `npm run build` fails | Run `npm install` again and fix any TypeScript errors shown in the terminal |
 | Android Studio Gradle errors | Use JDK 17, **File → Sync Project with Gradle Files** |
 

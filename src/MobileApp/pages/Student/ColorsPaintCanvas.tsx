@@ -553,6 +553,8 @@ export default function ColorsPaintCanvas({ mobileApp = false }: { mobileApp?: b
       <GameOverlay isOpen={completeOpen}>
         <GamePopup
           title="Awesome!"
+          timeLeft={clock.timeLeft}
+          wrong={wrong}
           subtitle={levelIndex >= 2 ? "You finished Fill the Canvas!" : `${level.name} complete! Proceed to the next level?`}
           buttons={colorsNextLevelButtons({
             levelIndex,

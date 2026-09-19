@@ -298,12 +298,7 @@ export default function LettersAlphabetTrain() {
         countdown={clock.countdown}
         tried={Object.keys(filled).length > 0 || wrong > 0}
         wrong={wrong}
-        extraHeader={
-          <>
-            <span className="ssm-pill">Page {pageIndex + 1}/{pages.length}</span>
-            <GamePauseButton onClick={() => setPaused(true)} />
-          </>
-        }
+        extraHeader={<GamePauseButton onClick={() => setPaused(true)} />}
         footer={
           !completeOpen ? (
             <LettersGameFooter
@@ -366,6 +361,8 @@ export default function LettersAlphabetTrain() {
       <GameOverlay isOpen={completeOpen}>
         <GamePopup
           title="Toot toot!"
+          timeLeft={clock.timeLeft}
+          wrong={wrong}
           subtitle={`Progress: ${totalLetters}/${totalLetters} | Wrong Attempts: ${wrong}`}
           buttons={lettersNextLevelButtons({
             levelIndex,

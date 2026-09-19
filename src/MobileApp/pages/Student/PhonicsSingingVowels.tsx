@@ -517,6 +517,8 @@ export default function PhonicsSingingVowels() {
       <GameOverlay isOpen={completeOpen && !gameOverOpen}>
         <GamePopup
           title="Awesome!"
+          timeLeft={clock.timeLeft}
+          wrong={wrong}
           subtitle={
             levelIndex >= 2
               ? `Progress: ${level.rounds}/${level.rounds} | Wrong Attempts: ${wrong}`

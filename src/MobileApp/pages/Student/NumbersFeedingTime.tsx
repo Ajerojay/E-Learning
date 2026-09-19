@@ -329,6 +329,8 @@ export default function NumbersFeedingTime() {
       <GameOverlay isOpen={completeOpen}>
         <GamePopup
           title="Yum!"
+          timeLeft={clock.timeLeft}
+          wrong={wrong}
           subtitle={levelIndex >= 2 ? "You finished Feeding Time!" : `${level.name} complete! Proceed to the next level?`}
           buttons={numbersNextLevelButtons({
             levelIndex,

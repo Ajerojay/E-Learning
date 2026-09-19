@@ -348,6 +348,8 @@ export default function NumbersConnectDots() {
       <GameOverlay isOpen={completeOpen}>
         <GamePopup
           title="You found it!"
+          timeLeft={clock.timeLeft}
+          wrong={wrong}
           subtitle={levelIndex >= 2 ? "You finished Connect the Dots!" : `${level.name} complete! Proceed to the next level?`}
           buttons={numbersNextLevelButtons({
             levelIndex,

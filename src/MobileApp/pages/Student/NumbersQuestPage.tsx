@@ -19,6 +19,7 @@ import QuestLevelSelect from "./QuestLevelSelect";
 import ChildMusicToggle from "./ChildMusicToggle";
 import { useQuestLevelGate, useStarTimeUp, useWrongAttemptGameOver } from "./questLevelMap";
 import { LiveStarHud } from "./LevelStars";
+import { KidGameTitle } from "./KidGameTitle";
 
 import cloudImg from "./images/cloud.png";
 import bgImg from "./images/numbers-bg.jpg";
@@ -514,7 +515,9 @@ export default function NumbersQuestPage() {
           </button>
         </div>
         <div className="nq-heading">
-          <h2 className="nq-title nq-title--page">Count the Raindrops!</h2>
+          <KidGameTitle className="nq-title nq-title--page" tag="h2">
+            Count the Raindrops!
+          </KidGameTitle>
           <p className="nq-subtitle nq-subtitle--page">Tap the raindrops that match the number</p>
         </div>
         <div className="nq-meta-row nq-meta-row--page">
@@ -684,6 +687,8 @@ export default function NumbersQuestPage() {
         <GameOverlay isOpen={proceedPromptLevel !== null}>
           <GamePopup
             title="🎉 Awesome!"
+            timeLeft={timeLeft}
+            wrong={wrongAttempts}
             subtitle={`Level ${levelIndex + 1} complete! Proceed to Level ${levelIndex + 2}?`}
             buttons={[
               {
@@ -752,6 +757,8 @@ export default function NumbersQuestPage() {
           <GameOverlay isOpen={isFinishedAllLevels}>
             <GamePopup
               title="🎉 Amazing!"
+              timeLeft={timeLeft}
+              wrong={wrongAttempts}
               subtitle="You finished all number levels!"
               buttons={[
                 { label: "Play Again", onClick: handlePlayAgain },

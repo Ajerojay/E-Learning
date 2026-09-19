@@ -1,4 +1,6 @@
-﻿body {
+﻿@import "./LogicPlayBg.css";
+
+body {
   margin: 0;
   padding: 0;
   font-family: "Poppins", sans-serif;
@@ -15,11 +17,6 @@
 
 .pattern.logic-bg-image {
   min-height: 100dvh;
-  background-color: #8f7aad;
-  background-image: url("./images/logic-bg.jpg");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
 }
 
 .lq-main-title {

@@ -7,6 +7,7 @@ import ChildVoiceToggle from "./ChildVoiceToggle";
 import { cancelNativeSpeech, speakKidPrompt } from "../../nativeTts";
 import { holdChildMusic, releaseChildMusic } from "../../../lib/childMusic";
 import { useChildVoiceEnabled } from "../../../lib/childVoice";
+import { KidGameTitle } from "./KidGameTitle";
 import "./ActivityHub.css";
 
 export type ActivityHubGame = {
@@ -120,7 +121,7 @@ export default function ActivityHub({
         </span>
         <div className="ah-banner">
           <p className="ah-kicker">Play Zone</p>
-          <h1 className="ah-title">{title}</h1>
+          <KidGameTitle className="ah-title">{title}</KidGameTitle>
         </div>
         <p className="ah-copy">{copy}</p>
       </header>

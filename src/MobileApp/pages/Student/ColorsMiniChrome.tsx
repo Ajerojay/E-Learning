@@ -5,6 +5,7 @@ import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
 import QuestLevelSelect from "./QuestLevelSelect";
 import ChildMusicToggle from "./ChildMusicToggle";
 import { LiveStarHud } from "./LevelStars";
+import { KidGameTitle } from "./KidGameTitle";
 import { LevelIntroOverlay, COUNTDOWN_READY_SUBTITLE, type LevelIntroContent } from "./levelIntro";
 
 export function ColorsMiniChrome({
@@ -39,7 +40,7 @@ export function ColorsMiniChrome({
   levelStars?: number[];
   mapLevelCount?: number;
   onSelectLevel: (index: number) => void;
-  title: string;
+  title: ReactNode;
   levelIndex: number;
   timeLeft: number;
   soundEnabled: boolean;
@@ -85,7 +86,9 @@ export function ColorsMiniChrome({
       <button type="button" className="cq-back-btn" onClick={() => setMapOpen(true)}>
         {"\u2190"} Map
       </button>
-      <h1 className="cq-title">{title}</h1>
+      <KidGameTitle className="cq-title" fitHud>
+        {title}
+      </KidGameTitle>
       <div className="cq-level-meta-row">
         <div className="cq-level-meta">
           <strong className="cq-level-pill">Level {levelIndex + 1}</strong>

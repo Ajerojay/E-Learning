@@ -1,0 +1,64 @@
+.ah.ah--logic {
+  isolation: isolate;
+  background-color: #9ed8ff;
+  background-image: url("./images/logic-play-bg.svg");
+  background-size: cover;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  color: #2d3a4a;
+}
+
+.pattern.logic-bg-image {
+  isolation: isolate;
+  background-color: #f3d9ff;
+  background-image: url("./images/logic-bg-pattern.svg");
+  background-size: cover;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  color: #4a3558;
+}
+
+.ssm.lmini.lmini--size {
+  isolation: isolate;
+  background-color: #ffe7b8;
+  background-image: url("./images/logic-bg-size.svg");
+  background-size: cover;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  color: #4a3a28;
+}
+
+.ssm.lmini.lmini--odd {
+  isolation: isolate;
+  background-color: #c9e4ff;
+  background-image: url("./images/logic-bg-odd.svg");
+  background-size: cover;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  color: #2d4a4a;
+}
+
+.lmini .ssm-pill,
+.lmini .ssm-sound,
+.lmini .ssm-pause,
+.lmini .ssm-map-btn,
+.lmini .game-pause-btn,
+.pattern .lq-level-pill,
+.pattern .timer,
+.pattern .lq-sound-toggle,
+.pattern .lq-back-btn {
+  background: rgba(255, 255, 255, 0.94);
+  color: #35506a;
+}
+
+.lmini .cq-panel,
+.pattern .lq-panel {
+  background: rgba(255, 255, 255, 0.92);
+  color: #35506a;
+  box-shadow: 0 10px 22px rgba(40, 70, 90, 0.12);
+}
+
+.lmini .cq-message,
+.pattern .lq-message {
+  color: #35506a;
+}

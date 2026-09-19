@@ -850,6 +850,8 @@ speakFeedback("Try again!");
       <GameOverlay isOpen={completeOpen}>
         <GamePopup
           title="Awesome!"
+          timeLeft={clock.timeLeft}
+          wrong={wrongAttempts}
           subtitle={`Level ${levelIndex + 1} complete! Proceed to the next level? Progress: ${progress}/${total} | Wrong Attempts: ${wrongAttempts}`}
           buttons={shapesNextLevelButtons({
             levelIndex,
@@ -863,6 +865,8 @@ speakFeedback("Try again!");
       <GameOverlay isOpen={finalCongratsOpen}>
         <GamePopup
           title="Congratulations!"
+          timeLeft={clock.timeLeft}
+          wrong={wrongAttempts}
           subtitle={`You finished all Build the House levels! Progress: ${total}/${total} | Wrong Attempts: ${wrongAttempts}`}
           buttons={[
             { label: "Play Again", onClick: handlePlayAgain, variant: "yes" },

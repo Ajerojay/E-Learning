@@ -280,6 +280,8 @@ export default function ShapesShadowMatch() {
       <GameOverlay isOpen={completeOpen}>
         <GamePopup
           title="Awesome!"
+          timeLeft={clock.timeLeft}
+          wrong={wrong}
           subtitle={
             levelIndex >= 2
               ? `You finished Shadow Match! Progress: ${level.kinds.length}/${level.kinds.length} | Wrong Attempts: ${wrong}`

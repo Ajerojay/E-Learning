@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="osky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6fd0c8"/>
+      <stop offset="40%" stop-color="#d4f6f0"/>
+      <stop offset="100%" stop-color="#c9e4ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#osky)"/>
+  <circle cx="220" cy="140" r="56" fill="#fff4c4"/>
+  <g fill="#fff" opacity=".88">
+    <ellipse cx="640" cy="130" rx="100" ry="32"/>
+    <ellipse cx="700" cy="118" rx="56" ry="22"/>
+    <ellipse cx="1120" cy="160" rx="88" ry="28"/>
+  </g>
+  <path d="M-40 760 C 240 680 520 740 820 700 C 1120 660 1400 740 1640 690 L 1640 900 L -40 900 Z" fill="#7fd0b4"/>
+  <path d="M-40 840 C 280 780 620 820 960 790 C 1260 762 1500 820 1640 790 L 1640 900 L -40 900 Z" fill="#5fbea0"/>
+  <g opacity=".88">
+    <circle cx="180" cy="430" r="36" fill="#fff"/>
+    <circle cx="430" cy="360" r="36" fill="#fff"/>
+    <circle cx="680" cy="450" r="36" fill="#fff"/>
+    <circle cx="1180" cy="390" r="36" fill="#fff"/>
+    <circle cx="1430" cy="470" r="36" fill="#fff"/>
+    <polygon points="930,318 968,430 892,430" fill="#ffe066"/>
+  </g>
+  <g opacity=".35" fill="#fff">
+    <rect x="260" y="620" width="28" height="28" rx="6" transform="rotate(18 274 634)"/>
+    <rect x="1380" y="640" width="28" height="28" rx="6" transform="rotate(-12 1394 654)"/>
+  </g>
+</svg>

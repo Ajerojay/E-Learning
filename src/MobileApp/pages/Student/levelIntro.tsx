@@ -6,7 +6,7 @@ import { speakNative, cancelNativeSpeech } from "../../nativeTts";
 export const LEVEL_INTRO_MIN_DISPLAY_MS = 2200;
 
 /** Brief pause after speech ends before the 3-2-1 countdown appears. */
-const POST_INTRO_PAUSE_MS = 160;
+const POST_INTRO_PAUSE_MS = 280;
 
 export type LevelIntroContent = {
   title: string;
@@ -77,7 +77,7 @@ export function speakKidLevelIntro(
   let utterance: SpeechSynthesisUtterance | null = null;
 
   const minDisplayMs = fixedDisplayMs ?? getIntroMinDisplayMs(text, compact);
-  const postPauseMs = compact ? 80 : POST_INTRO_PAUSE_MS;
+  const postPauseMs = compact ? 280 : POST_INTRO_PAUSE_MS;
   const safetyMs = compact ? 9000 : 8000;
 
   const tryComplete = () => {
@@ -224,11 +224,13 @@ export function useLevelIntro({
   }, []);
 
   const beginCountdown = useCallback(() => {
+    cancelNativeSpeech();
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setLevelIntroActive(false);
     setIntroFinished(true);
     window.setTimeout(() => {
       onStartCountdownRef.current();
-    }, 120);
+    }, 220);
   }, []);
 
   /** Call when a level begins: intro on first session level only, else 3-2-1. */

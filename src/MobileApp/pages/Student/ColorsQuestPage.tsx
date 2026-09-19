@@ -26,6 +26,7 @@ import QuestLevelSelect from "./QuestLevelSelect";
 import ChildMusicToggle from "./ChildMusicToggle";
 import { useQuestLevelGate, useStarTimeUp, useWrongAttemptGameOver } from "./questLevelMap";
 import { LiveStarHud } from "./LevelStars";
+import { KidGameTitle } from "./KidGameTitle";
 import { NEXT_LEVEL_SPEECH } from "./ColorsMiniChrome";
 
 const COLORS_LEVEL_INTRO: LevelIntroContent = {
@@ -687,7 +688,9 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
         {"\u2190"} Map
       </button>
 
-      <h1 className="cq-title">Sort the Colors!</h1>
+      <KidGameTitle className="cq-title" fitHud>
+        Sort the Colors!
+      </KidGameTitle>
       <div className="cq-level-meta-row">
         <div className="cq-level-meta">
           <strong className="cq-level-pill">Level {levelIndex + 1}</strong>
@@ -875,6 +878,8 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
         <GameOverlay isOpen={levelCompleteOpen}>
           <GamePopup
             title="🎉 Awesome!"
+            timeLeft={timeLeft}
+            wrong={wrongAttempts}
             subtitle={`${LEVELS[levelIndex]?.name ?? "Level"} complete! Proceed to the next level?`}
             buttons={[
               {
@@ -935,6 +940,8 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
           <GameOverlay isOpen={finalCompleteOpen}>
             <GamePopup
               title="🎉 Amazing!"
+              timeLeft={timeLeft}
+              wrong={wrongAttempts}
               subtitle="You finished all color levels!"
               buttons={[
                 {

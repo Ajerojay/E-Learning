@@ -291,12 +291,7 @@ export default function LettersMamaBaby() {
         countdown={clock.countdown}
         tried={matchedCount > 0 || Object.keys(reunited).length > 0 || wrong > 0}
         wrong={wrong}
-        extraHeader={
-          <>
-            <span className="ssm-pill">Page {pageIndex + 1}/{pageCount}</span>
-            <GamePauseButton onClick={() => setPaused(true)} />
-          </>
-        }
+        extraHeader={<GamePauseButton onClick={() => setPaused(true)} />}
         footer={
           !completeOpen ? (
             <LettersGameFooter
@@ -358,6 +353,8 @@ export default function LettersMamaBaby() {
       <GameOverlay isOpen={completeOpen}>
         <GamePopup
           title="Awesome!"
+          timeLeft={clock.timeLeft}
+          wrong={wrong}
           subtitle={`Progress: ${totalLetters}/${totalLetters} | Wrong Attempts: ${wrong}`}
           buttons={lettersNextLevelButtons({
             levelIndex,

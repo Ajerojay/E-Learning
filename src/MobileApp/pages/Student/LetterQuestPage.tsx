@@ -18,6 +18,7 @@ import QuestLevelSelect from "./QuestLevelSelect";
 import ChildMusicToggle from "./ChildMusicToggle";
 import { useQuestLevelGate, useStarTimeUp, useWrongAttemptGameOver } from "./questLevelMap";
 import { LiveStarHud } from "./LevelStars";
+import { KidGameTitle } from "./KidGameTitle";
 
 import bear from "./images/bear-2.png";
 
@@ -797,7 +798,9 @@ const handleDrop = (e: any) => {
         </div>
       )}
       <button className="cq-back-btn" onClick={() => setMapOpen(true)}>{"\u2190"} Map</button>
-      <h1 className="cq-title">Match the Letters!</h1>
+      <KidGameTitle className="cq-title" fitHud>
+        Match the Letters!
+      </KidGameTitle>
       <div className="cq-level-meta-row">
         <div className="cq-level-meta">
           <strong className="cq-level-pill">Level {levelIndex + 1}</strong>
@@ -937,6 +940,8 @@ const handleDrop = (e: any) => {
             <GameOverlay isOpen={proceedPromptLevel !== null}>
               <GamePopup
                   title="🎉 Awesome!"
+                  timeLeft={timeLeft}
+                  wrong={wrongAttempts}
                   subtitle={`Level ${levelIndex + 1} complete! Proceed to the next level?`}
                   buttons={[
                   {
@@ -962,6 +967,8 @@ const handleDrop = (e: any) => {
             <GameOverlay isOpen={levelSummaryOpen}>
               <GamePopup
                 title={feedback ? feedback : "Great job!"}
+                timeLeft={timeLeft}
+                wrong={wrongAttempts}
                 subtitle={`Progress: ${progress}/${totalItems} | Wrong Attempts: ${wrongAttempts}`}
                 buttons={[
                   {
@@ -1112,6 +1119,8 @@ const handleDrop = (e: any) => {
         <GameOverlay isOpen={isFinished}>
           <GamePopup
             title="Amazing! You completed all letter levels!"
+            timeLeft={timeLeft}
+            wrong={wrongAttempts}
             subtitle={`Progress: ${progress}/${totalItems} | Wrong Attempts: ${wrongAttempts}`}
             buttons={[
               { label: "Play Again", onClick: handlePlayAgain },

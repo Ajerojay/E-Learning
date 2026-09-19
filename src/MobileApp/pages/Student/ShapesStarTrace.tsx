@@ -379,6 +379,8 @@ export default function ShapesStarTrace() {
       <GameOverlay isOpen={completeOpen}>
         <GamePopup
           title="Awesome!"
+          timeLeft={clock.timeLeft}
+          wrong={wrong}
           subtitle={
             levelIndex >= 2
               ? `You finished Tracing the Stars! Progress: ${level.kinds.length}/${level.kinds.length} | Wrong Attempts: ${wrong}`

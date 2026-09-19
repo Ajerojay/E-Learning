@@ -343,6 +343,8 @@ export default function LogicOddOneOut() {
       <GameOverlay isOpen={completeOpen}>
         <GamePopup
           title="Awesome!"
+          timeLeft={clock.timeLeft}
+          wrong={wrong}
           subtitle={`Progress: ${level.rounds}/${level.rounds} | Wrong Attempts: ${wrong}`}
           buttons={logicNextLevelButtons({
             levelIndex,

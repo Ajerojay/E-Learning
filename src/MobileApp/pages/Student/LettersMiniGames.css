@@ -56,7 +56,8 @@
 .lmm .cq-message,
 .lat .cq-message {
   margin: 0 0 2px;
-  font-size: clamp(13px, 2vw, 18px);
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-size: clamp(15px, 1.8vw, 22px);
   font-weight: 700;
   color: rgba(85, 70, 62, 0.95);
 }
@@ -64,7 +65,8 @@
 .lmm .cq-score,
 .lat .cq-score {
   margin: 0;
-  font-size: clamp(12px, 1.7vw, 16px);
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-size: clamp(13px, 1.5vw, 18px);
   color: #4e4e4e;
 }
 
@@ -338,8 +340,23 @@
 
   .lmm .ssm-title,
   .lat .ssm-title {
-    font-size: clamp(18px, 3.2vw, 26px);
+    font-size: inherit;
     margin-top: 0;
+    color: #6a3e10;
+    text-shadow: none;
+  }
+
+  .lmm .kid-game-title--slot,
+  .lat .kid-game-title--slot {
+    left: 92px !important;
+    right: 400px !important;
+    justify-content: flex-start;
+  }
+
+  .lmm .kid-game-title-chip,
+  .lat .kid-game-title-chip {
+    font-size: clamp(13px, 1.7vw, 16px);
+    padding: 4px 14px 5px;
   }
 
   .lmm .ssm-meta,

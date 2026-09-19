@@ -169,7 +169,7 @@ function SizeBox({
           ))}
         </div>
       </span>
-      <small>{kind === "big" ? "BIG BOX" : "SMALL BOX"}</small>
+      <small>{kind === "big" ? "BIG BOX" : "tiny box"}</small>
     </button>
   );
 }
@@ -378,6 +378,8 @@ export default function LogicBigSmall({ mobileApp = false }: { mobileApp?: boole
       <GameOverlay isOpen={completeOpen}>
         <GamePopup
           title="Awesome!"
+          timeLeft={clock.timeLeft}
+          wrong={wrong}
           subtitle={`Progress: ${items.length}/${items.length} | Wrong Attempts: ${wrong}`}
           buttons={logicNextLevelButtons({
             levelIndex,

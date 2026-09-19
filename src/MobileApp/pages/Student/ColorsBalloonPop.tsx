@@ -50,6 +50,35 @@ const FILL: Record<BalloonColor, string> = {
   orange: "#ff9f43",
 };
 
+function BalloonGoalTrack({
+  goal,
+  popped,
+  color,
+}: {
+  goal: number;
+  popped: number;
+  color: BalloonColor;
+}) {
+  return (
+    <div
+      className="cmini-balloon-track"
+      role="img"
+      aria-label={`${popped} of ${goal} ${color} balloons popped`}
+    >
+      {Array.from({ length: goal }, (_, index) => (
+        <span
+          key={index}
+          className={`cmini-track-balloon${index < popped ? " is-popped" : ""}${index === popped - 1 ? " is-latest" : ""}`}
+          style={{ ["--balloon" as string]: FILL[color] }}
+        >
+          <span className="cmini-track-body" />
+          <span className="cmini-track-string" />
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function makeBalloon(palette: BalloonColor[], bias?: BalloonColor): Balloon {
   const roll = Math.random();
   const color = bias && roll < 0.45 ? bias : palette[Math.floor(Math.random() * palette.length)];
@@ -160,7 +189,16 @@ export default function ColorsBalloonPop({ mobileApp = false }: { mobileApp?: bo
         unlockedCount={unlockedCount}
         levelStars={levelStars}
         onSelectLevel={resetBoard}
-        title={level.prompt}
+        title={
+          <>
+            <span className="cmini-title-balloon" style={{ background: FILL[level.target] }} />
+            Pop all the{" "}
+            <strong className="cmini-title-color" style={{ color: FILL[level.target] }}>
+              {level.target}
+            </strong>{" "}
+            balloons!
+          </>
+        }
         levelIndex={levelIndex}
         timeLeft={clock.timeLeft}
         soundEnabled={soundEnabled}
@@ -176,9 +214,7 @@ export default function ColorsBalloonPop({ mobileApp = false }: { mobileApp?: bo
         wrong={wrong}
         extraHeader={<GamePauseButton onClick={() => setPaused(true)} />}
       >
-        <p className="cmini-progress">
-          {popped}/{level.goal}
-        </p>
+        <BalloonGoalTrack goal={level.goal} popped={popped} color={level.target} />
         <img className="cmini-bear" src={bear} alt="" />
         <div className="cmini-sky">
           {balloons.map((balloon) => (
@@ -205,7 +241,7 @@ export default function ColorsBalloonPop({ mobileApp = false }: { mobileApp?: bo
           <div className="cq-panel">
             <p className="cq-message">Pop only the {level.target} balloons!</p>
             <p className="cq-score">
-              Progress: {popped}/{level.goal} | Wrong Attempts: {wrong}
+              {popped >= level.goal ? "All the balloons!" : "Fill the balloons!"} · Oops: {wrong}
             </p>
           </div>
         )}
@@ -235,6 +271,8 @@ export default function ColorsBalloonPop({ mobileApp = false }: { mobileApp?: bo
       <GameOverlay isOpen={completeOpen}>
         <GamePopup
           title="Awesome!"
+          timeLeft={clock.timeLeft}
+          wrong={wrong}
           subtitle={levelIndex >= 2 ? "You finished Balloon Pop!" : `${level.name} complete! Proceed to the next level?`}
           buttons={colorsNextLevelButtons({
             levelIndex,

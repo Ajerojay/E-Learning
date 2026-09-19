@@ -1,15 +1,10 @@
 @import "./PhonicsMiniGames.css";
+@import "./LogicPlayBg.css";
 
 .ssm.lmini {
   overflow: hidden;
   height: 100dvh;
   min-height: 100dvh;
-  background-color: #8f7aad;
-  background-image: url("./images/logic-bg.jpg");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  color: #2d2438;
 }
 
 .lmini .ssm-title {
@@ -34,10 +29,21 @@
 .lmini .ssm-sound,
 .lmini .ssm-pause,
 .lmini .ssm-map-btn,
-.lmini .game-pause-btn {
-  min-height: 34px;
+.lmini .game-pause-btn,
+.lmini .child-music-toggle {
+  box-sizing: border-box;
+  height: 38px;
+  min-height: 38px;
   background: #fff;
   color: #43355f;
+}
+
+.lmini .ssm-sound,
+.lmini .game-pause-btn,
+.lmini .child-music-toggle {
+  width: 38px;
+  min-width: 38px;
+  padding: 0;
 }
 
 .lmini .ssm-map-btn {
@@ -46,6 +52,7 @@
   left: auto;
   z-index: 20;
   margin: 2px 0 0 max(8px, env(safe-area-inset-left));
+  padding: 0 14px;
   justify-self: start;
   align-self: center;
 }
@@ -149,12 +156,12 @@
   width: 100%;
   height: 100%;
   min-height: 0;
-  max-width: 720px;
+  max-width: 920px;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(150px, 1.15fr) auto;
   align-items: stretch;
   justify-items: stretch;
-  gap: 4px;
+  gap: 6px;
   overflow: hidden;
 }
 
@@ -169,9 +176,9 @@
   grid-auto-rows: minmax(0, 1fr);
   justify-items: center;
   align-items: center;
-  gap: 2px 8px;
-  padding: 0 8px;
-  overflow: hidden;
+  gap: 10px 14px;
+  padding: 6px 12px 4px;
+  overflow: visible;
 }
 
 .lsize-items--cols-2 { --lsize-cols: 2; }
@@ -180,6 +187,7 @@
 
 .lsize-item {
   appearance: none;
+  box-sizing: border-box;
   border: 0;
   background: #fffdf6;
   cursor: grab;
@@ -187,20 +195,30 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
   width: 100%;
-  height: auto;
   min-width: 0;
-  min-height: 0;
-  max-width: 112px;
-  padding: 6px 8px 5px;
-  overflow: hidden;
+  overflow: visible;
   color: #3b3350;
   font: inherit;
   font-weight: 800;
-  border-radius: 18px;
-  box-shadow: 0 5px 0 rgba(40, 24, 80, 0.14);
   touch-action: none;
+}
+
+.lsize-item.is-big {
+  max-width: 108px;
+  min-height: 88px;
+  padding: 8px 8px 6px;
+  border-radius: 18px;
+  box-shadow: 0 6px 0 rgba(40, 24, 80, 0.16), 0 10px 14px rgba(40, 24, 80, 0.12);
+}
+
+.lsize-item.is-small {
+  max-width: 70px;
+  min-height: 58px;
+  padding: 5px 6px 5px;
+  border-radius: 14px;
+  box-shadow: 0 3px 0 rgba(40, 24, 80, 0.12), 0 6px 10px rgba(40, 24, 80, 0.1);
 }
 
 .lsize-item.is-picked {
@@ -222,24 +240,38 @@
   display: grid;
   place-items: center;
   line-height: 1;
-  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.08));
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.08));
 }
 
 .lsize-item.is-big .lsize-emoji {
-  font-size: clamp(28px, 7.5vh, 48px);
+  font-size: clamp(30px, 7.2vh, 46px);
 }
 
 .lsize-item.is-small .lsize-emoji {
-  font-size: clamp(16px, 4.6vh, 28px);
+  font-size: clamp(16px, 3.8vh, 24px);
 }
 
 .lsize-item small {
+  max-width: 100%;
+  overflow: hidden;
   font-size: 11px;
   letter-spacing: 0.02em;
   color: #3b3350;
   background: rgba(255, 255, 255, 0.86);
   border-radius: 999px;
   padding: 1px 7px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lsize-item.is-big small {
+  font-size: 13px;
+  padding: 2px 8px;
+}
+
+.lsize-item.is-small small {
+  font-size: 9px;
+  padding: 0 5px;
 }
 
 .lsize-boxes {
@@ -248,8 +280,8 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  gap: clamp(24px, 6vw, 56px);
-  padding: 0 0 2px;
+  gap: clamp(28px, 8vw, 72px);
+  padding: 2px 0 4px;
 }
 
 .lsize-box {
@@ -283,26 +315,34 @@
 .lsize-box-art {
   width: 100%;
   height: auto;
-  max-height: min(118px, 26vh);
   display: block;
   object-fit: contain;
   pointer-events: none;
-  filter: drop-shadow(0 8px 10px rgba(20, 10, 40, 0.28));
 }
 
 .lsize-box--big {
-  width: min(124px, 18vw, 30vh);
+  width: min(150px, 22vw, 32vh);
+}
+
+.lsize-box--big .lsize-box-art {
+  max-height: min(112px, 24vh);
+  filter: drop-shadow(0 14px 16px rgba(20, 10, 40, 0.3));
 }
 
 .lsize-box--small {
-  width: min(84px, 12vw, 22vh);
+  width: min(80px, 12vw, 18vh);
+}
+
+.lsize-box--small .lsize-box-art {
+  max-height: min(70px, 16vh);
+  filter: drop-shadow(0 6px 8px rgba(20, 10, 40, 0.2));
 }
 
 .lodd-stage {
   box-sizing: border-box;
   container-type: size;
   flex: 1 1 0;
-  min-height: 0;
+  min-height: 180px;
   width: 100%;
   height: 100%;
   max-width: 960px;
@@ -332,19 +372,32 @@
 }
 
 .lsize-box small {
-  font-size: 11px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: #3b3350;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.94);
   border-radius: 999px;
+  box-shadow: 0 3px 0 rgba(40, 24, 80, 0.1);
+}
+
+.lsize-box--big small {
+  margin-top: 4px;
+  padding: 5px 14px;
+  font-size: 15px;
+}
+
+.lsize-box--small small {
+  margin-top: 2px;
   padding: 2px 8px;
+  font-size: 10px;
 }
 
 .lodd-grid {
   --lodd-cols: 2;
   --lodd-rows: 2;
-  width: min(340px, 42vh, 70vw);
-  height: min(340px, 42vh, 70vw);
+  width: min(420px, 70vw, 58vh);
+  height: min(280px, 52vh, 70vw);
+  min-width: 220px;
+  min-height: 160px;
   display: grid;
   grid-template-columns: repeat(var(--lodd-cols), minmax(0, 1fr));
   grid-template-rows: repeat(var(--lodd-rows), minmax(0, 1fr));
@@ -354,32 +407,32 @@
 .lodd-grid--n6 {
   --lodd-cols: 3;
   --lodd-rows: 2;
-  width: min(520px, 78vw, 88vh);
-  height: min(250px, 52vh, 42vw);
+  width: min(560px, 82vw, 88vh);
+  height: min(260px, 48vh, 46vw);
 }
 
 .lodd-grid--n8 {
   --lodd-cols: 4;
   --lodd-rows: 2;
-  width: min(640px, 86vw, 96vh);
-  height: min(230px, 48vh, 38vw);
+  width: min(680px, 88vw, 96vh);
+  height: min(240px, 44vh, 40vw);
 }
 
 @supports (width: 1cqmin) {
   .lodd-grid {
-    width: min(92cqmin, 340px);
-    height: min(92cqmin, 340px);
+    width: max(220px, min(92cqmin, 420px, 70vw));
+    height: max(160px, min(70cqb, 280px, 52vh));
     gap: clamp(6px, 1.4cqh, 12px);
   }
 
   .lodd-grid--n6 {
-    width: min(96cqw, 140cqh, 520px);
-    height: min(58cqh, 250px);
+    width: max(280px, min(96cqw, 560px, 82vw));
+    height: max(160px, min(58cqh, 260px));
   }
 
   .lodd-grid--n8 {
-    width: min(96cqw, 160cqh, 640px);
-    height: min(52cqh, 230px);
+    width: max(320px, min(96cqw, 680px, 88vw));
+    height: max(150px, min(52cqh, 240px));
   }
 }
 
@@ -446,13 +499,78 @@
 }
 
 @media (orientation: landscape) {
-  .lmini {
+  .ssm.lmini.lmini--size,
+  .ssm.lmini.lmini--odd {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: 44px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "map title hud"
+      "board board board"
+      "foot foot foot";
+    align-items: stretch;
     padding-top: max(6px, env(safe-area-inset-top));
     padding-bottom: 0;
+    column-gap: 8px;
   }
 
-  .lmini .ssm-title {
-    font-size: clamp(16px, 2.8vw, 22px);
+  .ssm.lmini.lmini--size > .ssm-map-btn,
+  .ssm.lmini.lmini--odd > .ssm-map-btn {
+    grid-area: map;
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    z-index: 40;
+    margin: 0 0 0 8px;
+    align-self: center;
+  }
+
+  .ssm.lmini.lmini--size > .ssm-title,
+  .ssm.lmini.lmini--odd > .ssm-title,
+  .ssm.lmini.lmini--size > .ssm-title.kid-game-title--slot,
+  .ssm.lmini.lmini--odd > .ssm-title.kid-game-title--slot {
+    grid-area: title;
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    width: auto !important;
+    max-width: 100%;
+    min-height: 38px;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 20;
+    align-self: center;
+  }
+
+  .ssm.lmini.lmini--size > .ssm-meta,
+  .ssm.lmini.lmini--odd > .ssm-meta {
+    grid-area: hud;
+    position: relative !important;
+    top: auto !important;
+    right: auto !important;
+    z-index: 40;
+    width: auto;
+    max-width: none;
+    margin: 0 8px 0 0;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: nowrap;
+    align-self: center;
+  }
+
+  .lmini--size > .ssm-board,
+  .lmini--odd > .ssm-board {
+    grid-area: board;
+    grid-row: auto;
+    align-self: stretch;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .lmini--size > .cq-panel,
+  .lmini--odd > .cq-panel {
+    grid-area: foot;
+    grid-row: auto;
   }
 
   .lmini .cq-panel {
@@ -466,10 +584,10 @@
   }
 
   .lsize-box--big {
-    width: 110px;
+    width: min(168px, 28vw);
   }
 
   .lsize-box--small {
-    width: 74px;
+    width: min(72px, 12vw);
   }
 }

@@ -4,6 +4,7 @@ import { GameOverlay, GamePopup, Countdown } from "./GamePopup";
 import QuestLevelSelect from "./QuestLevelSelect";
 import ChildMusicToggle from "./ChildMusicToggle";
 import { LiveStarHud } from "./LevelStars";
+import { KidGameTitle } from "./KidGameTitle";
 import { LevelIntroOverlay, COUNTDOWN_READY_SUBTITLE, type LevelIntroContent } from "./levelIntro";
 
 export function NumbersMiniChrome({
@@ -67,7 +68,7 @@ export function NumbersMiniChrome({
         <button type="button" className="ssm-map-btn" onClick={() => setMapOpen(true)}>
           {"\u2190"} Map
         </button>
-        <h1 className="ssm-title">{title}</h1>
+        <KidGameTitle className="ssm-title">{title}</KidGameTitle>
         <div className="ssm-meta">
           <strong className="ssm-pill">Level {levelIndex + 1}</strong>
           <LiveStarHud timeLeft={timeLeft} tried={tried} wrong={wrong} />

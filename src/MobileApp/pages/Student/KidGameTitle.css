@@ -1,0 +1,50 @@
+.kid-game-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-align: center;
+  font-family: "Nunito", "Comic Neue", sans-serif;
+  z-index: 25;
+}
+
+.kid-game-title-chip {
+  display: inline-block;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  padding: 5px 18px 6px;
+  overflow: hidden;
+  border: 2.5px solid #fff;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fffdf8 0%, #ffe58a 58%, #ffd45e 100%);
+  box-shadow: 0 3px 0 #e8b03d, 0 8px 16px rgba(90, 58, 12, 0.16);
+  color: #6a3e10;
+  font-family: inherit;
+  font-size: clamp(14px, 2.1vw, 18px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+@media (orientation: landscape) {
+  .kid-game-title--slot {
+    position: absolute !important;
+    top: 3px !important;
+    left: 90px !important;
+    right: 380px !important;
+    justify-content: center;
+    width: auto !important;
+    max-width: none !important;
+    min-height: 28px;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+    pointer-events: none;
+  }
+}

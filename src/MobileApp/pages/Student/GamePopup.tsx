@@ -1,6 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Map, Pause, Play } from "lucide-react";
-import { speakKidPrompt } from "../../nativeTts";
+import { muteKidSpeech, speakKidPrompt, unmuteKidSpeech } from "../../nativeTts";
+import LevelCelebrate, { LEVEL_CELEBRATE_STAR_POP_MS } from "./LevelCelebrate";
+import { livePlayStars } from "./questLevelMap";
 import "./GamePopup.css";
 
 type GamePopupVariant = "primary" | "secondary" | "yes" | "no";
@@ -18,6 +20,10 @@ interface GamePopupProps {
   subtitle?: React.ReactNode;
   children?: React.ReactNode;
   buttons?: GamePopupButton[];
+  /** Live stars from this play. Pass with timeLeft/wrong, or a ready star count. */
+  stars?: number;
+  timeLeft?: number;
+  wrong?: number;
 }
 
 export interface GameConfirmPopupProps {
@@ -97,14 +103,12 @@ const nextLevelQuestion = (subtitle: string) => {
   return "Do you want to proceed to the next level?";
 };
 
-const getVoice = (): SpeechSynthesisVoice | null => {
-  if (!("speechSynthesis" in window)) return null;
-  const voices = window.speechSynthesis.getVoices();
-  if (!voices || voices.length === 0) return null;
-  const preferred = voices.find((voice) =>
-    /alloy|samantha|amy|kendra|victoria|zira|google|female|voice/i.test(voice.name.toLowerCase())
-  );
-  return preferred || voices[0];
+const YES_HINT = "Yes is the green button.";
+const NO_HINT = "No is the red button.";
+
+const speechMs = (text: string) => {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1100, Math.min(5000, 600 + words * 380));
 };
 
 const speak = (
@@ -113,6 +117,7 @@ const speak = (
     interrupt?: boolean;
     onStart?: () => void;
     onEnd?: () => void;
+    force?: boolean;
   }
 ) => {
   if (!text) return;
@@ -121,6 +126,7 @@ const speak = (
     rate: 0.92,
     pitch: 1.22,
     onEnd: options?.onEnd,
+    force: options?.force,
   });
   options?.onStart?.();
 };
@@ -145,64 +151,117 @@ export function GamePopup({
   subtitle,
   children,
   buttons,
+  stars,
+  timeLeft,
+  wrong,
 }: Omit<GamePopupProps, "isOpen">) {
   const titleText = getText(title);
   const subtitleSpeech = getText(subtitle, true);
   const intro = getFriendlyIntro(titleText, subtitleSpeech);
-  const yesNoNextLevel =
-    isYesNoButtons(buttons) &&
-    /awesome|congratulations|great job|level complete|you finished|you did it|you sorted/i.test(titleText);
+  const earnedStars =
+    stars ?? (timeLeft != null ? livePlayStars(timeLeft, true, wrong ?? 0) : undefined);
+  const celebrate = earnedStars != null;
+  const askYesNo = isYesNoButtons(buttons);
+  const yesNoNextLevel = askYesNo && celebrate;
   const buttonSpeak =
     buttons
       ?.map((btn) => btn.speak ?? getText(btn.label))
       .filter(Boolean)
       .join(" or ") ?? "";
   const speakText = useMemo(() => {
+    // 3-2-1 already speaks the number. Do not also read "Get ready to play!".
+    if (/get ready to play/i.test(subtitleSpeech) && !titleText) return "";
     if (/game over/i.test(titleText)) {
       return [intro, buttonSpeak].map((piece) => piece.trim()).filter(Boolean).join(". ");
     }
-    if (yesNoNextLevel) {
-      return `${nextLevelQuestion(subtitleSpeech)} Yes, or no?`;
+    if (askYesNo) {
+      return yesNoNextLevel ? nextLevelQuestion(subtitleSpeech) : intro || titleText;
     }
     const pieces = [titleText];
     if (intro && intro !== titleText) pieces.push(intro);
     if (buttonSpeak) pieces.push(buttonSpeak);
     return pieces.map((piece) => piece.trim()).filter(Boolean).join(". ");
-  }, [titleText, intro, buttonSpeak, yesNoNextLevel, subtitleSpeech]);
+  }, [titleText, intro, buttonSpeak, askYesNo, yesNoNextLevel, subtitleSpeech]);
 
   const [isInitialSpeaking, setIsInitialSpeaking] = useState(false);
   const [initialSpeechStarted, setInitialSpeechStarted] = useState(false);
+  const [askHighlight, setAskHighlight] = useState<"yes" | "no" | null>(null);
+
+  useLayoutEffect(() => {
+    if (!celebrate) return;
+    muteKidSpeech(LEVEL_CELEBRATE_STAR_POP_MS);
+    return () => unmuteKidSpeech();
+  }, [celebrate, speakText]);
 
   useEffect(() => {
     if (!speakText) {
       setInitialSpeechStarted(false);
       setIsInitialSpeaking(false);
+      setAskHighlight(null);
       return;
     }
 
+    let cancelled = false;
+    const timers: number[] = [];
+    const wait = (ms: number) =>
+      new Promise<void>((resolve) => {
+        timers.push(window.setTimeout(resolve, ms));
+      });
+
     setInitialSpeechStarted(false);
     setIsInitialSpeaking(true);
+    setAskHighlight(null);
 
-    speak(speakText, {
-      interrupt: true,
-      onStart: () => {
-        setInitialSpeechStarted(true);
-        setIsInitialSpeaking(true);
-      },
-      onEnd: () => {
-        setIsInitialSpeaking(false);
-      },
-    });
-  }, [speakText]);
+    const run = async () => {
+      await wait(celebrate ? LEVEL_CELEBRATE_STAR_POP_MS : 0);
+      if (cancelled) return;
+      unmuteKidSpeech();
+      speak(speakText, { interrupt: true, force: true });
+      setInitialSpeechStarted(true);
+      await wait(speechMs(speakText));
+      if (cancelled) return;
+      if (askYesNo) {
+        setAskHighlight("yes");
+        speak(YES_HINT, { interrupt: true, force: true });
+        await wait(speechMs(YES_HINT));
+        if (cancelled) return;
+        setAskHighlight("no");
+        speak(NO_HINT, { interrupt: true, force: true });
+        await wait(speechMs(NO_HINT));
+        if (cancelled) return;
+        setAskHighlight(null);
+      }
+      setIsInitialSpeaking(false);
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+      timers.forEach((id) => window.clearTimeout(id));
+      setAskHighlight(null);
+    };
+  }, [speakText, celebrate, askYesNo]);
 
   const handleHover = (label: string) => {
     if (!initialSpeechStarted || isInitialSpeaking) return;
-    speak(label, { interrupt: true });
+    const key = label.trim().toLowerCase();
+    if (key === "yes" || key === "no") setAskHighlight(key);
+    speak(label, {
+      interrupt: true,
+      onEnd: () => setAskHighlight(null),
+    });
   };
 
   return (
-    <div className={`game-popup${/game over/i.test(getText(title)) ? " game-popup--over" : ""}`}>
-      {title && <div className="game-popup-title">{title}</div>}
+    <div
+      className={`game-popup${/game over/i.test(getText(title)) ? " game-popup--over" : ""}${celebrate ? " game-popup--celebrate" : ""}`}
+    >
+      {celebrate ? (
+        <div className="game-popup-title">Great Job!</div>
+      ) : (
+        title && <div className="game-popup-title">{title}</div>
+      )}
+      {celebrate ? <LevelCelebrate stars={earnedStars ?? 0} /> : null}
       {subtitle && <div className="game-popup-subtitle">{subtitle}</div>}
       {children && <div className="game-popup-content">{children}</div>}
       {buttons && buttons.length > 0 && (
@@ -212,7 +271,7 @@ export function GamePopup({
               key={idx}
               onClick={btn.onClick}
               onMouseEnter={() => handleHover(btn.speak ?? getText(btn.label))}
-              className={`game-popup-btn ${btn.variant || "primary"}`}
+              className={`game-popup-btn ${btn.variant || "primary"}${askHighlight === btn.variant ? " is-lit" : ""}`}
             >
               {btn.label}
             </button>

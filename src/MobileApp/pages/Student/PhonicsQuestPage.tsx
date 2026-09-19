@@ -28,6 +28,7 @@ import QuestLevelSelect from "./QuestLevelSelect";
 import ChildMusicToggle from "./ChildMusicToggle";
 import { useQuestLevelGate, useStarTimeUp, useWrongAttemptGameOver } from "./questLevelMap";
 import { LiveStarHud } from "./LevelStars";
+import { KidGameTitle } from "./KidGameTitle";
 
 type SoundAnimal = {
   name: string;
@@ -514,9 +515,9 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
       </button>
 
       <h2 className="pq-page-title">
-  <span className="pq-main-title">
+  <KidGameTitle className="pq-main-title" tag="span">
     Listen and match the sound!
-  </span>
+  </KidGameTitle>
 
   <br />
 
@@ -607,6 +608,8 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
           <GameOverlay isOpen={isFinished}>
             <GamePopup
               title="🎉 Amazing!"
+              timeLeft={timeLeft}
+              wrong={wrong}
               subtitle="You completed all phonics sound levels!"
               buttons={[
                 {
@@ -630,6 +633,8 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
         <GameOverlay isOpen={showNext}>
           <GamePopup
             title="🎉 Awesome!"
+            timeLeft={timeLeft}
+            wrong={wrong}
             subtitle={`Level ${levelIndex + 1} complete! Proceed to Level ${levelIndex + 2}?`}
             buttons={[
               {

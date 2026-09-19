@@ -26,6 +26,7 @@ import QuestLevelSelect from "./QuestLevelSelect";
 import ChildMusicToggle from "./ChildMusicToggle";
 import { useQuestLevelGate, useStarTimeUp, useWrongAttemptGameOver } from "./questLevelMap";
 import { LiveStarHud } from "./LevelStars";
+import { KidGameTitle } from "./KidGameTitle";
 
 const LOGIC_GAME_INTRO: LevelIntroContent = {
   title: "What comes next?",
@@ -479,7 +480,9 @@ export default function Level2Pattern() {
         {"\u2190"} Map
       </button>
 
-      <h2 className="lq-main-title">What comes next?</h2>
+      <KidGameTitle className="lq-main-title" fitHud tag="h2">
+        What comes next?
+      </KidGameTitle>
 
       <div className="lq-meta-row">
         <span className="lq-level-pill">Level {level + 1}</span>
@@ -554,6 +557,8 @@ export default function Level2Pattern() {
           <GameOverlay isOpen={isFinished}>
             <GamePopup
               title="🎉 Amazing!"
+              timeLeft={time}
+              wrong={wrong}
               subtitle="You completed all logic levels!"
               buttons={[
                 { label: "Games", onClick: handleBack, variant: "yes" },
@@ -571,6 +576,8 @@ export default function Level2Pattern() {
         <GameOverlay isOpen={proceedPromptLevel !== null}>
           <GamePopup
             title="🎉 Awesome!"
+            timeLeft={time}
+            wrong={wrong}
             subtitle={`Level ${level + 1} complete! Proceed to Level ${level + 2}?`}
             buttons={[
               {

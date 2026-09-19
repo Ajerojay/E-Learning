@@ -9,6 +9,7 @@ import LevelStarRow from "./LevelStars";
 import { cancelNativeSpeech, speakKidPrompt } from "../../nativeTts";
 import { holdChildMusic, releaseChildMusic } from "../../../lib/childMusic";
 import { useChildVoiceEnabled } from "../../../lib/childVoice";
+import { KidGameTitle } from "./KidGameTitle";
 import "./QuestLevelSelect.css";
 
 type QuestLevelSelectProps = {
@@ -163,7 +164,7 @@ export default function QuestLevelSelect({
                 <span aria-hidden="true">🗺️</span>
                 Level Map
               </p>
-              <h1 className="qlm-title">{title}</h1>
+              <KidGameTitle className="qlm-title">{title}</KidGameTitle>
             </div>
             <span className="qlm-sparkle" aria-hidden="true">✦</span>
           </div>

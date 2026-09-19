@@ -1,4 +1,5 @@
 import ActivityHub from "./ActivityHub";
+import "./LogicPlayBg.css";
 
 const GAMES = [
   {

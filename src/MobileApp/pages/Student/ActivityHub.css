@@ -240,8 +240,7 @@
 }
 
 .ah--logic {
-  background: linear-gradient(180deg, #efe4ff 0%, #fff6d8 48%, #dceeff 100%);
-  color: #2b3558;
+  color: #2b4a58;
 }
 
 @media (min-width: 720px) and (orientation: portrait) {
