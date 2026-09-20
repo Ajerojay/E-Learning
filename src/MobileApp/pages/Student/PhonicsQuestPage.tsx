@@ -17,12 +17,26 @@ import cat from "../../../img/cat-arrow.png";
 import dog from "../../../img/dog-arrow.png";
 import cow from "../../../img/cow-arrow.png";
 import chicken from "../../../img/chicken-arrow.png";
+import pig from "../../../img/pig-arrow.png";
+import duck from "../../../img/duck-arrow.png";
+import sheep from "../../../img/sheep-arrow.png";
+import horse from "../../../img/horse-arrow.png";
+import frog from "../../../img/frog-arrow.png";
+import bird from "../../../img/bird-arrow.png";
+import owl from "../../../img/owl-arrow.png";
 
 import rawrSound from "../../../img/lion-sound.mp3";
 import catSound from "../../../img/cat-meow.mp3";
 import dogSound from "../../../img/dog-bark.mp3";
 import cowSound from "../../../img/cow-moo.mp3";
 import chickenSound from "../../../img/chicken-sound.mp3";
+import pigSound from "../../../img/pig-sound.mp3";
+import duckSound from "../../../img/duck-sound.mp3";
+import sheepSound from "../../../img/sheep-sound.mp3";
+import horseSound from "../../../img/horse-sound.mp3";
+import frogSound from "../../../img/frog-sound.mp3";
+import birdSound from "../../../img/bird-sound.mp3";
+import owlSound from "../../../img/owl-sound.mp3";
 import { speakNative, cancelNativeSpeech } from "../../nativeTts";
 import QuestLevelSelect from "./QuestLevelSelect";
 import ChildMusicToggle from "./ChildMusicToggle";
@@ -48,13 +62,13 @@ const ANIMALS: SoundAnimal[] = [
   { name: "cow", emoji: "🐮", fileSound: cowSound, image: cow },
   { name: "chicken", emoji: "🐔", fileSound: chickenSound, image: chicken },
   { name: "lion", emoji: "🦁", fileSound: rawrSound, image: lion },
-  { name: "pig", emoji: "🐷", voiceSound: "oink oink" },
-  { name: "duck", emoji: "🦆", voiceSound: "quack quack" },
-  { name: "sheep", emoji: "🐑", voiceSound: "baa baa" },
-  { name: "horse", emoji: "🐴", voiceSound: "neigh" },
-  { name: "frog", emoji: "🐸", voiceSound: "ribbit ribbit" },
-  { name: "bird", emoji: "🐦", voiceSound: "tweet tweet" },
-  { name: "owl", emoji: "🦉", voiceSound: "hoot hoot" },
+  { name: "pig", emoji: "🐷", fileSound: pigSound, image: pig },
+  { name: "duck", emoji: "🦆", fileSound: duckSound, image: duck },
+  { name: "sheep", emoji: "🐑", fileSound: sheepSound, image: sheep },
+  { name: "horse", emoji: "🐴", fileSound: horseSound, image: horse },
+  { name: "frog", emoji: "🐸", fileSound: frogSound, image: frog },
+  { name: "bird", emoji: "🐦", fileSound: birdSound, image: bird },
+  { name: "owl", emoji: "🦉", fileSound: owlSound, image: owl },
 ];
 
 const LEVEL_CONFIG = [
@@ -82,6 +96,7 @@ function buildLevelRound(levelIndex: number) {
 }
 
 const ANIMAL_SOUND_VOLUME = 0.35;
+const NEW_ANIMAL_SOUND_DURATION_MS = 1224;
 
 const PHONICS_GAME_INTRO = {
   title: "Listen!",
@@ -170,9 +185,15 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
     const animal = currentAnimalRef.current;
     if (animal.fileSound) {
       const audio = new Audio(animal.fileSound);
-      audio.volume = ANIMAL_SOUND_VOLUME;
+      audio.volume = animal.name === "bird" ? 0.7 : ANIMAL_SOUND_VOLUME;
       audioRef.current = audio;
-      audio.play().catch(() => {});
+      audio.play().then(() => {
+        if (animal.name === "pig" || animal.name === "duck" || animal.name === "sheep" ||
+            animal.name === "horse" || animal.name === "frog" || animal.name === "bird" ||
+            animal.name === "owl") {
+          window.setTimeout(() => audio.pause(), NEW_ANIMAL_SOUND_DURATION_MS);
+        }
+      }).catch(() => {});
       return;
     }
     if (animal.voiceSound) {

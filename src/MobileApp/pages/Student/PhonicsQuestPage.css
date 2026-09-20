@@ -218,7 +218,7 @@ body {
 
 .phonics-page .sound-guide-img {
   width: clamp(110px, 26vh, 188px);
-  height: auto;
+  height: calc(clamp(110px, 26vh, 188px) * 1.33256);
   max-height: 36vh;
   object-fit: contain;
   filter: drop-shadow(0 5px 15px rgba(0,0,0,0.1));
