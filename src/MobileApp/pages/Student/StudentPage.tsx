@@ -3,7 +3,10 @@ import logo from "../../../img/bear.jpg";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import { getOrCreateActiveChildId, getRememberedChildFirstName, rememberChildFirstName, getChildDisplayFirstName } from "../../../lib/childProgress";
+import { getStoredChildAvatar, normalizeChildAvatar, rememberChildAvatar } from "../../../lib/childAvatar";
+import { childAvatarById } from "./childAvatars";
 import { getActiveChild } from "../../../lib/supabaseData";
+import { syncLocalQuestStars } from "../../../lib/questLevelResults";
 import { cacheOfflineChild, getOfflineChildById } from "../../../lib/offlineSqlite";
 import { getStudentGameAccess } from "../../../lib/studentGameAccess";
 import { isActivityOpen } from "../../../lib/activityConfig";
@@ -11,6 +14,7 @@ import { cancelNativeSpeech, speakKidPrompt } from "../../nativeTts";
 import { holdChildMusic, releaseChildMusic } from "../../../lib/childMusic";
 import ChildMusicToggle from "./ChildMusicToggle";
 
+import { Pencil } from "lucide-react";
 import { FaFont, FaShapes, FaPuzzlePiece } from "react-icons/fa";
 import { MdNumbers, MdColorLens } from "react-icons/md";
 import { GiSoundWaves } from "react-icons/gi";
@@ -27,6 +31,10 @@ export default function StudentPage() {
     return getRememberedChildFirstName(childId) || "Child";
   });
   const [allowedGames, setAllowedGames] = useState<string[]>([]);
+  const [avatarSrc, setAvatarSrc] = useState<string | null>(() => {
+    const saved = childAvatarById(getStoredChildAvatar(localStorage.getItem("activeChildId")));
+    return saved?.src ?? null;
+  });
   const greetedRef = useRef(false);
 
   const lessons = [
@@ -39,9 +47,31 @@ export default function StudentPage() {
   ];
 
   useEffect(() => {
+    const childId = localStorage.getItem("activeChildId");
+    if (!childId) return;
+    const saved = childAvatarById(getStoredChildAvatar(childId));
+    if (saved) {
+      setAvatarSrc(saved.src);
+      return;
+    }
+    let active = true;
+    void getActiveChild(childId).then((child) => {
+      if (!active) return;
+      const remote = childAvatarById(normalizeChildAvatar(child?.avatar));
+      if (!remote) return;
+      rememberChildAvatar(childId, remote.id);
+      setAvatarSrc(remote.src);
+    }).catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     const loadChildName = async () => {
       const childId = await getOrCreateActiveChildId();
       if (!childId) return;
+      void syncLocalQuestStars(childId);
       setAllowedGames(getStudentGameAccess(childId));
 
       const applyName = (name: string, allowPlaceholder = false) => {
@@ -121,6 +151,16 @@ export default function StudentPage() {
     };
   }, []);
 
+  const openAvatarPicker = () => {
+    navigate("/student/pick-avatar", {
+      state: {
+        childId: localStorage.getItem("activeChildId"),
+        childFirstName,
+        chooseAvatar: true,
+      },
+    });
+  };
+
   return (
     <div className="student-page">
 
@@ -146,6 +186,10 @@ export default function StudentPage() {
 
       <section className="student-welcome">
         <span className="welcome-sparkle" aria-hidden="true">&#10024;</span>
+        <button type="button" className="student-avatar-btn" onClick={openAvatarPicker} aria-label={avatarSrc ? "Change your avatar" : "Choose your avatar"}>
+          <img className="student-avatar-badge" src={avatarSrc || logo} alt="" />
+          <span className="student-avatar-edit" aria-hidden="true"><Pencil strokeWidth={2.6} /></span>
+        </button>
         <h1 className="student-title">Hi, {childFirstName}! &#128400;</h1>
         <p>What would you like to learn today?</p>
         {location.state?.blockedGame && <p className="student-access-note">That activity is currently locked by your teacher.</p>}

@@ -8,6 +8,8 @@ import android.content.pm.ActivityInfo;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.os.Handler;
+import android.os.Looper;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.widget.FrameLayout;
@@ -15,6 +17,7 @@ import android.speech.tts.TextToSpeech;
 import java.util.Locale;
 
 import androidx.activity.OnBackPressedCallback;
+import androidx.core.splashscreen.SplashScreen;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
@@ -26,6 +29,7 @@ public class MainActivity extends BridgeActivity {
     private TextToSpeech textToSpeech;
     private volatile boolean textToSpeechReady = false;
     private boolean videoChromeInstalled = false;
+    private volatile boolean keepNativeSplash = true;
     private View videoCustomView;
     private WebChromeClient.CustomViewCallback videoCustomViewCallback;
     private FrameLayout videoFullscreenContainer;
@@ -33,7 +37,11 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        SplashScreen splash = SplashScreen.installSplashScreen(this);
+        splash.setKeepOnScreenCondition(() -> keepNativeSplash);
+        splash.setOnExitAnimationListener(splashView -> splashView.remove());
         super.onCreate(savedInstanceState);
+        new Handler(Looper.getMainLooper()).postDelayed(() -> keepNativeSplash = false, 8000);
         attachNativeBridges();
         installVideoFullscreenClient();
         textToSpeech = new TextToSpeech(this, status -> {
@@ -65,6 +73,7 @@ public class MainActivity extends BridgeActivity {
         if (bridge == null || bridge.getWebView() == null) return;
         bridge.getWebView().addJavascriptInterface(new OrientationBridge(), "AndroidOrientation");
         bridge.getWebView().addJavascriptInterface(new TextToSpeechBridge(), "AndroidTts");
+        bridge.getWebView().addJavascriptInterface(new SplashBridge(), "AndroidSplash");
     }
 
     private void installVideoFullscreenClient() {
@@ -130,6 +139,13 @@ public class MainActivity extends BridgeActivity {
         videoFullscreenContainer = null;
         setRequestedOrientation(orientationBeforeVideoFullscreen);
         updateImmersiveMode();
+    }
+
+    public class SplashBridge {
+        @JavascriptInterface
+        public void hide() {
+            keepNativeSplash = false;
+        }
     }
 
     public class TextToSpeechBridge {

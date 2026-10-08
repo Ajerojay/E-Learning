@@ -3,66 +3,147 @@ import ParentLayout from "./ParentLayout";
 import {
   getChildDisplayFirstName,
   getChildDisplayName,
-  getOrCreateActiveChildId,
+  getLocalUser,
+  resolveActiveParentChild,
 } from "../../../lib/childProgress";
-import { getActiveChild, getChildCategoryProgress, getChildOverallProgress, getLatestChildAttempt, getParentAnnouncements, type ParentAnnouncement } from "../../../lib/supabaseData";
+import { getChildCategoryProgress, getLatestChildAttempt, getParentAnnouncements, getParentChildren, type ParentAnnouncement, type SupabaseChild } from "../../../lib/supabaseData";
 import { getOfflineCategoryProgress, getOfflineChildrenFromSqlite, cacheOfflineCategoryProgress } from "../../../lib/offlineSqlite";
+import BearLoading from "../../BearLoading";
+
+type ChildSummary = {
+  id: string;
+  name: string;
+  progress: number;
+  recent: string;
+};
+
+function linkedChildren(roster: SupabaseChild[]) {
+  const active = roster.filter((child) => child.isActive !== false);
+  const named = active.filter((child) => getChildDisplayName({
+    child_name: child.childName,
+    first_name: child.firstName,
+    last_name: child.lastName,
+  }) !== "Child");
+  return named.length ? named : active;
+}
+
+function progressTone(progress: number) {
+  if (progress >= 100) return "is-high";
+  if (progress >= 67) return "is-mid";
+  if (progress > 0) return "is-low";
+  return "";
+}
+
+function progressLabel(progress: number) {
+  if (progress >= 100) return "Excellent";
+  if (progress >= 67) return "Good";
+  if (progress > 0) return "Needs Practice";
+  return "Getting Started";
+}
+
+function progressCacheKey(childId: string) {
+  return `parentProgress:${childId}`;
+}
+
+function cachedChildProgress(childId: string) {
+  const saved = Number(localStorage.getItem(progressCacheKey(childId)));
+  return Number.isFinite(saved) ? Math.min(100, Math.max(0, Math.round(saved))) : 0;
+}
+
+function rememberChildProgress(childId: string, progress: number) {
+  localStorage.setItem(progressCacheKey(childId), String(progress));
+}
+
+function recentLine(child: SupabaseChild, latest: { categoryCode: string; gameCode: string; finished: boolean } | null) {
+  const categoryCode = latest?.categoryCode || latest?.gameCode.split(/[_-\s]/)[0] || "";
+  if (!categoryCode) return "";
+  const category = categoryCode.charAt(0).toUpperCase() + categoryCode.slice(1);
+  const recentName = getChildDisplayFirstName({
+    child_name: child.childName,
+    first_name: child.firstName,
+    last_name: child.lastName,
+  });
+  return latest?.finished ? `${recentName} completed "${category}"` : `${recentName} played "${category}"`;
+}
 
 export default function ParentDashboard() {
-  const [childName, setChildName] = React.useState("Child");
-  const [overallProgress, setOverallProgress] = React.useState(0);
-  const [recentActivity, setRecentActivity] = React.useState("No activity yet");
+  const [ready, setReady] = React.useState(false);
+  const [children, setChildren] = React.useState<ChildSummary[]>([]);
   const [announcements, setAnnouncements] = React.useState<ParentAnnouncement[]>([]);
 
   React.useEffect(() => {
     let cancelled = false;
 
     const loadDashboardData = async () => {
-      const childId = await getOrCreateActiveChildId();
-      if (!childId || cancelled) return;
-
-      let child = null;
-      let overall = 0;
-      let latest = null;
       try {
-        [child, overall, latest] = await Promise.all([
-          getActiveChild(childId),
-          getChildOverallProgress(childId),
-          getLatestChildAttempt(childId),
-        ]);
-        const categories = await getChildCategoryProgress(childId);
-        await cacheOfflineCategoryProgress(childId, categories.map(row => ({ categoryCode: row.category_code, categoryScore: row.category_score })));
-      } catch {
-        const cachedChild = (await getOfflineChildrenFromSqlite()).find(row => row.id === childId);
-        const cachedProgress = await getOfflineCategoryProgress(childId);
-        child = cachedChild ? { childName: cachedChild.child_name, firstName: cachedChild.first_name, lastName: cachedChild.last_name } : null;
-        overall = cachedProgress.length ? Math.round(cachedProgress.reduce((sum, row) => sum + row.category_score, 0) / cachedProgress.length) : 0;
-      }
+        const parentId = String(getLocalUser()?.id || "");
+        let roster: SupabaseChild[] = [];
+        if (parentId) {
+          try {
+            roster = linkedChildren(await getParentChildren(parentId));
+          } catch {
+            roster = [];
+          }
+        }
+        if (!roster.length) {
+          const active = await resolveActiveParentChild();
+          if (active) roster = [active];
+        }
+        if (!roster.length || cancelled) return;
 
-      if (cancelled) return;
+        if (!cancelled) {
+          setChildren(roster.map((child) => ({
+            id: child.id,
+            name: getChildDisplayName({ child_name: child.childName, first_name: child.firstName, last_name: child.lastName }),
+            progress: cachedChildProgress(child.id),
+            recent: "",
+          })));
+          setReady(true);
+        }
 
-      if (child) {
-        setChildName(getChildDisplayName({ child_name: child.childName, first_name: child.firstName, last_name: child.lastName }));
-      }
+        const summaries = await Promise.all(roster.map(async (child): Promise<ChildSummary> => {
+          try {
+            const [latest, categories] = await Promise.all([
+              getLatestChildAttempt(child.id),
+              getChildCategoryProgress(child.id),
+            ]);
+            await cacheOfflineCategoryProgress(child.id, categories.map(row => ({ categoryCode: row.category_code, categoryScore: row.category_score })));
+            const overall = categories.length
+              ? Math.round(categories.reduce((sum, row) => sum + row.category_score, 0) / categories.length)
+              : 0;
+            rememberChildProgress(child.id, overall);
+            return {
+              id: child.id,
+              name: getChildDisplayName({ child_name: child.childName, first_name: child.firstName, last_name: child.lastName }),
+              progress: overall,
+              recent: recentLine(child, latest),
+            };
+          } catch {
+            const cachedChild = (await getOfflineChildrenFromSqlite()).find(row => row.id === child.id);
+            const cachedProgress = await getOfflineCategoryProgress(child.id);
+            const nameSource = cachedChild
+              ? { child_name: cachedChild.child_name, first_name: cachedChild.first_name, last_name: cachedChild.last_name }
+              : { child_name: child.childName, first_name: child.firstName, last_name: child.lastName };
+            return {
+              id: child.id,
+              name: getChildDisplayName(nameSource),
+              progress: cachedProgress.length ? Math.round(cachedProgress.reduce((sum, row) => sum + row.category_score, 0) / cachedProgress.length) : 0,
+              recent: "",
+            };
+          }
+        }));
 
-      setOverallProgress(overall);
+        if (cancelled) return;
+        setChildren(summaries);
 
-      if (latest?.categoryCode) {
-        const category =
-          latest.categoryCode.charAt(0).toUpperCase() + latest.categoryCode.slice(1);
-        const recentName = getChildDisplayFirstName(child ? { child_name: child.childName, first_name: child.firstName, last_name: child.lastName } : null);
-        setRecentActivity(`${recentName} completed "${category}"`);
-      } else {
-        setRecentActivity("No activity yet");
-      }
-
-      try {
-        let parentId = "";
-        try { parentId = String(JSON.parse(localStorage.getItem("user") || "{}").id || ""); } catch { /* no active parent id */ }
-        const posts = await getParentAnnouncements(parentId, childId);
-        if (!cancelled) setAnnouncements(posts);
-      } catch {
-        if (!cancelled) setAnnouncements([]);
+        try {
+          const posts = await getParentAnnouncements(parentId, roster[0]?.id);
+          if (!cancelled) setAnnouncements(posts);
+        } catch {
+          if (!cancelled) setAnnouncements([]);
+        }
+      } finally {
+        if (!cancelled) setReady(true);
       }
     };
 
@@ -80,6 +161,8 @@ export default function ParentDashboard() {
     };
   }, []);
 
+  if (!ready) return <BearLoading overlay />;
+
   return (
     <ParentLayout activeNav="home">
       <section className="pd-welcome">
@@ -92,17 +175,38 @@ export default function ParentDashboard() {
           <h2>Quick Summary</h2>
         </div>
 
-        <div className="pd-progress-item">
-          <p className="pd-child-name">
-            {childName}: <span className="pd-progress-percent">{overallProgress}%</span>{" "}
-            Progress
-          </p>
-          <div className="pd-progress-bar">
-            <div
-              className="pd-progress-fill"
-              style={{ width: `${overallProgress}%` }}
-            />
-          </div>
+        <div className="pd-progress-list">
+          {(children.length ? children : [{ id: "placeholder", name: "Child", progress: 0, recent: "" }]).map((child) => (
+            <div className="pd-progress-item" key={child.id}>
+              <div className="pd-progress-meta">
+                <p className="pd-child-name">{child.name}</p>
+                <span className={`pd-progress-percent ${progressTone(child.progress)}`.trim()}>{child.progress}%</span>
+              </div>
+              <div className="pd-meter">
+                <div
+                  className="pd-progress-bar"
+                  role="progressbar"
+                  aria-valuenow={child.progress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`${child.name} progress`}
+                >
+                  <div
+                    className={`pd-progress-fill ${progressTone(child.progress)}`.trim()}
+                    style={{ width: `${child.progress}%` }}
+                  />
+                </div>
+                <span
+                  className={`pd-progress-knob ${progressTone(child.progress)}`.trim()}
+                  style={{ left: `calc(14px + (100% - 28px) * ${child.progress} / 100)` }}
+                  aria-hidden="true"
+                >
+                  &#9733;
+                </span>
+              </div>
+              <p className="pd-progress-caption">{progressLabel(child.progress)}</p>
+            </div>
+          ))}
         </div>
 
         <div className="pd-divider" />
@@ -111,9 +215,15 @@ export default function ParentDashboard() {
           <span className="pd-icon">&#127912;</span>
           <h2>Recent Activity</h2>
         </div>
-        <p className="pd-activity-text">
-          <strong>{recentActivity}</strong>
-        </p>
+        {children.some((child) => child.recent) ? (
+          <ul className="pd-activity-list">
+            {children.filter((child) => child.recent).map((child) => (
+              <li key={child.id}>{child.recent}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="pd-activity-empty">No activity yet</p>
+        )}
       </section>
 
       <section className="pd-card pd-announcements" aria-label="Announcements">

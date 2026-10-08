@@ -24,9 +24,10 @@ function getSidebarIconSrc(id: string) {
 type ParentLayoutProps = {
   activeNav: ParentNavId;
   children: React.ReactNode;
+  hideHeader?: boolean;
 };
 
-export default function ParentLayout({ activeNav, children }: ParentLayoutProps) {
+export default function ParentLayout({ activeNav, children, hideHeader = false }: ParentLayoutProps) {
   const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(true);
 
@@ -136,16 +137,18 @@ export default function ParentLayout({ activeNav, children }: ParentLayoutProps)
         </nav>
       </aside>
 
-      <div className="pd-main">
-        <header className="pd-top-header">
-          <div className="pd-brand">
-            <img src={logo} alt="LearnEase Kids logo" className="pd-logo" />
-            <span className="pd-brand-text">LearnEase Kids</span>
-          </div>
-          <button type="button" className="pd-bell-icon" aria-label="Notifications">
-            &#128276;
-          </button>
-        </header>
+      <div className={`pd-main${hideHeader ? " is-loading" : ""}`}>
+        {!hideHeader && (
+          <header className="pd-top-header">
+            <div className="pd-brand">
+              <img src={logo} alt="LearnEase Kids logo" className="pd-logo" />
+              <span className="pd-brand-text">LearnEase Kids</span>
+            </div>
+            <button type="button" className="pd-bell-icon" aria-label="Notifications">
+              &#128276;
+            </button>
+          </header>
+        )}
 
         <main className="pd-content">{children}</main>
       </div>

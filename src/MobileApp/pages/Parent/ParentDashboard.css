@@ -177,7 +177,7 @@ body {
 }
 
 .pd-progress-percent {
-  color: #d63031;
+  color: #c2414e;
 }
 
 .pd-activity-text strong {
@@ -237,6 +237,13 @@ body {
   flex: 1;
   padding-top: 10px;
   overflow-y: auto;
+}
+
+.pd-main.is-loading .pd-content {
+  display: grid;
+  place-items: center;
+  min-height: calc(100dvh - 140px);
+  padding-top: 0;
 }
 
 /* Shared card style for welcome + sections */
@@ -473,20 +480,27 @@ body {
 }
 
 .pd-summary {
-  min-height: 320px;
-  padding-top: 28px;
-  padding-bottom: 30px;
+  min-height: 0;
+  padding-top: 22px;
+  padding-bottom: 22px;
 }
 
 .pd-card-header {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .pd-icon {
-  font-size: 22px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 18px;
+  flex-shrink: 0;
 }
 
 .pd-card h2 {
@@ -497,32 +511,165 @@ body {
   margin-bottom: 22px;
 }
 
+.pd-progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 .pd-progress-item {
-  margin-top: 16px;
+  margin-top: 0;
+  padding: 12px 12px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.pd-progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
 }
 
 .pd-child-name {
-  font-size: 18px;
-  margin-bottom: 10px;
+  font-size: 17px;
+  font-weight: 800;
+  margin: 0;
+  min-width: 0;
 }
 
 .pd-progress-percent {
-  color: #ff4b4b;
-  font-weight: 700;
+  flex-shrink: 0;
+  min-width: 52px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #fff;
+  color: #c2414e;
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+  box-shadow: 0 2px 0 rgba(194, 65, 78, 0.12);
+}
+
+.pd-meter {
+  position: relative;
+  padding: 6px 14px 2px;
 }
 
 .pd-progress-bar {
   width: 100%;
-  height: 14px;
-  background: #f7f9ff;
+  height: 22px;
+  padding: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.45), transparent 55%),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.55) 0 2px,
+      transparent 2px 25%
+    ),
+    #d7ebfb;
+  border: 2px solid #fff;
   border-radius: 999px;
+  box-shadow: inset 0 2px 5px rgba(44, 90, 160, 0.18), 0 2px 0 rgba(110, 167, 222, 0.28);
   overflow: hidden;
 }
 
 .pd-progress-fill {
+  position: relative;
   height: 100%;
-  background: #ff6b6b;
+  width: 0;
   border-radius: inherit;
+  overflow: hidden;
+  background: linear-gradient(180deg, #fecdd3 0%, #fb7185 55%, #e11d48 100%);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45);
+  transition: width 0.45s ease;
+}
+
+.pd-progress-fill::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  right: 8px;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.2));
+}
+
+.pd-progress-fill.is-low {
+  background: linear-gradient(180deg, #fda4af 0%, #fb7185 55%, #e11d48 100%);
+}
+
+.pd-progress-fill.is-mid {
+  background: linear-gradient(180deg, #fde68a 0%, #fbbf24 55%, #f59e0b 100%);
+}
+
+.pd-progress-fill.is-high {
+  background: linear-gradient(180deg, #bbf7d0 0%, #4ade80 48%, #16a34a 100%);
+}
+
+.pd-progress-knob {
+  position: absolute;
+  top: calc(6px + 11px);
+  width: 28px;
+  height: 28px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #fff;
+  color: #be123c;
+  border: 3px solid currentColor;
+  box-shadow: 0 3px 0 rgba(44, 90, 160, 0.16);
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  line-height: 1;
+  z-index: 1;
+}
+
+.pd-progress-knob.is-low {
+  color: #e11d48;
+}
+
+.pd-progress-knob.is-mid {
+  color: #d97706;
+}
+
+.pd-progress-knob.is-high {
+  color: #16a34a;
+}
+
+.pd-main .pd-progress-percent {
+  color: #c2414e;
+}
+
+.pd-main .pd-progress-percent.is-low {
+  color: #be123c;
+  background: #fff1f2;
+}
+
+.pd-main .pd-progress-percent.is-mid {
+  color: #b45309;
+  background: #fff7ed;
+}
+
+.pd-main .pd-progress-percent.is-high {
+  color: #15803d;
+  background: #ecfdf3;
+  box-shadow: 0 2px 0 rgba(21, 128, 61, 0.12);
+}
+
+.pd-progress-caption,
+.pd-main .pd-progress-caption {
+  margin: 7px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #3d5f86;
+}
+
+.pd-main .pd-activity-list li,
+.pd-main .pd-activity-empty {
+  color: #0a4a7a;
 }
 
 .pd-divider {
@@ -537,7 +684,27 @@ body {
 }
 
 .pd-activity-text strong {
+  display: block;
   font-weight: 700;
+}
+
+.pd-activity-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pd-activity-list li,
+.pd-activity-empty {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+  font-size: 15px;
+  font-weight: 700;
+  color: #0a4a7a;
+  line-height: 1.35;
 }
 
 .pd-announcements {
@@ -610,16 +777,17 @@ body {
 .pd-mobile-parent .pd-sidebar[data-collapsed="true"] + .pd-main {
   height: 100%;
   min-height: 0;
-  overflow: hidden;
-  padding-bottom: 0;
-}
-
-.pd-mobile-parent .pd-content {
-  flex: 1 1 auto;
-  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding-bottom: calc(20px + env(safe-area-inset-bottom));
+}
+
+.pd-mobile-parent .pd-content {
+  flex: none;
+  min-height: 0;
+  overflow: visible;
+  padding-bottom: 0;
 }
 
 /* ============================= */
@@ -750,15 +918,16 @@ body {
   }
 
   .pd-child-name {
-    font-size: 15px;
+    font-size: 16px;
   }
 
-  .pd-activity-text {
-    font-size: 15px;
+  .pd-activity-list li,
+  .pd-activity-empty {
+    font-size: 14px;
   }
 
   .pd-progress-bar {
-    height: 10px;
+    height: 22px;
   }
 }
 
@@ -813,5 +982,27 @@ body {
   .pd-card h2 {
     font-size: 16px;
   }
+}
+
+/* Keep the parent brand the same size on every parent screen. */
+.pd-mobile-parent .pd-brand {
+  gap: 8px;
+  font-size: 16px;
+  padding: 8px 18px;
+}
+
+.pd-mobile-parent .pd-brand-text {
+  font-size: 16px;
+}
+
+.pd-mobile-parent .pd-logo {
+  width: 32px;
+  height: 32px;
+}
+
+.pd-mobile-parent .pd-bell-icon {
+  width: 34px;
+  height: 34px;
+  font-size: 18px;
 }
 

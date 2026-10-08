@@ -1,67 +1,151 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import "./ParentProgress.css";
 import { useNavigate } from "react-router-dom";
 import logo from "../../../../images/learnease logo-no bg.png";
 import {
   getChildDisplayFirstName,
   getChildDisplayName,
+  getLocalUser,
   getOrCreateActiveChildId,
+  normalizeSubjectKey,
   SUBJECT_KEYS,
   type SubjectKey,
 } from "../../../lib/childProgress";
-import { getActiveChild, getChildCategoryProgress } from "../../../lib/supabaseData";
+import { getActiveChild, getChildCategoryProgress, getParentChildren } from "../../../lib/supabaseData";
+import { getStoredChildAvatar, normalizeChildAvatar } from "../../../lib/childAvatar";
+import { childAvatarById } from "../Student/childAvatars";
 import { cacheOfflineCategoryProgress, getOfflineCategoryProgress, getOfflineChildrenFromSqlite } from "../../../lib/offlineSqlite";
+import BearLoading from "../../BearLoading";
 
-type CategoryProgressRow = {
-  category_code: SubjectKey;
-  category_score: number;
+type ChildProgressCard = {
+  id: string;
+  name: string;
+  firstName: string;
+  grade: string;
+  avatarId: string;
+  overall: number;
+  categories: Record<SubjectKey, number>;
 };
+
+function emptyCategories(): Record<SubjectKey, number> {
+  return Object.fromEntries(SUBJECT_KEYS.map((key) => [key, 0])) as Record<SubjectKey, number>;
+}
+
+function scoresFromRows(rows: Array<{ category_code: string; category_score: number }>): Record<SubjectKey, number> {
+  const base = emptyCategories();
+  for (const row of rows) {
+    const key = normalizeSubjectKey(row.category_code);
+    if (key) base[key] = Math.round(row.category_score || 0);
+  }
+  return base;
+}
+
+function overallFromScores(scores: Record<SubjectKey, number>) {
+  const played = SUBJECT_KEYS.map((key) => scores[key]).filter((score) => score > 0);
+  return played.length ? Math.round(played.reduce((sum, score) => sum + score, 0) / played.length) : 0;
+}
 
 export default function ParentProgress() {
   const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(true);
   const [loading, setLoading] = useState(true);
-  const [childName, setChildName] = useState("Child");
-  const [childFirstName, setChildFirstName] = useState("Child");
-  const [categoryRows, setCategoryRows] = useState<CategoryProgressRow[]>([]);
+  const [children, setChildren] = useState<ChildProgressCard[]>([]);
+  const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
+  const [parentDone, setParentDone] = useState<Record<string, number>>({});
 
   useEffect(() => {
     let cancelled = false;
 
-    const loadProgress = async () => {
-      setLoading(true);
-      const childId = await getOrCreateActiveChildId();
-      if (!childId) {
-        if (!cancelled) setLoading(false);
-        return;
-      }
-
-      let child = null;
+    const loadChildCard = async (id: string, nameRow: { child_name?: string | null; first_name?: string | null; last_name?: string | null }, grade?: string | null, avatar?: string | null): Promise<ChildProgressCard> => {
       let categories: Array<{ category_code: string; category_score: number }> = [];
       try {
-        [child, categories] = await Promise.all([
-          getActiveChild(childId),
-          getChildCategoryProgress(childId),
-        ]);
-        await cacheOfflineCategoryProgress(childId, categories.map(row => ({ categoryCode: row.category_code, categoryScore: row.category_score })));
+        categories = await getChildCategoryProgress(id);
+        await cacheOfflineCategoryProgress(id, categories.map(row => ({ categoryCode: row.category_code, categoryScore: row.category_score })));
       } catch {
-        const cachedChild = (await getOfflineChildrenFromSqlite()).find(row => row.id === childId);
-        child = cachedChild ? { childName: cachedChild.child_name, firstName: cachedChild.first_name, lastName: cachedChild.last_name } : null;
-        categories = await getOfflineCategoryProgress(childId);
+        categories = await getOfflineCategoryProgress(id);
+      }
+      const mapped = scoresFromRows(categories);
+      const played = categories.map((row) => Math.round(row.category_score || 0));
+      return {
+        id,
+        name: getChildDisplayName(nameRow),
+        firstName: getChildDisplayFirstName(nameRow),
+        grade: grade?.trim() || "Kinder",
+        avatarId: normalizeChildAvatar(avatar) || getStoredChildAvatar(id),
+        overall: played.length ? Math.round(played.reduce((sum, score) => sum + score, 0) / played.length) : overallFromScores(mapped),
+        categories: mapped,
+      };
+    };
+
+    const loadProgress = async () => {
+      setLoading(true);
+      const activeId = await getOrCreateActiveChildId();
+      let cards: ChildProgressCard[] = [];
+
+      try {
+        const parentId = String(getLocalUser()?.id || "");
+        const roster = parentId ? await getParentChildren(parentId) : [];
+        if (roster.length) {
+          const named = roster.filter((kid) => kid.isActive !== false && getChildDisplayName({
+            child_name: kid.childName,
+            first_name: kid.firstName,
+            last_name: kid.lastName,
+          }) !== "Child");
+          const visible = named.length ? named : roster.filter((kid) => kid.isActive !== false);
+          cards = await Promise.all(visible.map((kid) => loadChildCard(
+            kid.id,
+            { child_name: kid.childName, first_name: kid.firstName, last_name: kid.lastName },
+            kid.gradeLevel,
+            kid.avatar,
+          )));
+        }
+      } catch {
+        cards = [];
+      }
+
+      if (!cards.length) {
+        try {
+          const cachedKids = await getOfflineChildrenFromSqlite();
+          if (cachedKids.length) {
+            cards = await Promise.all(cachedKids.map((kid) => loadChildCard(
+              kid.id,
+              { child_name: kid.child_name, first_name: kid.first_name, last_name: kid.last_name },
+            )));
+          }
+        } catch {
+          cards = [];
+        }
+      }
+
+      if (!cards.length && activeId) {
+        try {
+          const child = await getActiveChild(activeId);
+          cards = [await loadChildCard(
+            activeId,
+            child
+              ? { child_name: child.childName, first_name: child.firstName, last_name: child.lastName }
+              : { child_name: "Child" },
+            child?.gradeLevel,
+            child?.avatar,
+          )];
+        } catch {
+          const cached = (await getOfflineChildrenFromSqlite()).find((row) => row.id === activeId);
+          cards = [await loadChildCard(
+            activeId,
+            cached
+              ? { child_name: cached.child_name, first_name: cached.first_name, last_name: cached.last_name }
+              : { child_name: "Child" },
+          )];
+        }
       }
 
       if (cancelled) return;
-
-      if (child) {
-        const childRow = { child_name: child.childName, first_name: child.firstName, last_name: child.lastName };
-        setChildName(getChildDisplayName(childRow));
-        setChildFirstName(getChildDisplayFirstName(childRow));
-      }
-
-      if (categories) {
-        setCategoryRows(categories as CategoryProgressRow[]);
-      }
-
+      setChildren(cards);
+      setSelectedChildId((current) => {
+        if (current && cards.some((card) => card.id === current)) return current;
+        if (activeId && cards.some((card) => card.id === activeId)) return activeId;
+        return cards[0]?.id ?? null;
+      });
       setLoading(false);
     };
 
@@ -98,8 +182,8 @@ export default function ParentProgress() {
   };
 
   const getStatus = (score: number) => {
-    if (score >= 80) return "Excellent";
-    if (score >= 60) return "Good";
+    if (score >= 100) return "Excellent";
+    if (score >= 67) return "Good";
     if (score > 0) return "Needs Practice";
     return "Getting Started";
   };
@@ -113,17 +197,33 @@ export default function ParentProgress() {
     { key: "logic", label: "Logic", icon: "\u{1F9E9}" },
   ];
 
-  const safeProgress = useMemo(() => {
-    const base = Object.fromEntries(SUBJECT_KEYS.map((key) => [key, 0])) as Record<SubjectKey, number>;
-    for (const row of categoryRows) {
-      base[row.category_code] = Math.round(row.category_score || 0);
-    }
-    return base;
-  }, [categoryRows]);
+  const selectedChild = children.find((child) => child.id === selectedChildId) ?? children[0];
 
-  const overall = Math.round(
-    SUBJECT_KEYS.reduce((sum, key) => sum + (safeProgress[key] || 0), 0) / SUBJECT_KEYS.length
-  );
+  useEffect(() => {
+    if (!selectedChild?.id) {
+      setParentDone({});
+      return;
+    }
+    const next: Record<string, number> = {};
+    for (const key of SUBJECT_KEYS) {
+      const count = Number(localStorage.getItem(`parentTimeDone:${selectedChild.id}:${key}`)) || 0;
+      if (count > 0) next[key] = Math.min(2, count);
+    }
+    setParentDone(next);
+  }, [selectedChild?.id]);
+
+  const markParentActivity = (key: SubjectKey) => {
+    if (!selectedChild?.id) return;
+    setParentDone((current) => {
+      const nextCount = Math.min(2, (current[key] ?? 0) + 1);
+      localStorage.setItem(`parentTimeDone:${selectedChild.id}:${key}`, String(nextCount));
+      return { ...current, [key]: nextCount };
+    });
+  };
+
+  const childName = selectedChild?.name || "Child";
+  const childFirstName = selectedChild?.firstName || "Child";
+  const safeProgress = selectedChild?.categories ?? emptyCategories();
 
   type Recommendation = {
     title: string;
@@ -138,7 +238,8 @@ export default function ParentProgress() {
     offlineTitle: string;
     offlineAction: string;
     offlineDesc: string;
-    offlineButton: string;
+    offlineExtra: string;
+    offlineExtraDesc: string;
   };
 
   const buildRecommendationForSubject = (
@@ -160,20 +261,23 @@ export default function ParentProgress() {
       offlineAction: "No activity yet",
       offlineDesc:
         "There is no recommended parent-guided activity at the moment.",
-      offlineButton: "\u2014",
+      offlineExtra: "",
+      offlineExtraDesc: "",
     };
 
     if (score <= 0) return baseNoActivity;
 
     const statusPrefix =
-      score >= 80 ? "Excellent" : score >= 60 ? "Good" : score >= 30 ? "Needs Practice" : "Getting Started";
+      score >= 100 ? "Excellent" : score >= 67 ? "Good" : score >= 30 ? "Needs Practice" : "Getting Started";
+    const mastered = score >= 100;
 
     const common: Recommendation = {
       ...baseNoActivity,
       title: "",
       status: `Current Status: ${statusPrefix} (${score}%)`,
       onlineButton: "\u25B6 Play Now",
-      offlineButton: "\u2705 Mark as done",
+      offlineExtra: "",
+      offlineExtraDesc: "",
     };
 
     switch (key) {
@@ -181,132 +285,134 @@ export default function ParentProgress() {
         return {
           ...common,
           title: "COLORS FOCUS",
-          intro:
-            score >= 80
-              ? `${childFirstName} shows strong understanding of colors. A quick replay will keep skills sharp.`
-              : `${childFirstName} is still learning to sort objects into the right color baskets.`,
-          childDid:
-            score >= 80
-              ? `${childFirstName} completed the Colors activity with a great score.`
-              : `${childFirstName} has started the Colors activity but still needs more practice.`,
+          intro: mastered
+            ? `${childFirstName} earned 3 stars on all 3 Colors games. A short replay will keep that sharp.`
+            : `${childFirstName} is still learning colors. 100% means all 3 games finished with 3 stars, even when a game is finished on time.`,
+          childDid: mastered
+            ? `${childFirstName} finished every Colors game with 3 stars and did not need lots of extra tries.`
+            : `${childFirstName} has not mastered all 3 Colors games yet. Missed answers and extra tries keep a game under 3 stars.`,
           onlineTitle: "SCREEN TIME (5m)",
           onlineAction: "Replay Colors Game",
-          onlineDesc: "Let her replay the Colors sorting game for extra practice.",
+          onlineDesc: mastered
+            ? "Replay one Colors game together and notice if the stars stay at 3."
+            : "Replay the Colors games that are still under 3 stars.",
           onlineRoute: "/quest/colors",
           offlineTitle: "PARENT TIME (10m)",
           offlineAction: "Color Hunt",
-          offlineDesc:
-            "Ask her to find red, blue, and yellow objects around the house and name each one.",
+          offlineDesc: "Ask her to find red, blue, and yellow objects around the house and name each one.",
+          offlineExtra: "Laundry Colors",
+          offlineExtraDesc: "Sort shirts or socks into color piles and name each pile out loud.",
         };
       case "shapes":
         return {
           ...common,
           title: "SHAPES FOCUS",
-          intro:
-            score >= 80
-              ? `${childFirstName} is confident with basic shapes.`
-              : `${childFirstName} is still mixing up some shapes like squares and rectangles.`,
-          childDid:
-            score >= 80
-              ? `${childFirstName} can match most shapes correctly in the house-building activity.`
-              : `${childFirstName} has started the shapes activity but still needs help matching shapes to the right spots.`,
+          intro: mastered
+            ? `${childFirstName} earned 3 stars on all 3 Shapes games.`
+            : `${childFirstName} is still mixing up some shapes. Finishing one game on time is not enough for 100%.`,
+          childDid: mastered
+            ? `${childFirstName} finished every Shapes game with 3 stars.`
+            : `${childFirstName} still needs 3 stars on all 3 Shapes games. Extra tries lower the stars.`,
           onlineTitle: "SCREEN TIME (10m)",
           onlineAction: "Shape Sorter Adventure",
-          onlineDesc: "Drag shapes to the correct spots to build the house.",
+          onlineDesc: mastered
+            ? "Replay a Shapes game and talk about which shape came next."
+            : "Replay the Shapes games that are still under 3 stars.",
           onlineRoute: "/quest/shapes",
           offlineTitle: "PARENT TIME (15m)",
           offlineAction: "Shape Hunt at Home",
-          offlineDesc:
-            "Look for objects shaped like circles, rectangles, and triangles around the house together.",
+          offlineDesc: "Look for circles, rectangles, and triangles around the house together.",
+          offlineExtra: "Snack Shapes",
+          offlineExtraDesc: "Before a snack, name the shape of the plate, crackers, or fruit slices.",
         };
       case "letters":
         return {
           ...common,
           title: "LETTERS PRACTICE",
-          intro:
-            score >= 80
-              ? `${childFirstName} is recognizing letters very well.`
-              : `${childFirstName} is still learning to match letters to the correct basket.`,
-          childDid:
-            score >= 80
-              ? `${childFirstName} can sort most letters correctly in the apple-and-basket game.`
-              : `${childFirstName} has begun matching letters but still needs more practice with A, B, C and beyond.`,
+          intro: mastered
+            ? `${childFirstName} earned 3 stars on every level of all 3 Letters games.`
+            : `${childFirstName} has started letters. The score adds every level: 3 games, 3 levels each, up to 3 stars.`,
+          childDid: mastered
+            ? `${childFirstName} finished every Letters level with 3 stars.`
+            : `${childFirstName}'s finished letter levels are counted. 100% needs 3 stars on all 9 levels.`,
           onlineTitle: "SCREEN TIME (8m)",
           onlineAction: "Replay Letters Game",
-          onlineDesc:
-            "Let her play the apple letter sorting game again to strengthen recognition.",
+          onlineDesc: mastered
+            ? "Replay a Letters game and ask her to say each letter out loud."
+            : "Replay the Letters games that do not have 3 stars yet.",
           onlineRoute: "/quest/letter",
           offlineTitle: "PARENT TIME (10m)",
           offlineAction: "Alphabet Cards",
-          offlineDesc:
-            "Use letter cards or write letters on paper and ask her to find objects that start with each letter.",
+          offlineDesc: "Write letters on paper and ask her to find something that starts with each one.",
+          offlineExtra: "Letter Walk",
+          offlineExtraDesc: "Look for the first letter of her name on books, boxes, or signs.",
         };
       case "numbers":
         return {
           ...common,
           title: "NUMBERS PRACTICE",
-          intro:
-            score >= 80
-              ? `${childFirstName} can quickly count and match numbers.`
-              : `${childFirstName} is still learning to count and match the correct number of raindrops.`,
-          childDid:
-            score >= 80
-              ? `${childFirstName} finishes the counting raindrops game with strong accuracy.`
-              : `${childFirstName} sometimes taps too many or too few raindrops when counting.`,
+          intro: mastered
+            ? `${childFirstName} earned 3 stars on all 3 Numbers games.`
+            : `${childFirstName} is still building number sense. One finished game does not make the subject 100%.`,
+          childDid: mastered
+            ? `${childFirstName} finished every Numbers game with 3 stars.`
+            : `${childFirstName} still needs 3 stars on all 3 Numbers games. Extra tries lower the stars.`,
           onlineTitle: "SCREEN TIME (8m)",
           onlineAction: "Replay Numbers Game",
-          onlineDesc:
-            "Have her replay the counting raindrops game to build stronger number sense.",
+          onlineDesc: mastered
+            ? "Replay a Numbers game and count along with her."
+            : "Replay the Numbers games that are still under 3 stars.",
           onlineRoute: "/quest/number",
           offlineTitle: "PARENT TIME (10m)",
           offlineAction: "Count Around the House",
-          offlineDesc:
-            "Count steps, toys, or snacks together and compare the numbers out loud.",
+          offlineDesc: "Count steps, toys, or snacks together and compare the numbers out loud.",
+          offlineExtra: "Snack Count",
+          offlineExtraDesc: "Count a small pile of snacks into her hand, then ask her to count them back.",
         };
       case "phonics":
         return {
           ...common,
           title: "PHONICS INTRO",
-          intro:
-            score >= 80
-              ? `${childFirstName} is great at matching animal sounds to the right animal.`
-              : `${childFirstName} is still getting used to animal sounds and needs more listening practice.`,
-          childDid:
-            score >= 80
-              ? `${childFirstName} usually chooses the right animal after hearing the sound.`
-              : `${childFirstName} sometimes guesses the wrong animal after hearing the sound.`,
+          intro: mastered
+            ? `${childFirstName} earned 3 stars on all 3 Phonics games.`
+            : `${childFirstName} still needs listening practice. Finishing on time with many tries is not 3 stars.`,
+          childDid: mastered
+            ? `${childFirstName} finished every Phonics game with 3 stars.`
+            : `${childFirstName} has not earned 3 stars on all 3 Phonics games yet.`,
           onlineTitle: "LISTEN & LEARN (5m)",
           onlineAction: "Replay Phonics Game",
-          onlineDesc:
-            "Let her replay the animal sound matching game to build listening skills.",
+          onlineDesc: mastered
+            ? "Replay a Phonics game and pause so she can say the sound first."
+            : "Replay the Phonics games that are still under 3 stars.",
           onlineRoute: "/student/PhonicsQuestPage",
           offlineTitle: "TALK TOGETHER (10m)",
           offlineAction: "Animal Sounds Game",
-          offlineDesc:
-            "Make animal sounds together and ask her to guess which animal it is.",
+          offlineDesc: "Make an animal sound and ask her to guess which animal it is.",
+          offlineExtra: "First Sound Game",
+          offlineExtraDesc: "Say a short word slowly and ask which sound she hears at the beginning.",
         };
       case "logic":
       default:
         return {
           ...common,
           title: "LOGIC FOCUS",
-          intro:
-            score >= 80
-              ? `${childFirstName} is doing very well with patterns and logic puzzles.`
-              : `${childFirstName} is still learning to spot patterns and choose the correct next symbol.`,
-          childDid:
-            score >= 80
-              ? `${childFirstName} can complete most logic levels without much help.`
-              : `${childFirstName} sometimes picks the wrong symbol when finishing a pattern.`,
+          intro: mastered
+            ? `${childFirstName} earned 3 stars on all 3 Logic games.`
+            : `${childFirstName} is still learning patterns. 100% needs 3 stars on all 3 games.`,
+          childDid: mastered
+            ? `${childFirstName} finished every Logic game with 3 stars.`
+            : `${childFirstName} sometimes needs another try. Those extra tries keep Logic under 100%.`,
           onlineTitle: "SCREEN TIME (10m)",
           onlineAction: "Replay Logic Game",
-          onlineDesc:
-            "Encourage her to replay the pattern game and explain why each choice is correct.",
+          onlineDesc: mastered
+            ? "Replay a Logic game and ask her why the next piece fits."
+            : "Replay the Logic games that are still under 3 stars.",
           onlineRoute: "/quest/logic",
           offlineTitle: "PARENT TIME (10m)",
           offlineAction: "Pattern at Home",
-          offlineDesc:
-            "Create simple patterns with toys (car, car, block\u2026) and ask her what comes next.",
+          offlineDesc: "Make a simple pattern with toys and ask her what comes next.",
+          offlineExtra: "Clap the Pattern",
+          offlineExtraDesc: "Clap a short pattern, ask her to copy it, then let her make one for you.",
         };
     }
   };
@@ -392,62 +498,99 @@ export default function ParentProgress() {
         </nav>
       </aside>
 
-      <div className="pp-main">
-        <header className="pp-top-header">
-          <div className="pp-brand">
-            <img src={logo} alt="LearnEase Kids logo" className="pp-logo" />
-            <span className="pp-brand-text">LearnEase Kids</span>
-          </div>
-          <button className="pp-bell-icon">&#128276;</button>
-        </header>
+      <div className={`pp-main${loading ? " is-loading" : ""}`}>
+        {!loading && (
+          <header className="pp-top-header">
+            <div className="pp-brand">
+              <img src={logo} alt="LearnEase Kids logo" className="pp-logo" />
+              <span className="pp-brand-text">LearnEase Kids</span>
+            </div>
+            <button className="pp-bell-icon">&#128276;</button>
+          </header>
+        )}
 
         <main className="pp-content">
+          {loading ? (
+            <BearLoading compact />
+          ) : (
+            <>
           <section className="pp-heading-card">
             <h1>Your Children&apos;s Progress</h1>
           </section>
 
-          <section className="pp-summary-row">
-            <div className="pp-child-card">
-              <div className="pp-avatar">&#129528;</div>
-              <div>
-                <h2>{childName}</h2>
-                <p className="pp-grade">Kinder</p>
-              </div>
-            </div>
+          <section className="pp-children-list">
+            {(children.length ? children : [{
+              id: "placeholder",
+              name: childName,
+              firstName: childFirstName,
+              grade: "Kinder",
+              avatarId: "",
+              overall: 0,
+              categories: emptyCategories(),
+            }]).map((child) => {
+              const selected = child.id === (selectedChild?.id ?? child.id);
+              const avatar = childAvatarById(child.avatarId);
+              return (
+                <button
+                  type="button"
+                  key={child.id}
+                  className={`pp-summary-row${selected ? " is-selected" : ""}`}
+                  onClick={() => setSelectedChildId(child.id)}
+                >
+                  <div className="pp-child-card">
+                    <div className="pp-avatar">
+                      {avatar ? <img src={avatar.src} alt="" /> : <span aria-hidden="true">&#129528;</span>}
+                    </div>
+                    <div>
+                      <h2>{child.name}</h2>
+                      <p className="pp-grade">{child.grade}</p>
+                    </div>
+                  </div>
 
-            <div className="pp-overall-card">
-              <div
-                className="pp-circle"
-                style={{
-                  background: `conic-gradient(#c4e4c1 0 ${Math.round(
-                    overall
-                  )}%, #f2efe8 ${Math.round(overall)}% 100%)`,
-                }}
-              >
-                <span>{Math.round(overall)}%</span>
-              </div>
-            </div>
+                  <div className="pp-overall-card">
+                    <div
+                      className="pp-circle"
+                      style={{
+                        background: `conic-gradient(#6fce86 0 ${Math.round(child.overall)}%, #e4dff2 ${Math.round(child.overall)}% 100%)`,
+                      }}
+                      role="img"
+                      aria-label={`${child.name} overall progress ${Math.round(child.overall)} percent`}
+                    >
+                      <span>{Math.round(child.overall)}%</span>
+                    </div>
+                    <p className="pp-overall-label">Overall</p>
+                  </div>
+                </button>
+              );
+            })}
           </section>
 
           <section className="pp-grid">
             {subjects.map((sub) => {
               const score = safeProgress[sub.key] || 0;
+              const status = getStatus(score);
+              const statusTone =
+                status === "Excellent" ? "excellent" : status === "Good" ? "good" : status === "Needs Practice" ? "practice" : "start";
               return (
-                <div key={sub.key} className="pp-subject-card">
+                <div key={sub.key} className={`pp-subject-card pp-subject-card--${sub.key}`}>
                   <div className="pp-subject-header">
                     <span className="pp-subject-icon">{sub.icon}</span>
                     <h3>{sub.label}</h3>
-                  </div>
-
-                  <div className="pp-bar">
-                    <div className="pp-fill" style={{ width: `${score}%` }}></div>
-                  </div>
-
-                  <div className="pp-row">
                     <span className="pp-percent">{score}%</span>
                   </div>
 
-                  <p className="pp-status">Status: {getStatus(score)}</p>
+                  <div
+                    className="pp-bar"
+                    role="progressbar"
+                    aria-valuenow={score}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`${sub.label} progress`}
+                  >
+                    <div className="pp-fill" style={{ width: `${score}%` }}></div>
+                  </div>
+
+                  <p className={`pp-status pp-status--${statusTone}`}>{status}</p>
                 </div>
               );
             })}
@@ -467,20 +610,24 @@ export default function ParentProgress() {
 
             {subjects.map((sub) => {
               const score = safeProgress[sub.key] || 0;
+              const status = getStatus(score);
+              const statusTone =
+                status === "Excellent" ? "excellent" : status === "Good" ? "good" : status === "Needs Practice" ? "practice" : "start";
               const rec = buildRecommendationForSubject(sub.key, score);
               const cardClass = `pp-recommend-card pp-recommend-card--${sub.key}`;
 
               return (
                 <div key={sub.key} className={cardClass}>
                   <div className="pp-tag">{rec.title || `${sub.label.toUpperCase()} FOCUS`}</div>
-                  <h3>
-                    {sub.icon} {rec.status}
+                  <h3 className={`pp-rec-status pp-rec-status--${statusTone}`}>
+                    <span className="pp-rec-emoji" aria-hidden="true">{sub.icon}</span>
+                    {rec.status}
                   </h3>
-                  <p>{rec.intro}</p>
+                  <p className="pp-rec-intro">{rec.intro}</p>
                   <p className="pp-child-did">{rec.childDid}</p>
 
                   <div className="pp-recommend-actions">
-                    <div className="pp-recommend-box">
+                    <div className="pp-recommend-box pp-recommend-box--screen">
                       <p className="pp-mini-title">&#128241; {rec.onlineTitle}</p>
                       <strong>{rec.onlineAction}</strong>
                       <p>{rec.onlineDesc}</p>
@@ -494,17 +641,42 @@ export default function ParentProgress() {
                       )}
                     </div>
 
-                    <div className="pp-recommend-box">
+                    <div className="pp-recommend-box pp-recommend-box--home">
                       <p className="pp-mini-title">&#127968; {rec.offlineTitle}</p>
-                      <strong>{rec.offlineAction}</strong>
-                      <p>{rec.offlineDesc}</p>
-                      <button disabled={score <= 0 || loading}>{rec.offlineButton}</button>
+                      <div className={`pp-parent-task${(parentDone[sub.key] ?? 0) >= 1 ? " is-checked" : ""}`}>
+                        <strong>
+                          {(parentDone[sub.key] ?? 0) >= 1 ? <span className="pp-task-check" aria-label="Done">✅</span> : null}
+                          {rec.offlineAction}
+                        </strong>
+                        <p>{rec.offlineDesc}</p>
+                        {(parentDone[sub.key] ?? 0) < 1 && rec.offlineExtra ? (
+                          <button type="button" onClick={() => markParentActivity(sub.key)}>
+                            &#9989; Mark as done
+                          </button>
+                        ) : null}
+                      </div>
+                      {(parentDone[sub.key] ?? 0) >= 1 && rec.offlineExtra ? (
+                        <div className={`pp-extra-activity pp-parent-task${(parentDone[sub.key] ?? 0) >= 2 ? " is-checked" : ""}`}>
+                          <strong>
+                            {(parentDone[sub.key] ?? 0) >= 2 ? <span className="pp-task-check" aria-label="Done">✅</span> : null}
+                            {rec.offlineExtra}
+                          </strong>
+                          <p>{rec.offlineExtraDesc}</p>
+                          {(parentDone[sub.key] ?? 0) < 2 ? (
+                            <button type="button" onClick={() => markParentActivity(sub.key)}>
+                              &#9989; Mark as done
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>
               );
             })}
           </section>
+            </>
+          )}
         </main>
       </div>
     </div>

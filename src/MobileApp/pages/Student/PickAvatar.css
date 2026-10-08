@@ -1,0 +1,208 @@
+.pick-avatar,
+.pick-avatar * {
+  box-sizing: border-box;
+}
+
+.pick-avatar {
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  padding: max(18px, env(safe-area-inset-top)) 18px max(28px, env(safe-area-inset-bottom));
+  overflow-x: hidden;
+  background: url("./images/Homehub-bg.png") no-repeat center / cover;
+  font-family: "Comic Sans MS", "Comic Neue", "Nunito", cursive, sans-serif;
+  text-align: center;
+  position: relative;
+}
+
+.pick-avatar::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 248, 221, 0.2));
+}
+
+.pick-avatar-back {
+  appearance: none;
+  position: absolute;
+  z-index: 3;
+  top: max(18px, env(safe-area-inset-top));
+  left: max(16px, env(safe-area-inset-left));
+  min-width: 92px;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 17px;
+  border: 2px solid rgba(122, 102, 174, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #4b4074;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 5px 12px rgba(66, 58, 91, 0.16);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pick-avatar-back:active {
+  transform: scale(0.95);
+}
+
+.pick-avatar-heading {
+  position: relative;
+  z-index: 1;
+  margin: 62px auto 8px;
+}
+
+.pick-avatar-sparkle {
+  position: absolute;
+  right: 16%;
+  top: -8px;
+  font-size: 28px;
+  animation: pick-avatar-sparkle 2s ease-in-out infinite;
+}
+
+@keyframes pick-avatar-sparkle {
+  50% { transform: scale(1.25) rotate(15deg); opacity: 0.7; }
+}
+
+.pick-avatar-heading h1 {
+  margin: 0;
+  color: #f28b23;
+  font-size: clamp(34px, 6vw, 56px);
+  line-height: 1.1;
+  text-shadow: 0 3px 0 #fff, 0 5px 9px rgba(96, 71, 43, 0.15);
+}
+
+.pick-avatar-heading p {
+  margin: 8px 0 0;
+  color: #51476b;
+  font-size: clamp(16px, 2.2vw, 22px);
+  font-weight: 800;
+}
+
+.pick-avatar-grid {
+  position: relative;
+  z-index: 1;
+  width: min(760px, 100%);
+  margin: 22px auto 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px 14px;
+}
+
+.pick-avatar-option {
+  appearance: none;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 6px 10px;
+  border: none;
+  border-radius: 28px;
+  background: transparent;
+  outline: none;
+  color: #443a6b;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pick-avatar-option img {
+  width: min(100%, 148px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #fff;
+  box-shadow: 0 8px 0 rgba(255, 255, 255, 0.72), 0 12px 18px rgba(80, 64, 40, 0.14);
+  transition: transform 0.16s ease;
+}
+
+.pick-avatar-option:active img {
+  transform: scale(0.94);
+}
+
+.pick-avatar-option:focus,
+.pick-avatar-option:focus-visible {
+  outline: none;
+}
+
+.pick-avatar-option.is-selected img {
+  transform: scale(1.06);
+}
+
+.pick-avatar-go {
+  position: relative;
+  z-index: 1;
+  margin: 22px auto 0;
+  min-width: min(280px, 100%);
+  min-height: 58px;
+  padding: 12px 28px;
+  border: none;
+  border-radius: 999px;
+  background: #f28b23;
+  color: #fff;
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  box-shadow: 0 7px 0 #d56d12, 0 12px 18px rgba(180, 90, 20, 0.2);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pick-avatar-go:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 4px 0 #d56d12;
+}
+
+.pick-avatar-go:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: 0 7px 0 #e0b07a;
+}
+
+@media (max-width: 760px) {
+  .pick-avatar-back {
+    min-width: 48px;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border-radius: 50%;
+  }
+
+  .pick-avatar-back-label {
+    display: none;
+  }
+
+  .pick-avatar-heading {
+    margin-top: 58px;
+  }
+
+  .pick-avatar-grid {
+    gap: 10px 8px;
+  }
+
+  .pick-avatar-option {
+    font-size: 13px;
+    gap: 6px;
+    padding: 4px 2px 6px;
+    border-radius: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pick-avatar *,
+  .pick-avatar *::before,
+  .pick-avatar *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}

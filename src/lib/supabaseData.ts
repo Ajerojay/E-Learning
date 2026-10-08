@@ -1,4 +1,12 @@
 import { supabase } from "./supabase";
+import {
+  SUBJECT_QUEST_GAMES,
+  fetchQuestLevelResults,
+  mergeQuestStars,
+  readLocalQuestStars,
+  scoreFromQuestStars,
+  syncLocalQuestStars,
+} from "./questLevelResults";
 
 export type UserRole = "parent" | "teacher";
 
@@ -19,6 +27,7 @@ export type SupabaseChild = {
   gradeLevel?: string | null;
   pinCode?: string | null;
   nickname?: string | null;
+  avatar?: string | null;
   isActive: boolean;
   lastActiveAt?: string | null;
 };
@@ -58,6 +67,7 @@ function toChild(row: Record<string, unknown>): SupabaseChild {
     gradeLevel: row.grade_level as string | null,
     pinCode: row.pin_code as string | null,
     nickname: row.nickname as string | null,
+    avatar: row.avatar as string | null,
     isActive: row.is_active !== false,
     lastActiveAt: row.last_active_at as string | null,
   };
@@ -168,39 +178,280 @@ export async function recordGameAttempt(attempt: SupabaseAttempt): Promise<strin
     score: attempt.score,
     wrong_attempts: attempt.wrongAttempts,
     finished: attempt.finished,
+    ...(attempt.finished ? { attempt_finished_at: new Date().toISOString() } : {}),
   }]).select("id").single();
   if (live.error) throw live.error;
   if (!live.data) throw new Error("Failed to record game attempt.");
   return String(live.data.id);
 }
 
-export async function getRecentChildAttempts(childId: string, count = 50) {
-  const { data, error } = await supabase.from("game_attempts").select("*").eq("child_id", childId).order("created_at", { ascending: false }).limit(count);
-  if (error) throw error;
-  return (data ?? []).map(row => ({
-    childId: String(row.child_id),
-    parentId: String(row.parent_id),
-    categoryCode: String(row.category_code ?? ""),
-    gameCode: String(row.game_code ?? ""),
-    gameTitle: row.game_title as string | null,
+type StoredChildAttempt = {
+  childId: string;
+  parentId: string;
+  categoryCode: string;
+  gameCode: string;
+  gameTitle: string | null;
+  score: number;
+  wrongAttempts: number;
+  finished: boolean;
+  created_at: string;
+};
+
+type GameLookup = {
+  gameCode: string;
+  gameTitle: string | null;
+  categoryCode: string;
+};
+
+let gameCatalogPromise: Promise<Map<string, GameLookup>> | null = null;
+
+async function loadGameCatalog(): Promise<Map<string, GameLookup>> {
+  if (!gameCatalogPromise) {
+    gameCatalogPromise = (async () => {
+      const games = await supabase.from("learning_games").select("id,game_code,game_title,category_id");
+      const categories = games.error
+        ? { data: [] as Array<{ id: string; code: string }> }
+        : await supabase.from("learning_categories").select("id,code");
+      const categoryById = new Map((categories.data ?? []).map(row => [String(row.id), String(row.code || "")]));
+      const map = new Map<string, GameLookup>();
+      for (const row of games.data ?? []) {
+        const gameCode = String(row.game_code || "");
+        map.set(String(row.id), {
+          gameCode,
+          gameTitle: (row.game_title as string | null) ?? null,
+          categoryCode: categoryById.get(String(row.category_id || "")) || gameCode.split(/[_-\s]/)[0] || "",
+        });
+      }
+      return map;
+    })().catch((error) => {
+      gameCatalogPromise = null;
+      throw error;
+    });
+  }
+  return gameCatalogPromise;
+}
+
+function mapStoredAttempt(row: Record<string, unknown>, game?: GameLookup): StoredChildAttempt {
+  const gameCode = String(row.game_code || game?.gameCode || "");
+  return {
+    childId: String(row.child_id ?? ""),
+    parentId: row.parent_id ? String(row.parent_id) : "",
+    categoryCode: String(row.category_code || game?.categoryCode || gameCode.split(/[_-\s]/)[0] || ""),
+    gameCode,
+    gameTitle: (row.game_title as string | null) ?? game?.gameTitle ?? null,
     score: Number(row.score) || 0,
     wrongAttempts: Number(row.wrong_attempts) || 0,
     finished: Boolean(row.finished),
-    created_at: String(row.created_at ?? new Date().toISOString()),
+    created_at: String(row.created_at || row.attempt_started_at || new Date().toISOString()),
+  };
+}
+
+export async function getRecentChildAttempts(childId: string, count = 50, finishedOnly = false): Promise<StoredChildAttempt[]> {
+  let view = supabase
+    .from("v_child_recent_activity")
+    .select("child_id,parent_id,category_code,game_code,game_title,score,wrong_attempts,finished,created_at")
+    .eq("child_id", childId)
+    .order("created_at", { ascending: false })
+    .limit(count);
+  if (finishedOnly) view = view.eq("finished", true);
+  const viewed = await view;
+  if (!viewed.error) return (viewed.data ?? []).map(row => mapStoredAttempt(row as Record<string, unknown>));
+
+  let attempts = supabase.from("game_attempts").select("*").eq("child_id", childId).order("created_at", { ascending: false }).limit(count);
+  if (finishedOnly) attempts = attempts.eq("finished", true);
+  const { data, error } = await attempts;
+  if (error) throw error;
+  const catalog = await loadGameCatalog();
+  return (data ?? []).map(row => mapStoredAttempt(row as Record<string, unknown>, catalog.get(String((row as { game_id?: string }).game_id ?? ""))));
+}
+
+/**
+ * Side games share the catalog's first game id, so a finished score is the only
+ * way to tell them apart. Each entry is the score that game writes.
+ */
+const SIDE_GAME_SCORE: Record<string, (wrong: number) => number> = {
+  colors_balloons: (wrong) => Math.max(40, 100 - wrong * 8),
+  colors_paint: (wrong) => Math.max(50, 100 - wrong * 10),
+  shapes_shadow: (wrong) => Math.max(40, 100 - wrong * 8),
+  shapes_trace: (wrong) => Math.max(50, 100 - wrong * 10),
+  letters_mama: (wrong) => Math.max(40, 100 - wrong * 8),
+  letters_train: (wrong) => Math.max(40, 100 - wrong * 8),
+  numbers_feed: (wrong) => Math.max(40, 100 - wrong * 8),
+  numbers_dots: (wrong) => Math.max(40, 100 - wrong * 8),
+  phonics_begin: (wrong) => Math.max(40, 100 - wrong * 8),
+  phonics_vowels: (wrong) => Math.max(40, 100 - wrong * 8),
+  logic_size: (wrong) => Math.max(40, 100 - wrong * 8),
+  logic_odd: (wrong) => Math.max(40, 100 - wrong * 8),
+};
+
+const SLOT_TO_QUEST: Record<string, string> = {
+  colors_sort: "colors",
+  colors_balloons: "colors-balloons",
+  colors_paint: "colors-paint",
+  shapes_match: "shapes",
+  shapes_shadow: "shapes-shadow",
+  shapes_trace: "shapes-trace",
+  letters_trace: "letters",
+  letters_mama: "letters-mama",
+  letters_train: "letters-train",
+  numbers_count: "numbers",
+  numbers_feed: "numbers-feed",
+  numbers_dots: "numbers-dots",
+  phonics_sound: "phonics",
+  phonics_begin: "phonics-begin",
+  phonics_vowels: "phonics-vowels",
+  logic_pattern: "logic",
+  logic_size: "logic-size",
+  logic_odd: "logic-odd",
+};
+
+/** Same miss caps as the child level map. A finished level is treated as on time. */
+function starsForWrong(wrong: number) {
+  if (wrong >= 20) return 1;
+  if (wrong >= 10) return 2;
+  if (wrong >= 5) return 2.5;
+  return 3;
+}
+
+function bestStars(rows: StoredChildAttempt[]) {
+  if (!rows.length) return 0;
+  return starsForWrong(Math.min(...rows.map((row) => row.wrongAttempts)));
+}
+
+function emptyLevels() {
+  return [0, 0, 0];
+}
+
+/** Older saves share one catalog game, so level stars are rebuilt from those rows. */
+function levelsFromAttempts(category: string, rows: StoredChildAttempt[]) {
+  const quests = SUBJECT_QUEST_GAMES[category];
+  const levels = new Map<string, number[]>();
+  if (!quests) return levels;
+  const meaningful = rows.filter((row) => row.finished || row.score > 0 || row.wrongAttempts > 0);
+  const sideQuests = quests.slice(1);
+  const sideRows: StoredChildAttempt[] = [];
+  const mainRows: StoredChildAttempt[] = [];
+
+  for (const row of meaningful) {
+    const sideHits = sideQuests.filter((quest) => {
+      const slot = Object.entries(SLOT_TO_QUEST).find(([, value]) => value === quest)?.[0];
+      const formula = slot ? SIDE_GAME_SCORE[slot] : undefined;
+      return formula?.(row.wrongAttempts) === row.score;
+    });
+    const collapsedSide = sideHits.length > 0 && (row.score < 100 || !row.finished);
+    if (collapsedSide) sideRows.push(row);
+    else mainRows.push(row);
+  }
+
+  if (mainRows.some((row) => row.finished && row.score > 0)) {
+    const stars = bestStars(mainRows.filter((row) => row.finished && row.score > 0));
+    levels.set(quests[0], [stars, stars, stars]);
+  } else if (mainRows.length) {
+    const maxScore = Math.max(...mainRows.map((row) => row.score));
+    const completed = maxScore >= 67 ? 2 : maxScore >= 33 ? 1 : 0;
+    const next = emptyLevels();
+    if (completed === 0) next[0] = 1;
+    for (let index = 0; index < completed; index += 1) {
+      const start = index === 0 ? 33 : 67;
+      const end = index === 0 ? 67 : 100;
+      const band = mainRows.filter((row) => row.score >= start && row.score < end);
+      next[index] = bestStars(band.length ? band : mainRows);
+    }
+    levels.set(quests[0], next);
+  }
+
+  const finishedSide = sideRows.filter((row) => row.finished);
+  const openSide = sideRows.filter((row) => !row.finished);
+  finishedSide.forEach((row, index) => {
+    const quest = sideQuests[index];
+    if (!quest) return;
+    const stars = starsForWrong(row.wrongAttempts);
+    levels.set(quest, [stars, stars, stars]);
+  });
+  const openQuest = sideQuests.find((quest) => !levels.has(quest)) ?? sideQuests[0];
+  if (openQuest && openSide.length) {
+    const next = levels.get(openQuest) ?? emptyLevels();
+    openSide.slice(0, 2).forEach((row, index) => {
+      next[index] = Math.max(next[index], starsForWrong(row.wrongAttempts));
+    });
+    levels.set(openQuest, next);
+  }
+  return levels;
+}
+
+function categoryKeyFromAttempt(categoryCode: string, gameCode: string) {
+  const raw = `${categoryCode || gameCode || ""}`.trim().toLowerCase();
+  if (!raw) return "";
+  const prefix = raw.split(/[_-\s]/)[0] ?? "";
+  const aliases: Record<string, string> = {
+    color: "colors",
+    shape: "shapes",
+    letter: "letters",
+    number: "numbers",
+    num: "numbers",
+    phonetic: "phonics",
+    pattern: "logic",
+  };
+  const keys = ["colors", "shapes", "letters", "numbers", "phonics", "logic"];
+  if (keys.includes(raw)) return raw;
+  if (aliases[raw]) return aliases[raw];
+  if (keys.includes(prefix)) return prefix;
+  return aliases[prefix] ?? "";
+}
+
+async function loadProgressAttempts(childId: string, categories: string[]) {
+  const batches = await Promise.all(categories.map(async (category) => {
+    const viewed = await supabase
+      .from("v_child_recent_activity")
+      .select("child_id,parent_id,category_code,game_code,game_title,score,wrong_attempts,finished,created_at")
+      .eq("child_id", childId)
+      .eq("category_code", category)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (viewed.error) return [];
+    return (viewed.data ?? []).map((row) => mapStoredAttempt(row as Record<string, unknown>));
   }));
+  return batches.flat();
 }
 
 export async function getChildCategoryProgress(childId: string) {
-  const attempts = await getRecentChildAttempts(childId, 500);
-  const grouped = new Map<string, number[]>();
-  for (const attempt of attempts) grouped.set(attempt.categoryCode, [...(grouped.get(attempt.categoryCode) ?? []), attempt.score]);
-  return [...grouped.entries()].map(([category_code, scores]) => ({
-    category_code,
-    category_score: Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length),
-    played_games_in_category: scores.length,
-    completed_games_in_category: scores.length,
-    total_games_in_category: scores.length,
-  }));
+  const localStars = readLocalQuestStars(childId);
+  const savedStars = await fetchQuestLevelResults(childId);
+  const playedStars = mergeQuestStars([savedStars, localStars]);
+  const categoriesNeedingAttempts = Object.keys(SUBJECT_QUEST_GAMES).filter((category) => (
+    !SUBJECT_QUEST_GAMES[category].some((game) => playedStars[game]?.some((stars) => stars > 0))
+  ));
+  const attempts = categoriesNeedingAttempts.length
+    ? await loadProgressAttempts(childId, categoriesNeedingAttempts)
+    : [];
+  void syncLocalQuestStars(childId);
+  const attemptsByCategory = new Map<string, StoredChildAttempt[]>();
+  for (const attempt of attempts) {
+    const category = categoryKeyFromAttempt(attempt.categoryCode, attempt.gameCode);
+    if (!SUBJECT_QUEST_GAMES[category]) continue;
+    const rows = attemptsByCategory.get(category) ?? [];
+    rows.push(attempt);
+    attemptsByCategory.set(category, rows);
+  }
+
+  return Object.keys(SUBJECT_QUEST_GAMES).map((category_code) => {
+    const quests = SUBJECT_QUEST_GAMES[category_code];
+    const hasLevelStars = quests.some((game) => playedStars[game]?.some((stars) => stars > 0));
+    const fromAttempts = hasLevelStars ? new Map<string, number[]>() : levelsFromAttempts(category_code, attemptsByCategory.get(category_code) ?? []);
+    const levels = quests.map((game) => {
+      const saved = playedStars[game];
+      if (saved?.some((stars) => stars > 0)) return saved;
+      return fromAttempts.get(game) ?? [0, 0, 0];
+    });
+    const scored = scoreFromQuestStars(levels);
+    return {
+      category_code,
+      category_score: scored.categoryScore,
+      played_games_in_category: scored.playedGames,
+      completed_games_in_category: scored.completedGames,
+      total_games_in_category: quests.length,
+    };
+  }).filter((row) => row.category_score > 0 || row.played_games_in_category > 0);
 }
 
 export async function getChildOverallProgress(childId: string) {

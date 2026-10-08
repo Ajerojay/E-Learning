@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import "./App.css";
 import { getOrCreateActiveChildId, type SubjectKey } from "./lib/childProgress";
 import { completePendingParentRegistration } from "./lib/supabaseAuth";
@@ -9,6 +9,7 @@ import { initializeOfflineSqlite } from "./lib/offlineSqlite";
 import { isStudentGameAllowed } from "./lib/studentGameAccess";
 import { isActivityOpen } from "./lib/activityConfig";
 import { installMojibakeRepair } from "./MobileApp/repairMojibake";
+import BearLoading from "./MobileApp/BearLoading";
 
 /* MOBILE APP */
 import MobileOrientationController from "./MobileApp/MobileOrientationController";
@@ -16,9 +17,10 @@ import ChildBackgroundMusic from "./MobileApp/pages/Student/ChildBackgroundMusic
 import AppSignIn from "./MobileApp/WebView/AppSignIn";
 import AppSignUp from "./MobileApp/WebView/AppSignUp";
 import AppStudentAccess from "./MobileApp/WebView/AppStudentAccess";
-import AppStudentPage from "./MobileApp/WebView/AppStudentPage";
-import AppLessonPage from "./MobileApp/WebView/AppLessonPage";
-import LettersGameRouter from "./MobileApp/pages/Student/LettersGameRouter";
+const AppStudentPage = lazy(() => import("./MobileApp/WebView/AppStudentPage"));
+const PickAvatar = lazy(() => import("./MobileApp/pages/Student/PickAvatar"));
+const AppLessonPage = lazy(() => import("./MobileApp/WebView/AppLessonPage"));
+const LettersGameRouter = lazy(() => import("./MobileApp/pages/Student/LettersGameRouter"));
 const AppColorsQuestPage = lazy(() => import("./MobileApp/WebView/AppColorsQuestPage"));
 const ColorsGameRouter = lazy(() => import("./MobileApp/pages/Student/ColorsGameRouter"));
 const AppPhonicsQuestPage = lazy(() => import("./MobileApp/WebView/AppPhonicsQuestPage"));
@@ -37,8 +39,8 @@ const AppTeacherDashboard = lazy(() => import("./MobileApp/WebView/AppTeacherDas
 
 function StudentGameGuard({ category, children }: { category: SubjectKey; children: ReactNode }) {
   const cachedChildId = typeof localStorage === "undefined" ? null : localStorage.getItem("activeChildId");
-  const [allowed, setAllowed] = useState<boolean>(() => (
-    isActivityOpen(category) && (!cachedChildId || isStudentGameAllowed(cachedChildId, category))
+  const [allowed, setAllowed] = useState<boolean | null>(() => (
+    cachedChildId ? (isActivityOpen(category) && isStudentGameAllowed(cachedChildId, category)) : null
   ));
   useEffect(() => {
     let active = true;
@@ -50,15 +52,34 @@ function StudentGameGuard({ category, children }: { category: SubjectKey; childr
     });
     return () => { active = false; };
   }, [category]);
+  if (allowed === null) return <BearLoading />;
   return allowed ? <>{children}</> : <Navigate to="/student" replace state={{ blockedGame: category }} />;
 }
 
 function App() {
+  const [appReady, setAppReady] = useState(false);
+
   useEffect(() => {
     const stopMojibakeRepair = installMojibakeRepair();
-    void initializeOfflineSqlite().then(() => {
-      if (navigator.onLine) void syncOfflineProgress();
-    });
+    let finished = false;
+    const splashStarted = Date.now();
+    const splashMs = 900;
+    let splashTimer = 0;
+    const markReady = () => {
+      if (finished) return;
+      finished = true;
+      window.clearTimeout(splashTimer);
+      setAppReady(true);
+    };
+    const failSafe = window.setTimeout(markReady, 8000);
+    void initializeOfflineSqlite()
+      .then(() => {
+        if (navigator.onLine) void syncOfflineProgress();
+      })
+      .finally(() => {
+        const wait = Math.max(0, splashMs - (Date.now() - splashStarted));
+        splashTimer = window.setTimeout(markReady, wait);
+      });
     const sync = () => { void syncOfflineProgress(); };
     window.addEventListener("online", sync);
 
@@ -74,17 +95,38 @@ function App() {
     });
 
     return () => {
+      window.clearTimeout(failSafe);
+      window.clearTimeout(splashTimer);
       stopMojibakeRepair();
       window.removeEventListener("online", sync);
       authListener.subscription.unsubscribe();
     };
   }, []);
 
+  useLayoutEffect(() => {
+    if (appReady) return;
+    const hideNativeSplash = () => {
+      const splash = (window as Window & { AndroidSplash?: { hide: () => void } }).AndroidSplash;
+      if (!splash?.hide) return false;
+      splash.hide();
+      return true;
+    };
+    if (hideNativeSplash()) return;
+    const timer = window.setInterval(() => {
+      if (hideNativeSplash()) window.clearInterval(timer);
+    }, 50);
+    return () => window.clearInterval(timer);
+  }, [appReady]);
+
   return (
     <BrowserRouter>
       <MobileOrientationController />
-      <ChildBackgroundMusic />
-      <Suspense fallback={<div className="app-route-loading">Loading…</div>}>
+      {!appReady ? (
+        <BearLoading />
+      ) : (
+        <>
+          <ChildBackgroundMusic />
+          <Suspense fallback={<BearLoading />}>
       <Routes>
 
         {/* DEFAULT */}
@@ -115,6 +157,7 @@ function App() {
 
         {/* STUDENT */}
         <Route path="/student-access" element={<AppStudentAccess />} />
+        <Route path="/student/pick-avatar" element={<PickAvatar />} />
         <Route path="/student" element={<AppStudentPage />} />
         <Route path="/lesson/:category" element={<AppLessonPage />} />
         <Route path="/quest/colors" element={<StudentGameGuard category="colors"><AppColorsQuestPage /></StudentGameGuard>} />
@@ -139,7 +182,9 @@ function App() {
         {/* ⚠️ ALWAYS LAST */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      </Suspense>
+          </Suspense>
+        </>
+      )}
     </BrowserRouter>
   );
 }

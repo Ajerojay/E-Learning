@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ParentLayout from "./ParentLayout";
 import "./ParentChildren.css";
+import BearLoading from "../../BearLoading";
 import {
   buildChildAchievements,
   clearChildDeviceLabel,
@@ -8,20 +9,21 @@ import {
   getChildDeviceLabel,
   getChildDisplayFirstName,
   getChildDisplayName,
-  getOrCreateActiveChildId,
   getPlayfulNickname,
   formatChildBirthday,
+  resolveActiveParentChild,
   type ChildActivityRow,
   type ChildCategoryProgressRow,
 } from "../../../lib/childProgress";
 import {
-  getActiveChild,
   getChildCategoryProgress,
   getChildOverallProgress,
   getRecentChildAttempts,
   updateChild,
 } from "../../../lib/supabaseData";
 import { cacheOfflineCategoryProgress, cacheOfflineChild, getOfflineCategoryProgress, getOfflineChildrenFromSqlite } from "../../../lib/offlineSqlite";
+import { getStoredChildAvatar, normalizeChildAvatar, rememberChildAvatar } from "../../../lib/childAvatar";
+import { childAvatarById } from "../Student/childAvatars";
 
 type ChildRow = {
   id: string;
@@ -32,6 +34,7 @@ type ChildRow = {
   grade_level: string | null;
   pin_code: string | null;
   nickname?: string | null;
+  avatar?: string | null;
 };
 
 export default function ParentChildren() {
@@ -52,9 +55,9 @@ export default function ParentChildren() {
   const loadChild = useCallback(async () => {
     console.log("loadChild: start");
     setLoading(true);
-    const childId = await getOrCreateActiveChildId();
-    const trimmedChildId = childId?.trim();
-    console.log("loadChild: resolved childId", { childId, trimmedChildId });
+    const childProfile = await resolveActiveParentChild();
+    const trimmedChildId = childProfile?.id?.trim();
+    console.log("loadChild: resolved childId", { childId: childProfile?.id, trimmedChildId });
 
     if (!trimmedChildId) {
       console.log("loadChild: no active child id found", { childId });
@@ -68,17 +71,18 @@ export default function ParentChildren() {
       let categories: ChildCategoryProgressRow[] = [];
       let activity: Array<{ categoryCode: string; gameCode: string; gameTitle: string | null; score: number; finished: boolean; created_at: string }> = [];
       try {
-        const [firestoreChild, remoteOverall, remoteCategories, remoteActivity] = await Promise.all([
-          getActiveChild(trimmedChildId),
+        const [remoteOverall, remoteCategories, remoteActivity] = await Promise.all([
           getChildOverallProgress(trimmedChildId),
           getChildCategoryProgress(trimmedChildId),
           getRecentChildAttempts(trimmedChildId),
         ]);
-        childRow = firestoreChild ? {
-          id: firestoreChild.id, child_name: firestoreChild.childName ?? null, first_name: firestoreChild.firstName ?? null,
-          last_name: firestoreChild.lastName ?? null, date_of_birth: firestoreChild.dateOfBirth ?? null,
-          grade_level: firestoreChild.gradeLevel ?? null, pin_code: firestoreChild.pinCode ?? null, nickname: firestoreChild.nickname ?? null,
-        } : null;
+        childRow = {
+          id: childProfile.id, child_name: childProfile.childName ?? null, first_name: childProfile.firstName ?? null,
+          last_name: childProfile.lastName ?? null, date_of_birth: childProfile.dateOfBirth ?? null,
+          grade_level: childProfile.gradeLevel ?? null, pin_code: childProfile.pinCode ?? null, nickname: childProfile.nickname ?? null,
+          avatar: childProfile.avatar ?? null,
+        };
+        if (childProfile.avatar) rememberChildAvatar(childProfile.id, childProfile.avatar);
         overall = remoteOverall;
         categories = (remoteCategories ?? []) as ChildCategoryProgressRow[];
         activity = remoteActivity.map(row => ({ ...row, gameTitle: row.gameTitle ?? null }));
@@ -132,6 +136,7 @@ export default function ParentChildren() {
   const grade = child?.grade_level ?? "Kinder";
   const birthdayText = formatChildBirthday(child?.date_of_birth);
   const ageText = getChildAgeLabel(child?.date_of_birth);
+  const avatar = childAvatarById(normalizeChildAvatar(child?.avatar) || getStoredChildAvatar(child?.id));
 
   const achievements = useMemo(
     () => buildChildAchievements(activityRows, categoryRows),
@@ -194,8 +199,8 @@ export default function ParentChildren() {
 
   if (loading) {
     return (
-      <ParentLayout activeNav="child">
-        <p className="pc-loading">Loading your child&apos;s profile&hellip;</p>
+      <ParentLayout activeNav="child" hideHeader>
+        <BearLoading compact />
       </ParentLayout>
     );
   }
@@ -206,46 +211,70 @@ export default function ParentChildren() {
         <h1>Your Children</h1>
       </section>
 
-      <div className="pc-top-row">
+      <div className="pc-top-row pc-hero">
         <article className="pc-profile-card">
-          <div className="pc-avatar" aria-hidden="true">
-            &#129528;
+          <div className="pc-avatar">
+            {avatar ? <img src={avatar.src} alt="" /> : <span aria-hidden="true">&#129528;</span>}
           </div>
-          <div>
+          <div className="pc-profile-copy">
             <h2 className="pc-profile-name">{displayName}</h2>
             <p className="pc-profile-grade">{grade}</p>
           </div>
         </article>
 
         <article className="pc-summary-card">
-          <p className="pc-summary-line">
-            Nickname: <strong>{nickname}</strong>
-          </p>
-          <p className="pc-summary-line pc-summary-line--progress">
-            <span className="pc-star" aria-hidden="true">
-              &#11088;
-            </span>
-            Overall Progress:{" "}
-            <span className="pc-progress-value">{overallProgress}%</span>
-          </p>
+          <div className="pc-nickname-block">
+            <span className="pc-kicker">Nickname</span>
+            <strong>{nickname}</strong>
+          </div>
+          <div className="pc-overall">
+            <div className="pc-overall-head">
+              <span className="pc-star" aria-hidden="true">
+                &#11088;
+              </span>
+              <span>Overall</span>
+              <span className="pc-progress-value">{overallProgress}%</span>
+            </div>
+            <div
+              className="pc-progress-track"
+              role="progressbar"
+              aria-valuenow={overallProgress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Overall progress"
+            >
+              <div
+                className={`pc-progress-fill ${
+                  overallProgress >= 80 ? "is-high" : overallProgress >= 40 ? "is-mid" : overallProgress > 0 ? "is-low" : ""
+                }`.trim()}
+                style={{ width: `${overallProgress}%` }}
+              />
+            </div>
+          </div>
         </article>
       </div>
 
       <section className="pc-main-card" aria-label="Child profile and settings">
         <div className="pc-section">
           <h2 className="pc-section-heading">Child Details</h2>
-          <ul className="pc-detail-list">
-            <li className="pc-detail-item">
+          <ul className="pc-detail-grid">
+            <li className="pc-detail-tile">
               <span className="pc-detail-icon" aria-hidden="true">
                 &#127881;
               </span>
-              Birthday: {birthdayText}
+              <span className="pc-detail-copy">
+                <span className="pc-kicker">Birthday</span>
+                <strong>{birthdayText}</strong>
+              </span>
             </li>
-            <li className="pc-detail-item">
+            <li className="pc-detail-tile">
               <span className="pc-detail-icon" aria-hidden="true">
                 &#9203;
               </span>
-              Age: {ageText}
+              <span className="pc-detail-copy">
+                <span className="pc-kicker">Age</span>
+                <strong>{ageText}</strong>
+              </span>
             </li>
           </ul>
         </div>
@@ -258,14 +287,14 @@ export default function ParentChildren() {
             <ul className="pc-achievement-list">
               {achievements.map((item) => (
                 <li key={item.id} className="pc-achievement-item">
-                  <span aria-hidden="true">{item.icon}</span>
-                  {item.text}
+                  <span className="pc-achievement-icon" aria-hidden="true">{item.icon}</span>
+                  <span>{item.text}</span>
                 </li>
               ))}
             </ul>
           ) : (
             <p className="pc-achievements-empty">
-              No achievements yet &mdash; play a lesson to earn the first one!
+              No achievements yet. Play a lesson to earn the first one.
             </p>
           )}
         </div>
@@ -275,37 +304,39 @@ export default function ParentChildren() {
         <div className="pc-section">
           <h2 className="pc-section-heading">Login &amp; Access Settings</h2>
 
-          <p className="pc-settings-row">
-            <span className="pc-settings-label">PIN Login:</span>
-            <span className="pc-pin-dots" aria-label="PIN hidden">
-              &#9679; &#9679; &#9679; &#9679;
-            </span>
-            <button
-              type="button"
-              className="pc-manage-pin-button"
-              aria-label="Edit child PIN"
-              onClick={() => {
-                setPinError("");
-                setOldPin("");
-                setNewPin("");
-                setConfirmPin("");
-                setShowPin(false);
-                setPinModalOpen(true);
-              }}
-            >
-              Manage PIN
-            </button>
-          </p>
-
-          <p className="pc-settings-row">
-            <span className="pc-settings-label">Assigned Device:</span>
-            <span>{deviceLabel ?? "No device linked yet"}</span>
-            {deviceLabel && (
-              <button type="button" className="pc-action-link" onClick={handleRemoveDevice}>
-                [ Remove ]
+          <div className="pc-settings-stack">
+            <div className="pc-settings-row">
+              <span className="pc-settings-label">PIN Login</span>
+              <span className="pc-pin-dots" aria-label="PIN hidden">
+                &#9679; &#9679; &#9679; &#9679;
+              </span>
+              <button
+                type="button"
+                className="pc-manage-pin-button"
+                aria-label="Edit child PIN"
+                onClick={() => {
+                  setPinError("");
+                  setOldPin("");
+                  setNewPin("");
+                  setConfirmPin("");
+                  setShowPin(false);
+                  setPinModalOpen(true);
+                }}
+              >
+                Manage PIN
               </button>
-            )}
-          </p>
+            </div>
+
+            <div className="pc-settings-row">
+              <span className="pc-settings-label">Assigned Device</span>
+              <span className="pc-settings-value">{deviceLabel ?? "No device linked yet"}</span>
+              {deviceLabel && (
+                <button type="button" className="pc-action-link" onClick={handleRemoveDevice}>
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 

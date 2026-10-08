@@ -1,12 +1,15 @@
 import { useState, type FormEvent } from "react";
+import { flushSync } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, KeyRound, LogIn, Mail } from "lucide-react";
 import "./AppAuth.css";
 import logo from "../../../images/learnease logo-no bg.png";
 import { sendPasswordReset, signInParentAccount } from "../../lib/supabaseAuth";
+import { getOrCreateActiveChildId } from "../../lib/childProgress";
 import { supabase } from "../../lib/supabase";
 import { authenticateOfflineParent, cacheOfflineChild, cacheOfflineParentLogin } from "../../lib/offlineSqlite";
 import { authenticateOffline, cacheVerifiedLogin } from "../../lib/offlineAuth";
+import BearLoading from "../BearLoading";
 
 const TEACHER_USERNAME = "teacher";
 const TEACHER_PASSWORD = "teacher123";
@@ -33,20 +36,27 @@ export default function AppSignIn() {
       return;
     }
 
+    let keepLoading = false;
+    const markSignedIn = () => {
+      keepLoading = true;
+    };
     const finishCachedTeacherLogin = async () => {
       const cached = await authenticateOffline(cleanUsername, cleanPassword);
       if (!cached) return false;
       localStorage.setItem("user", JSON.stringify(cached));
+      markSignedIn();
       navigate(cached.role === "teacher" ? "/teacher-dashboard" : "/parent-dashboard");
       return true;
     };
 
     try {
-      setLoading(true);
+      flushSync(() => setLoading(true));
+
       if (cleanUsername.toLowerCase() === TEACHER_USERNAME && cleanPassword === TEACHER_PASSWORD) {
         const teacherUser = { role: "teacher" as const, id: "temporary-teacher", username: cleanUsername };
         localStorage.setItem("user", JSON.stringify(teacherUser));
         await cacheVerifiedLogin(cleanUsername, cleanPassword, teacherUser);
+        markSignedIn();
         navigate("/teacher-dashboard");
         return;
       }
@@ -55,6 +65,7 @@ export default function AppSignIn() {
       if (offlineParent) {
         localStorage.setItem("user", JSON.stringify({ role: "parent", id: offlineParent.id, username: offlineParent.username, source: "offline" }));
         if (offlineParent.activeChildId) localStorage.setItem("activeChildId", offlineParent.activeChildId);
+        markSignedIn();
         navigate("/parent-dashboard");
         return;
       }
@@ -72,6 +83,7 @@ export default function AppSignIn() {
           const teacherUser = { ...teacher, role: "teacher" as const, source: "mobile-app" };
           localStorage.setItem("user", JSON.stringify(teacherUser));
           await cacheVerifiedLogin(cleanUsername, cleanPassword, teacherUser);
+          markSignedIn();
           navigate("/teacher-dashboard");
           return;
         }
@@ -89,14 +101,21 @@ export default function AppSignIn() {
       }
 
       try {
+        localStorage.setItem(
+          "user",
+          JSON.stringify({ role: "parent", id: parent.id, username: parent.username })
+        );
+        const childId = await getOrCreateActiveChildId();
         const { data: childRows } = await supabase
           .from("children_accounts")
           .select("id, parent_id, child_name, first_name, last_name, pin_code, is_active")
           .eq("parent_id", parent.id)
-          .eq("is_active", true)
-          .order("created_at", { ascending: false })
-          .limit(1);
-        const child = Array.isArray(childRows) ? childRows[0] : childRows;
+          .eq("is_active", true);
+        const rows = Array.isArray(childRows) ? childRows : childRows ? [childRows] : [];
+        const child = rows.find((row) => String(row.id) === childId) ?? rows.find((row) => {
+          const name = `${row.first_name || ""} ${row.last_name || ""}`.trim() || row.child_name || "";
+          return name && name !== "Child";
+        }) ?? rows[0];
 
         if (child?.id) {
           localStorage.setItem("activeChildId", String(child.id));
@@ -112,11 +131,7 @@ export default function AppSignIn() {
           });
         }
 
-        localStorage.setItem(
-          "user",
-          JSON.stringify({ role: "parent", id: parent.id, username: parent.username })
-        );
-        await cacheOfflineParentLogin(parent.id, parent.username, cleanPassword, child?.id ? String(child.id) : null);
+        await cacheOfflineParentLogin(parent.id, parent.username, cleanPassword, child?.id ? String(child.id) : childId);
       } catch (cacheError) {
         console.warn("Parent session extras failed:", cacheError);
         localStorage.setItem(
@@ -124,13 +139,14 @@ export default function AppSignIn() {
           JSON.stringify({ role: "parent", id: parent.id, username: parent.username })
         );
       }
+      markSignedIn();
       navigate("/parent-dashboard");
     } catch (caughtError) {
       console.error(caughtError);
       if (await finishCachedTeacherLogin()) return;
       setError(caughtError instanceof Error ? caughtError.message : "Something went wrong while logging in.");
     } finally {
-      setLoading(false);
+      if (!keepLoading) setLoading(false);
     }
   };
 
@@ -158,6 +174,7 @@ export default function AppSignIn() {
 
   return (
     <main className="app-auth-shell">
+      {loading && <BearLoading overlay />}
       <section className="app-auth-phone" aria-label="LearnEase mobile app sign in">
         <header className="app-auth-top">
           <img className="app-auth-logo" src={logo} alt="LearnEase Kids" />

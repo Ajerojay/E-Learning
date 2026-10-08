@@ -1,6 +1,7 @@
-import { createChildProfile, getParentChildren } from "./supabaseData";
+import { getActiveChild, getParentChildren, type SupabaseChild } from "./supabaseData";
 import { supabase } from "./supabase";
 import { authenticateOfflineChild, cacheOfflineChild, findOfflineChildrenByPin, setOfflineActiveChildId } from "./offlineSqlite";
+import { getStoredChildAvatar, normalizeChildAvatar, rememberChildAvatar } from "./childAvatar";
 
 type LocalUser = {
   role?: string;
@@ -20,6 +21,26 @@ export const SUBJECT_KEYS = [
 ] as const;
 
 export type SubjectKey = (typeof SUBJECT_KEYS)[number];
+
+const SUBJECT_ALIASES: Record<string, SubjectKey> = {
+  color: "colors",
+  shape: "shapes",
+  letter: "letters",
+  number: "numbers",
+  num: "numbers",
+  phonetic: "phonics",
+  pattern: "logic",
+};
+
+export function normalizeSubjectKey(value: string | null | undefined): SubjectKey | null {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return null;
+  if ((SUBJECT_KEYS as readonly string[]).includes(raw)) return raw as SubjectKey;
+  if (SUBJECT_ALIASES[raw]) return SUBJECT_ALIASES[raw];
+  const prefix = raw.split(/[_-\s]/)[0] ?? "";
+  if ((SUBJECT_KEYS as readonly string[]).includes(prefix)) return prefix as SubjectKey;
+  return SUBJECT_ALIASES[prefix] ?? null;
+}
 
 export function getFirstName(name: string): string {
   const clean = name.trim();
@@ -92,6 +113,7 @@ export type PinChildMatch = {
   firstName?: string | null;
   lastName?: string | null;
   pinCode?: string | null;
+  avatar?: string | null;
 };
 
 export async function activateChildPinSession(child: PinChildMatch, pin: string): Promise<void> {
@@ -128,20 +150,31 @@ export async function findChildrenByPin(pin: string): Promise<PinChildMatch[]> {
       firstName: child.firstName,
       lastName: child.lastName,
       pinCode: child.pinCode ?? cleanPin,
+      avatar: getStoredChildAvatar(child.id) || null,
     });
   }
 
   try {
-    const result = await supabase
+    let result = await supabase
       .from("children_accounts")
-      .select("id, pin_code, child_name, first_name, last_name, parent_id")
+      .select("id, pin_code, child_name, first_name, last_name, parent_id, avatar")
       .eq("pin_code", cleanPin)
       .eq("is_active", true);
+    if (result.error && /column|schema cache|could not find/i.test(result.error.message)) {
+      result = await supabase
+        .from("children_accounts")
+        .select("id, pin_code, child_name, first_name, last_name, parent_id")
+        .eq("pin_code", cleanPin)
+        .eq("is_active", true);
+    }
     if (result.error) {
       console.error("PIN lookup:", result.error.message);
     } else {
       for (const row of result.data ?? []) {
         const id = String(row.id);
+        const remoteAvatar = normalizeChildAvatar("avatar" in row ? row.avatar : null);
+        const avatar = remoteAvatar || getStoredChildAvatar(id) || null;
+        if (avatar) rememberChildAvatar(id, avatar);
         byId.set(id, {
           id,
           parentId: row.parent_id ? String(row.parent_id) : null,
@@ -149,6 +182,7 @@ export async function findChildrenByPin(pin: string): Promise<PinChildMatch[]> {
           firstName: row.first_name,
           lastName: row.last_name,
           pinCode: row.pin_code ?? cleanPin,
+          avatar,
         });
       }
     }
@@ -184,9 +218,56 @@ export async function linkChildSessionToSupabasePin(pin: string, childId?: strin
   return true;
 }
 
+function childLooksLikePlaceholder(child: {
+  childName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  nickname?: string | null;
+}): boolean {
+  const name = getChildDisplayName({
+    child_name: child.childName,
+    first_name: child.firstName,
+    last_name: child.lastName,
+  });
+  return !name || name === "Child";
+}
+
+function pickPreferredChild(children: SupabaseChild[], preferredId?: string | null): SupabaseChild | undefined {
+  const active = children.filter((child) => child.isActive !== false);
+  const pool = active.length ? active : children;
+  if (!pool.length) return undefined;
+  if (preferredId) {
+    const match = pool.find((child) => child.id === preferredId);
+    if (match && !childLooksLikePlaceholder(match)) return match;
+  }
+  return pool.find((child) => !childLooksLikePlaceholder(child)) || pool[0];
+}
+
+function rememberActiveChild(child: SupabaseChild): void {
+  localStorage.setItem(CHILD_ID_KEY, child.id);
+  if (child.pinCode) localStorage.setItem("studentPin", child.pinCode);
+  const name = firstNameFromCachedChild(child);
+  if (name && name !== "Child") rememberChildFirstName(child.id, name);
+}
+
 export async function getOrCreateActiveChildId(): Promise<string | null> {
   const cachedChildId = localStorage.getItem(CHILD_ID_KEY);
-  console.log("getOrCreateActiveChildId: cachedChildId", cachedChildId);
+  const localUser = getLocalUser();
+  const online = typeof navigator === "undefined" || navigator.onLine;
+
+  if (localUser?.id && localUser.role === "parent" && online) {
+    try {
+      const existingChildren = await getParentChildren(localUser.id);
+      const chosen = pickPreferredChild(existingChildren, cachedChildId);
+      if (chosen?.id) {
+        rememberActiveChild(chosen);
+        return chosen.id;
+      }
+    } catch (error) {
+      console.warn("Could not load children while reconciling the active child.", error);
+    }
+  }
+
   if (cachedChildId) return cachedChildId;
 
   const pin = localStorage.getItem("studentPin");
@@ -198,11 +279,7 @@ export async function getOrCreateActiveChildId(): Promise<string | null> {
     }
   }
 
-  const localUser = getLocalUser();
-  console.log("getOrCreateActiveChildId: localUser", localUser);
-  if (typeof navigator !== "undefined" && !navigator.onLine) {
-    return localStorage.getItem(CHILD_ID_KEY);
-  }
+  if (!online) return localStorage.getItem(CHILD_ID_KEY);
 
   if (!localUser?.id || localUser.role !== "parent") {
     if (pin && (await linkChildSessionToSupabasePin(pin))) {
@@ -211,43 +288,26 @@ export async function getOrCreateActiveChildId(): Promise<string | null> {
     return null;
   }
 
-  try {
-    const existingChildren = await getParentChildren(localUser.id);
-    const existingChild = existingChildren.find(child => child.isActive !== false);
+  return localStorage.getItem(CHILD_ID_KEY);
+}
 
-    if (existingChild?.id) {
-      localStorage.setItem(CHILD_ID_KEY, existingChild.id);
-      if (existingChild.pinCode) {
-        localStorage.setItem("studentPin", existingChild.pinCode);
+export async function resolveActiveParentChild(): Promise<SupabaseChild | null> {
+  const childId = await getOrCreateActiveChildId();
+  const localUser = getLocalUser();
+  if (localUser?.id && localUser.role === "parent") {
+    try {
+      const children = await getParentChildren(localUser.id);
+      const chosen = pickPreferredChild(children, childId);
+      if (chosen) {
+        rememberActiveChild(chosen);
+        return chosen;
       }
-      const name = firstNameFromCachedChild(existingChild);
-      if (name && name !== "Child") rememberChildFirstName(existingChild.id, name);
-      console.log("getOrCreateActiveChildId: using existingChild.id", existingChild.id);
-      return existingChild.id;
+    } catch (error) {
+      console.warn("Could not resolve the parent child roster.", error);
     }
-  } catch (error) {
-    console.warn("Could not load children while offline.", error);
-    return localStorage.getItem(CHILD_ID_KEY);
   }
-
-  const pinCode = localStorage.getItem("studentPin") || "1234";
-  try {
-    const childId = await createChildProfile(undefined, {
-      parentId: localUser.id,
-      childName: "Child",
-      gradeLevel: "Kinder",
-      pinCode,
-      nickname: "n/a",
-      isActive: true,
-    });
-    localStorage.setItem(CHILD_ID_KEY, childId);
-    localStorage.setItem("studentPin", pinCode);
-    console.log("getOrCreateActiveChildId: created new child", childId);
-    return childId;
-  } catch (error) {
-    console.warn("Could not create a child profile while offline.", error);
-    return localStorage.getItem(CHILD_ID_KEY);
-  }
+  if (!childId) return null;
+  return getActiveChild(childId);
 }
 
 const DEVICE_LABEL_KEY = "childDeviceLabel";

@@ -10,6 +10,8 @@ import {
 } from "../../../lib/childProgress";
 import { cancelNativeSpeech, speakNative } from "../../nativeTts";
 import { recordChildLoginAttendance } from "../../../lib/attendance";
+import { childNeedsAvatarPick, getStoredChildAvatar, rememberChildAvatar } from "../../../lib/childAvatar";
+import { childAvatarById } from "./childAvatars";
 
 function childName(child: PinChildMatch) {
   return getChildDisplayName({
@@ -81,18 +83,21 @@ export default function StudentAccess() {
 
   const enterChild = useCallback(async (child: PinChildMatch, childPin: string) => {
     await activateChildPinSession(child, childPin);
-    await recordChildLoginAttendance(child.id);
     saveChildDeviceLabel(child.id);
+    rememberChildAvatar(child.id, child.avatar);
     sessionStorage.setItem(`studentGreetingPending:${child.id}`, "1");
-    navigate("/student", {
+    void recordChildLoginAttendance(child.id);
+    const childFirstName = getChildDisplayName({
+      first_name: child.firstName,
+      last_name: child.lastName,
+      child_name: child.childName,
+    });
+    const needsAvatar = await childNeedsAvatarPick(child.id);
+    navigate(needsAvatar ? "/student/pick-avatar" : "/student", {
       replace: true,
       state: {
         childId: child.id,
-        childFirstName: getChildDisplayName({
-          first_name: child.firstName,
-          last_name: child.lastName,
-          child_name: child.childName,
-        }),
+        childFirstName,
       },
     });
   }, [navigate]);
@@ -212,7 +217,9 @@ export default function StudentAccess() {
           </div>
 
           <div className="child-name-list" role="list">
-            {pinMatches?.map((child) => (
+            {pinMatches?.map((child) => {
+              const avatar = childAvatarById(child.avatar || getStoredChildAvatar(child.id));
+              return (
               <button
                 key={child.id}
                 type="button"
@@ -221,13 +228,15 @@ export default function StudentAccess() {
                 disabled={busy}
                 onClick={() => void handlePickChild(child)}
               >
+                {avatar && <img className="child-name-avatar" src={avatar.src} alt="" />}
                 {getChildDisplayName({
                   first_name: child.firstName,
                   last_name: child.lastName,
                   child_name: child.childName,
                 })}
               </button>
-            ))}
+              );
+            })}
           </div>
         </>
       ) : (

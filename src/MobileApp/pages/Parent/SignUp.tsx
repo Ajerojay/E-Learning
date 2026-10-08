@@ -6,6 +6,7 @@ import { IoEyeOutline, IoEyeOffOutline } from "react-icons/io5";
 
 import "./Signup.css";
 import bear from "../../../../images/learnease logo-no bg.png";
+import BearLoading from "../../BearLoading";
 import { supabase } from "../../../lib/supabase";
 
 const GRADE_OPTIONS = ["Nursery", "Prep", "Kinder"] as const;
@@ -288,6 +289,7 @@ export default function ParentSignup() {
 
   return (
     <div className="le-page">
+      {loading && <BearLoading overlay />}
       <aside className="le-left1">
         <div className="le-brandText">
           <div className="le-brandTop">LearnEase</div>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getOrCreateActiveChildId } from "../../../lib/childProgress";
+import { persistQuestLevelResult } from "../../../lib/questLevelResults";
 
 export type QuestGameKey =
   | "colors"
@@ -154,6 +155,7 @@ export function saveQuestLevelStars(
   next[levelIndex] = Math.max(next[levelIndex] ?? 0, stars);
   localStorage.setItem(starsStorageKey(childId, game), JSON.stringify(next));
   setTimedStarFlag(childId, game, levelIndex, levelCount);
+  void persistQuestLevelResult(childId, game, levelIndex, next[levelIndex]);
   return next;
 }
 

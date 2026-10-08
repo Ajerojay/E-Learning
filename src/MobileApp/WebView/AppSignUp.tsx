@@ -4,6 +4,7 @@ import { ArrowLeft, Baby, Check, Circle, Eye, EyeOff, UserRoundPlus } from "luci
 import "./AppAuth.css";
 import logo from "../../../images/learnease logo-no bg.png";
 import { createParentAccount, resendVerificationEmail } from "../../lib/supabaseAuth";
+import BearLoading from "../BearLoading";
 
 const PRESCHOOL_MIN_AGE = 3;
 const PRESCHOOL_MAX_AGE = 6;
@@ -200,6 +201,7 @@ export default function AppSignUp() {
 
   return (
     <main className="app-auth-shell">
+      {loading && <BearLoading overlay />}
       <section className="app-auth-phone" aria-label="LearnEase mobile app sign up">
         <button
           className="app-auth-back-btn"

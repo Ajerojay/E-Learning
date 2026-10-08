@@ -1,11 +1,12 @@
 ﻿import { useState } from "react";
+import { flushSync } from "react-dom";
 import { IoEyeOutline, IoEyeOffOutline } from "react-icons/io5";
 import "./ParentLogin.css";
 import { useNavigate } from "react-router-dom";
 import bear from "../../../../images/learnease logo-no bg.png";
 import { supabase } from "../../../lib/supabase";
 import { signInParentAccount } from "../../../lib/supabaseAuth";
-import { getOrCreateActiveChildId } from "../../../lib/childProgress";
+import BearLoading from "../../BearLoading";
 
 const TEACHER_USERNAME = "teacher";
 const TEACHER_PASSWORD = "teacher123";
@@ -41,12 +42,21 @@ export default function ParentLogin() {
     }
 
     try {
-      setLoading(true);
+      flushSync(() => setLoading(true));
 
-      const { data: teacherRows, error: teacherError } = await supabase.rpc(
+      const teacherLookup = supabase.rpc(
         "authenticate_teacher",
         { p_username: user, p_password: pass }
       );
+      let data;
+      let parentError: string | null = null;
+      try {
+        data = await signInParentAccount(user, pass);
+      } catch (loginError) {
+        parentError = loginError instanceof Error ? loginError.message : "Something went wrong while logging in.";
+      }
+
+      const { data: teacherRows, error: teacherError } = await teacherLookup;
       if (teacherError) console.error("Teacher login error:", teacherError.message);
       const teacher = Array.isArray(teacherRows) ? teacherRows[0] : teacherRows;
       if (teacher) {
@@ -58,11 +68,8 @@ export default function ParentLogin() {
         return;
       }
 
-      let data;
-      try {
-        data = await signInParentAccount(user, pass);
-      } catch (loginError) {
-        setError(loginError instanceof Error ? loginError.message : "Something went wrong while logging in.");
+      if (!data) {
+        setError(parentError || "Something went wrong while logging in.");
         return;
       }
 
@@ -75,34 +82,6 @@ export default function ParentLogin() {
         })
       );
       console.debug("ParentLogin: logged-in parent", { id: data.id, username: data.username });
-
-      const { data: childData, error: childError } = await supabase
-        .from("children_accounts")
-        .select("id, pin_code, parent_id, child_name, first_name, last_name")
-        .eq("parent_id", data.id)
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (childError) {
-        console.error("Child lookup error:", childError.message);
-      }
-
-      if (childData?.id) {
-        localStorage.setItem("activeChildId", childData.id);
-        if (childData.pin_code) {
-          localStorage.setItem("studentPin", childData.pin_code);
-        }
-        console.debug("ParentLogin: set activeChildId from login flow", {
-          id: childData.id,
-          parent_id: childData.parent_id,
-          child_name: childData.child_name || `${childData.first_name || ""} ${childData.last_name || ""}`.trim(),
-        });
-      }
-
-      await getOrCreateActiveChildId();
-
       navigate("/parent-dashboard");
     } catch (err) {
       console.error(err);
@@ -114,6 +93,7 @@ export default function ParentLogin() {
 
   return (
     <div className="le-page">
+      {loading && <BearLoading overlay />}
       {/* LEFT */}
       <aside className="le-left">
         <div className="le-brandText">

@@ -17,6 +17,7 @@ import {
   studentLessonDownloadId,
 } from "../../../lib/offlineLessonStore";
 import { cacheOfflineLessons } from "../../../lib/offlineSqlite";
+import BearLoading from "../../BearLoading";
 
 
 import colorsBg from "./images/colors-bg.png";
@@ -402,7 +403,7 @@ export default function LessonPage() {
       <div className="tv-wrapper">
         <div className="tv-container" ref={playerRef}>
           {loading ? (
-            <p className="no-video">Loading lesson...</p>
+            <BearLoading compact dark />
           ) : lessonVideoUrl ? (
             <>
               <video
