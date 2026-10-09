@@ -75,6 +75,108 @@
   background: #333;
 }
 
+.pin-dots.has-error {
+  animation: pin-error-shake .38s ease-in-out;
+}
+
+.pin-dots.has-error .dot {
+  border-color: #df6674;
+  background: #fff7f8;
+}
+
+.pin-error-overlay {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(49, 54, 68, .34);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: pin-overlay-in .2s ease-out;
+}
+
+.pin-error-card {
+  width: min(350px, calc(100vw - 36px));
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  align-items: center;
+  gap: 14px;
+  padding: 22px;
+  border: 2px solid rgba(223, 102, 116, .28);
+  border-radius: 26px;
+  background: #fffafb;
+  color: #783d48;
+  box-shadow: 0 22px 55px rgba(65, 48, 58, .26);
+  animation: pin-error-pop .24s ease-out;
+}
+
+.pin-error-mascot {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  background: #ffe1e6;
+  font-size: 34px;
+}
+
+.pin-error-card > span:nth-child(2) {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pin-error-card strong {
+  color: #a33f50;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.pin-error-card small {
+  color: #755761;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.pin-error-card > button {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 5px;
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ef7786, #dc5f76);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pin-error-card > button:active {
+  transform: scale(.98);
+}
+
+@keyframes pin-error-shake {
+  20%, 60% { transform: translateX(-7px); }
+  40%, 80% { transform: translateX(7px); }
+}
+
+@keyframes pin-error-pop {
+  from { opacity: 0; transform: translateY(12px) scale(.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes pin-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* KEYPAD */
 .keypad {
   display: grid;
@@ -201,5 +303,5 @@
 .temporary-pin-note { margin: 13px 0 0; padding: 7px 14px; border-radius: 999px; background: rgba(255,255,255,.55); color: #485162; font-size: 12px; position: relative; z-index: 1; }.temporary-pin-note strong { color: #6b45ad; letter-spacing: 3px; }
 @keyframes access-bounce { 50% { transform: translateY(-6px) rotate(2deg); } }
 @media (max-height: 700px) { .lockscreen { justify-content: flex-start; padding-top: 64px; overflow-y: auto; }.access-mascot { font-size: 40px; }.access-heading .lock-title { font-size: 24px; margin-bottom: 14px; }.access-heading p { margin-bottom: 12px; }.pin-dots { margin-bottom: 16px; }.keypad { grid-template-columns: repeat(3, 62px); gap: 10px; }.keypad button { width: 62px; height: 62px; font-size: 22px; }.enter-btn { margin-top: 14px; } }
-@media (prefers-reduced-motion: reduce) { .access-mascot { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .access-mascot, .pin-dots.has-error, .pin-error-card, .pin-error-overlay { animation: none; } }
 

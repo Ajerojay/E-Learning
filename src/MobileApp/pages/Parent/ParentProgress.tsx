@@ -12,7 +12,7 @@ import {
   type SubjectKey,
 } from "../../../lib/childProgress";
 import { getActiveChild, getChildCategoryProgress, getParentChildren } from "../../../lib/supabaseData";
-import { getStoredChildAvatar, normalizeChildAvatar } from "../../../lib/childAvatar";
+import { CHILD_AVATAR_UPDATED_EVENT, getStoredChildAvatar, normalizeChildAvatar } from "../../../lib/childAvatar";
 import { childAvatarById } from "../Student/childAvatars";
 import { cacheOfflineCategoryProgress, getOfflineCategoryProgress, getOfflineChildrenFromSqlite } from "../../../lib/offlineSqlite";
 import BearLoading from "../../BearLoading";
@@ -156,12 +156,19 @@ export default function ParentProgress() {
     const onVisible = () => {
       if (document.visibilityState === "visible") void loadProgress();
     };
+    const onAvatarUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ childId?: string; avatarId?: string }>).detail;
+      if (!detail?.childId || !detail.avatarId) return;
+      setChildren(current => current.map(child => child.id === detail.childId ? { ...child, avatarId: detail.avatarId! } : child));
+    };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener(CHILD_AVATAR_UPDATED_EVENT, onAvatarUpdated);
     return () => {
       cancelled = true;
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener(CHILD_AVATAR_UPDATED_EVENT, onAvatarUpdated);
     };
   }, []);
 

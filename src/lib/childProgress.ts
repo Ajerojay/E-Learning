@@ -155,24 +155,28 @@ export async function findChildrenByPin(pin: string): Promise<PinChildMatch[]> {
   }
 
   try {
-    let result = await supabase
+    const result = await supabase
       .from("children_accounts")
       .select("id, pin_code, child_name, first_name, last_name, parent_id, avatar")
       .eq("pin_code", cleanPin)
       .eq("is_active", true);
+    let rows = result.data ?? [];
+    let queryError = result.error;
     if (result.error && /column|schema cache|could not find/i.test(result.error.message)) {
-      result = await supabase
+      const fallbackResult = await supabase
         .from("children_accounts")
         .select("id, pin_code, child_name, first_name, last_name, parent_id")
         .eq("pin_code", cleanPin)
         .eq("is_active", true);
+      rows = (fallbackResult.data ?? []).map(row => ({ ...row, avatar: null }));
+      queryError = fallbackResult.error;
     }
-    if (result.error) {
-      console.error("PIN lookup:", result.error.message);
+    if (queryError) {
+      console.error("PIN lookup:", queryError.message);
     } else {
-      for (const row of result.data ?? []) {
+      for (const row of rows) {
         const id = String(row.id);
-        const remoteAvatar = normalizeChildAvatar("avatar" in row ? row.avatar : null);
+        const remoteAvatar = normalizeChildAvatar(row.avatar);
         const avatar = remoteAvatar || getStoredChildAvatar(id) || null;
         if (avatar) rememberChildAvatar(id, avatar);
         byId.set(id, {

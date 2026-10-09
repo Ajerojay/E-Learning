@@ -90,7 +90,7 @@ export function PhonicsMiniChrome({
               return next;
             });
           }}
-          aria-label={soundEnabled ? "Mute voice" : "Unmute voice"}
+          aria-label={soundEnabled ? "Mute helper voice and feedback" : "Unmute helper voice and feedback"}
         >
           {soundEnabled ? "🔊" : "🔇"}
         </button>

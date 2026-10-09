@@ -9,6 +9,7 @@
 .ta-announcement-compose{max-width:760px;margin:auto}.ta-announcement-compose>div{padding:18px}.ta-announcement-compose label{display:flex;flex-direction:column;gap:6px;margin-bottom:13px;color:#50586d;font-size:10px;font-weight:800}.ta-announcement-compose input,.ta-announcement-compose textarea{padding:11px;border:1px solid #dddce5;border-radius:12px}.ta-announcement-compose textarea{min-height:140px;resize:vertical}.ta-announcement-compose label small{text-align:right;color:#7d8497}.ta-announcement-compose>div>button{width:100%}.ta-announcement-compose button:disabled{opacity:.6}
 
 .ta-pupil-head>span.offline{background:#e5faec!important;color:#208348!important}
+.ta-student-avatar-image{width:100%;height:100%;display:block;object-fit:cover;border-radius:inherit}
 
 .ta-students footer.ta-student-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}.ta-students footer.ta-student-actions button,.ta-students footer.ta-student-actions button:last-child{width:100%;min-height:42px;height:auto;flex:auto;padding:7px}.ta-students footer.ta-student-actions button:nth-child(3){background:#f4edff;color:#7752b5}.ta-students footer.ta-student-actions button.health{background:#eefaf3;color:#327c50;border-color:#cce9d6}
 

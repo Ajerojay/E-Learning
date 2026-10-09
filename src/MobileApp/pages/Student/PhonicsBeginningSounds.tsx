@@ -163,7 +163,6 @@ export default function PhonicsBeginningSounds() {
   }, []);
 
   const playClip = useCallback((src: string, gainValue = 1) => {
-    if (!soundEnabled) return;
     stopClip();
     const playId = playIdRef.current;
     if (gainValue <= 1) {
@@ -216,7 +215,7 @@ export default function PhonicsBeginningSounds() {
         audio.play().catch(() => {});
       }
     })();
-  }, [soundEnabled, stopClip]);
+  }, [stopClip]);
 
   const playPrompt = useCallback((next: SoundItem) => {
     playClip(next.promptClip);
@@ -247,14 +246,10 @@ export default function PhonicsBeginningSounds() {
   }, []);
 
   useEffect(() => {
-    if (!clock.playing || !soundEnabled || !item) return;
+    if (!clock.playing || !item) return;
     playPrompt(item);
     setMessage(`${item.stretch}. What letter makes the ${item.sound} sound?`);
-  }, [clock.playing, item, playPrompt, soundEnabled]);
-
-  useEffect(() => {
-    if (!soundEnabled) stopClip();
-  }, [soundEnabled, stopClip]);
+  }, [clock.playing, item, playPrompt]);
 
   useEffect(() => () => {
     window.clearTimeout(praiseTimerRef.current);
@@ -296,7 +291,7 @@ export default function PhonicsBeginningSounds() {
     setWrong((count) => count + 1);
     setWrongChoice(letter);
     setMessage("Oops! Listen again.");
-    if (soundEnabled) playLetterSound(item);
+    playLetterSound(item);
     window.setTimeout(() => setWrongChoice(null), 650);
   };
 

@@ -74,6 +74,7 @@ function speakWhoIsLearning(matches: PinChildMatch[]) {
 export default function StudentAccess() {
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pinError, setPinError] = useState<"incorrect" | "setup" | null>(null);
   const [pinMatches, setPinMatches] = useState<PinChildMatch[] | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -104,11 +105,13 @@ export default function StudentAccess() {
 
   const handleInput = (num: string) => {
     if (choosingName || pin.length >= 4) return;
+    setPinError(null);
     setPin(pin + num);
   };
 
   const handleDelete = () => {
     if (choosingName) return;
+    setPinError(null);
     setPin((p) => p.slice(0, -1));
   };
 
@@ -132,11 +135,7 @@ export default function StudentAccess() {
 
       setPin("");
       const storedPin = localStorage.getItem("studentPin");
-      if (!storedPin) {
-        alert("Please log in as parent first to set up your child's PIN.");
-      } else {
-        alert("Incorrect PIN");
-      }
+      setPinError(storedPin ? "incorrect" : "setup");
     } finally {
       setBusy(false);
     }
@@ -174,11 +173,13 @@ export default function StudentAccess() {
       if (choosingName) return;
 
       if (event.key >= "0" && event.key <= "9") {
+        setPinError(null);
         setPin((prev) => (prev.length < 4 ? prev + event.key : prev));
         return;
       }
 
       if (event.key === "Backspace" || event.key === "Delete") {
+        setPinError(null);
         setPin((prev) => prev.slice(0, -1));
         return;
       }
@@ -247,7 +248,7 @@ export default function StudentAccess() {
             <p>Tap the four numbers to start learning!</p>
           </div>
 
-          <div className="pin-dots">
+          <div className={`pin-dots ${pinError ? "has-error" : ""}`}>
             {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
@@ -255,6 +256,25 @@ export default function StudentAccess() {
               />
             ))}
           </div>
+
+          {pinError && (
+            <div className="pin-error-overlay" role="presentation">
+              <section className="pin-error-card" role="alertdialog" aria-modal="true" aria-live="assertive" aria-labelledby="pin-error-title">
+                <span className="pin-error-mascot" aria-hidden="true">🧸</span>
+                <span>
+                <strong id="pin-error-title">{pinError === "incorrect" ? "Oops! That PIN doesn't match" : "Let's ask a parent"}</strong>
+                <small>
+                  {pinError === "incorrect"
+                    ? "Try your four numbers again, or ask your parent for help."
+                    : "A parent needs to sign in online once to set up your PIN on this device."}
+                </small>
+                </span>
+                <button type="button" onClick={() => setPinError(null)}>
+                  {pinError === "incorrect" ? "Try Again" : "Got It"}
+                </button>
+              </section>
+            </div>
+          )}
 
           <div className="keypad">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (

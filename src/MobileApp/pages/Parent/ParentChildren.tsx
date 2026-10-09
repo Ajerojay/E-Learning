@@ -22,7 +22,7 @@ import {
   updateChild,
 } from "../../../lib/supabaseData";
 import { cacheOfflineCategoryProgress, cacheOfflineChild, getOfflineCategoryProgress, getOfflineChildrenFromSqlite } from "../../../lib/offlineSqlite";
-import { getStoredChildAvatar, normalizeChildAvatar, rememberChildAvatar } from "../../../lib/childAvatar";
+import { CHILD_AVATAR_UPDATED_EVENT, getStoredChildAvatar, normalizeChildAvatar, rememberChildAvatar } from "../../../lib/childAvatar";
 import { childAvatarById } from "../Student/childAvatars";
 
 type ChildRow = {
@@ -59,8 +59,8 @@ export default function ParentChildren() {
     const trimmedChildId = childProfile?.id?.trim();
     console.log("loadChild: resolved childId", { childId: childProfile?.id, trimmedChildId });
 
-    if (!trimmedChildId) {
-      console.log("loadChild: no active child id found", { childId });
+    if (!childProfile || !trimmedChildId) {
+      console.log("loadChild: no active child id found", { childId: childProfile?.id });
       setLoading(false);
       return;
     }
@@ -126,8 +126,25 @@ export default function ParentChildren() {
   useEffect(() => {
     void loadChild();
     const onFocus = () => void loadChild();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void loadChild();
+    };
+    const onAvatarUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ childId?: string; avatarId?: string }>).detail;
+      if (!detail?.childId || !detail.avatarId) return;
+      setChild(current => {
+        if (!current || current.id !== detail.childId) return current;
+        return { ...current, avatar: detail.avatarId! };
+      });
+    };
     window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener(CHILD_AVATAR_UPDATED_EVENT, onAvatarUpdated);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener(CHILD_AVATAR_UPDATED_EVENT, onAvatarUpdated);
+    };
   }, [loadChild]);
 
   const displayName = getChildDisplayName(child);

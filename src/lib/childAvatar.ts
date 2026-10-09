@@ -16,6 +16,7 @@ export type ChildAvatarId = (typeof CHILD_AVATAR_IDS)[number];
 
 const avatarKey = (childId: string) => `childAvatar:${childId}`;
 const skipKey = (childId: string) => `childAvatarSkip:${childId}`;
+export const CHILD_AVATAR_UPDATED_EVENT = "learnease:child-avatar-updated";
 
 export function isChildAvatarId(value: string): value is ChildAvatarId {
   return (CHILD_AVATAR_IDS as readonly string[]).includes(value);
@@ -40,6 +41,7 @@ export function rememberChildAvatar(childId: string, avatarId: string | null | u
   if (!childId || !clean) return;
   localStorage.setItem(avatarKey(childId), clean);
   localStorage.removeItem(skipKey(childId));
+  window.dispatchEvent(new CustomEvent(CHILD_AVATAR_UPDATED_EVENT, { detail: { childId, avatarId: clean } }));
 }
 
 export function hasSettledChildAvatar(childId: string | null | undefined): boolean {

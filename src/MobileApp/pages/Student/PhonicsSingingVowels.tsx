@@ -196,10 +196,6 @@ export default function PhonicsSingingVowels() {
       }
       cancelNativeSpeech();
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-      if (!soundEnabled) {
-        resolve();
-        return;
-      }
       const playId = playIdRef.current;
       const finish = () => {
         if (playId !== playIdRef.current) return;
@@ -252,15 +248,19 @@ export default function PhonicsSingingVowels() {
         }
       })();
     });
-  }, [soundEnabled]);
+  }, []);
 
   const promptFindSound = useCallback((bird: VowelBird) => {
     const text = askFor(bird);
     setMessage(text);
     window.clearTimeout(promptTimerRef.current);
-    if (!soundEnabled) return Promise.resolve();
     const clip = pickVowelClip(bird.letter);
     busyRef.current = true;
+    if (!soundEnabled) {
+      return playClip(clip, 4.2).then(() => {
+        busyRef.current = false;
+      });
+    }
     speakKidPrompt("Find the", { interrupt: true, rate: 0.92, pitch: 1.28 });
     return new Promise<void>((resolve) => {
       promptTimerRef.current = window.setTimeout(() => {
@@ -299,10 +299,6 @@ export default function PhonicsSingingVowels() {
     void getOrCreateActiveChildId().then(setChildId);
   }, []);
 
-  useEffect(() => {
-    if (!soundEnabled) stopClip();
-  }, [soundEnabled, stopClip]);
-
   useEffect(() => () => stopClip(), [stopClip]);
 
   useEffect(() => {
@@ -331,16 +327,6 @@ export default function PhonicsSingingVowels() {
         highlightTimers.current.push(timer);
       });
     };
-
-    if (!soundEnabled) {
-      runTimedHighlight();
-      const doneTimer = window.setTimeout(finishDemo, DEMO_FALLBACK_MS);
-      highlightTimers.current.push(doneTimer);
-      return () => {
-        cancelled = true;
-        stopClip();
-      };
-    }
 
     const audio = new Audio(wholeVowels);
     audio.volume = 0.55;
@@ -379,7 +365,7 @@ export default function PhonicsSingingVowels() {
       window.cancelAnimationFrame(raf);
       stopClip();
     };
-  }, [clock.playing, demoDone, soundEnabled, stopClip]);
+  }, [clock.playing, demoDone, stopClip]);
 
   useEffect(() => {
     if (!clock.playing || !demoDone || !target) return;
@@ -424,8 +410,7 @@ export default function PhonicsSingingVowels() {
     window.setTimeout(() => setWrongBird((current) => (current === bird.letter ? null : current)), 700);
     if (!soundEnabled) {
       window.setTimeout(() => {
-        setMessage(askFor(target));
-        busyRef.current = false;
+        void promptFindSound(target);
       }, 700);
       return;
     }

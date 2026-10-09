@@ -173,7 +173,7 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
     });
 
   const playSound = () => {
-    if (!soundEnabled || !isLandscape) return;
+    if (!isLandscape) return;
     setIsSoundAnimating(true);
     setTimeout(() => setIsSoundAnimating(false), 600);
     if (audioRef.current) {
@@ -562,8 +562,8 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
           return next;
         });
       }}
-      aria-label={soundEnabled ? "Mute sound" : "Unmute sound"}
-      title={soundEnabled ? "Mute Sound" : "Unmute Sound"}
+      aria-label={soundEnabled ? "Mute helper voice and feedback" : "Unmute helper voice and feedback"}
+      title={soundEnabled ? "Mute Helper Voice" : "Unmute Helper Voice"}
     >
       {soundEnabled ? "🔊" : "🔇"}
     </button>

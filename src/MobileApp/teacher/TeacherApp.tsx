@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Activity, Award, BarChart3, Bell, BookOpen, CalendarDays, Camera,
@@ -18,9 +18,16 @@ import { createOfflineLessonUrl, getOfflineLessons, removeOfflineLesson, saveOff
 import { cacheOfflineLessons, cacheOfflineChild, getOfflineChildrenFromSqlite, getOfflineLessonsFromSqlite } from "../../lib/offlineSqlite";
 import { getAttendanceRecords, localDateKey, saveAttendanceRecords } from "../../lib/attendance";
 import { getRecentClassActivity, sendParentAnnouncement } from "../../lib/supabaseData";
+import { getStoredChildAvatar, normalizeChildAvatar } from "../../lib/childAvatar";
+import { childAvatarById } from "../pages/Student/childAvatars";
 
 type PageKey = "dashboard" | "students" | "lessons" | "activities" | "attendance" | "announcements" | "health" | "rewards" | "settings";
 type Notify = (text: string) => void;
+
+function studentAvatarContent(avatarId: string | null | undefined, fallback: string): ReactNode {
+  const avatar = childAvatarById(avatarId);
+  return avatar ? <img className="ta-student-avatar-image" src={avatar.src} alt={`${avatar.label} avatar`} /> : <>{fallback}</>;
+}
 
 const navItems = [
   { key: "dashboard", label: "Dashboard", icon: Home },
@@ -219,7 +226,7 @@ type DatabaseStudent = {
   stars: number;
   rate: number;
   status: "Online" | "Offline" | "Unenrolled";
-  avatar: string;
+  avatar: ReactNode;
   firstName: string;
   lastName: string;
   dateOfBirth: string | null;
@@ -290,12 +297,12 @@ function Students({ notify }: { notify: Notify }) {
       setLoadError("");
       let { data, error } = await supabase
         .from("children_accounts")
-        .select("id, parent_id, child_name, first_name, last_name, date_of_birth, sex, grade_level, pin_code, is_active, last_active_at")
+        .select("id, parent_id, child_name, first_name, last_name, date_of_birth, sex, grade_level, pin_code, is_active, last_active_at, avatar")
         .order("created_at", { ascending: false });
 
-      if (error && /last_active_at/i.test(error.message)) {
+      if (error && /last_active_at|avatar/i.test(error.message)) {
         const fallback = await supabase.from("children_accounts").select("id, parent_id, child_name, first_name, last_name, date_of_birth, sex, grade_level, pin_code, is_active").order("created_at", { ascending: false });
-        data = fallback.data?.map(row => ({ ...row, last_active_at: null })) ?? null;
+        data = fallback.data?.map(row => ({ ...row, last_active_at: null, avatar: null })) ?? null;
         error = fallback.error;
       }
 
@@ -308,7 +315,7 @@ function Students({ notify }: { notify: Notify }) {
             return {
               id: String(row.id), parentId: row.parent_id ? String(row.parent_id) : null, name: row.child_name?.trim() || fullName || "Unnamed learner", age: null,
               section: "Preschool", stars: 0, rate: 0, status: row.is_active ? "Offline" : "Unenrolled",
-              avatar: index % 2 === 0 ? "🧒" : "👧", firstName: row.first_name?.trim() || "", lastName: row.last_name?.trim() || "",
+              avatar: studentAvatarContent(getStoredChildAvatar(String(row.id)), index % 2 === 0 ? "🧒" : "👧"), firstName: row.first_name?.trim() || "", lastName: row.last_name?.trim() || "",
               dateOfBirth: null, sex: null, pinCode: row.pin_code, enrolled: row.is_active !== 0, lastActiveAt: null,
             };
           }));
@@ -337,7 +344,7 @@ function Students({ notify }: { notify: Notify }) {
             stars: 0,
             rate: 0,
             status: getPresenceStatus(row.is_active !== false, row.last_active_at),
-            avatar: index % 2 === 0 ? "🧒" : "👧",
+            avatar: studentAvatarContent(normalizeChildAvatar(row.avatar) || getStoredChildAvatar(String(row.id)), index % 2 === 0 ? "🧒" : "👧"),
             firstName: row.first_name?.trim() || "",
             lastName: row.last_name?.trim() || "",
             dateOfBirth: row.date_of_birth,
@@ -433,7 +440,7 @@ function Students({ notify }: { notify: Notify }) {
     {!loading && !loadError && shown.length === 0 && <section className="ta-student-state"><Users/><h3>No student accounts found</h3><p>Students registered by parents will appear here automatically.</p></section>}
     {!loading && !loadError && <section className="ta-students">{shown.map(student => { const attendanceRate = getSavedAttendanceRate(student.id); return <article key={student.id}><div className="ta-pupil-head"><i>{student.avatar}</i><span className={student.status.toLowerCase()}>{student.status === "Offline" ? studentPresenceLabel(student) : student.status}</span><button className="ta-student-more" aria-label={`More actions for ${student.name}`} onClick={() => setStudentMenu(studentMenu === student.id ? null : student.id)}><MoreHorizontal /></button>{studentMenu === student.id && <div className="ta-student-menu"><button onClick={() => { setProfile(student); setStudentMenu(null); }}><UserRound/> View details</button><button onClick={() => { void openAchievements(student); setStudentMenu(null); }}><Trophy/> Achievements</button><button onClick={() => { setEnrollmentPrompt({ student, enroll: !student.enrolled }); setStudentMenu(null); }} className={student.enrolled ? "danger" : "restore"}>{student.enrolled ? <Trash2/> : <Check/>}{student.enrolled ? "Unenroll student" : "Restore enrollment"}</button></div>}</div><h3>{student.name}</h3><p>{student.age === null ? "Age not provided" : `Age ${student.age}`} · {student.section}</p><div className="ta-pupil-stats"><button className="ta-stars-stat" onClick={() => void openAchievements(student)} aria-label={`View ${student.name}'s stars and achievements`}><Star /><b>{student.stars}</b><small>Total Stars · Tap to view</small></button><button className="ta-attendance-stat" onClick={() => setAttendanceStudent(student)} aria-label={`View ${student.name}'s attendance history`}><CalendarDays /><b>{attendanceRate}%</b><small>Attendance · Tap to view</small></button></div><div className="ta-progress"><i style={{ width: `${attendanceRate}%` }} /></div><footer className="ta-student-actions"><button onClick={() => setProfile(student)}><UserRound /> Profile</button><button onClick={() => notify(`Reward panel opened for ${student.name}`)}><Award /> Reward</button><button onClick={() => void openAchievements(student)}><Trophy /> Child's Achievements</button><button className="health" onClick={() => openHealthAnnouncement(student)}><HeartPulse/> Health Monitoring</button></footer></article>; })}</section>}
     {profile && <div className="ta-overlay" onMouseDown={() => setProfile(null)}><section className="ta-modal ta-child-profile" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setProfile(null)}><X /></button><div className="ta-avatar">{profile.avatar}</div><h2>{profile.name}</h2><p>Child details provided by the parent</p><dl><div><dt>First name</dt><dd>{profile.firstName || "Not provided"}</dd></div><div><dt>Last name</dt><dd>{profile.lastName || "Not provided"}</dd></div><div><dt>Date of birth</dt><dd>{profile.dateOfBirth ? new Date(`${profile.dateOfBirth}T00:00:00`).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }) : "Not provided"}</dd></div><div><dt>Age</dt><dd>{profile.age === null ? "Not provided" : `${profile.age} years old`}</dd></div><div><dt>Sex</dt><dd>{profile.sex || "Not provided"}</dd></div><div><dt>Grade level</dt><dd>{profile.section}</dd></div><div><dt>Student PIN</dt><dd>{profile.pinCode || "Not provided"}</dd></div></dl><small>Student ID: {profile.id}</small><button className="ta-primary ta-full" onClick={() => setProfile(null)}>Close Profile</button></section></div>}
-    {achievementStudent && <div className="ta-overlay" onMouseDown={() => setAchievementStudent(null)}><section className="ta-modal ta-achievements-modal" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setAchievementStudent(null)}><X /></button><div className="ta-avatar"><Trophy /></div><h2>{achievementStudent.name}'s Achievements</h2><p>Earned from completed learning games</p>{achievementsLoading ? <div className="ta-achievement-empty"><BearLoading compact /></div>} : achievements.length ? <div className="ta-achievement-list">{achievements.map(item => <article key={item.id}><i>{item.icon}</i><span><b>{item.text}</b><small>Earned achievement</small></span></article>)}</div> : <div className="ta-achievement-empty"><Trophy/><b>No achievements yet</b><small>Achievements will appear after this student completes games.</small></div>}<button className="ta-primary ta-full" onClick={() => setAchievementStudent(null)}>Close Achievements</button></section></div>}
+    {achievementStudent && <div className="ta-overlay" onMouseDown={() => setAchievementStudent(null)}><section className="ta-modal ta-achievements-modal" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setAchievementStudent(null)}><X /></button><div className="ta-avatar"><Trophy /></div><h2>{achievementStudent.name}'s Achievements</h2><p>Earned from completed learning games</p>{achievementsLoading ? <div className="ta-achievement-empty"><BearLoading compact /></div> : achievements.length ? <div className="ta-achievement-list">{achievements.map(item => <article key={item.id}><i>{item.icon}</i><span><b>{item.text}</b><small>Earned achievement</small></span></article>)}</div> : <div className="ta-achievement-empty"><Trophy/><b>No achievements yet</b><small>Achievements will appear after this student completes games.</small></div>}<button className="ta-primary ta-full" onClick={() => setAchievementStudent(null)}>Close Achievements</button></section></div>}
     {enrollmentPrompt && <div className="ta-overlay ta-enrollment-overlay" onMouseDown={() => !enrollmentSaving && setEnrollmentPrompt(null)}><section className={`ta-modal ta-enrollment-modal ${enrollmentPrompt.enroll ? "restore" : "unenroll"}`} onMouseDown={event => event.stopPropagation()} role="alertdialog" aria-modal="true"><div className="ta-enrollment-sparkles" aria-hidden="true"><i>⭐</i><i>🌈</i><i>✨</i></div><div className="ta-enrollment-avatar">{enrollmentPrompt.student.avatar}<span>{enrollmentPrompt.enroll ? "↩" : "👋"}</span></div><h2>{enrollmentPrompt.enroll ? "Welcome Back!" : "Pause Enrollment?"}</h2><p>{enrollmentPrompt.enroll ? <>Restore <b>{enrollmentPrompt.student.name}</b> to the class?</> : <>Are you sure you want to unenroll <b>{enrollmentPrompt.student.name}</b>?</>}</p><div className="ta-enrollment-note">{enrollmentPrompt.enroll ? <><Check/><span><b>Student access will return</b><small>They can sign in and continue their learning games.</small></span></> : <><ShieldCheck/><span><b>Their learning memories stay safe</b><small>Progress, stars, and achievements will not be deleted.</small></span></>}</div><div className="ta-enrollment-actions"><button disabled={enrollmentSaving} onClick={() => setEnrollmentPrompt(null)}><X/> Not now</button><button disabled={enrollmentSaving} onClick={() => void setEnrollment(enrollmentPrompt.student, enrollmentPrompt.enroll)}>{enrollmentSaving ? <span className="ta-button-loader"/> : enrollmentPrompt.enroll ? <Check/> : <Trash2/>}{enrollmentSaving ? "Saving…" : enrollmentPrompt.enroll ? "Restore Student" : "Yes, Unenroll"}</button></div></section></div>}
     {attendanceStudent && <div className="ta-overlay" onMouseDown={() => setAttendanceStudent(null)}><section className="ta-modal ta-student-attendance-view" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setAttendanceStudent(null)}><X/></button><div className="ta-quick-modal-title"><i><CalendarDays/></i><span><h2>{attendanceStudent.name}</h2><p>Complete attendance history</p></span></div>{attendanceHistory.length ? <div className="ta-student-attendance-list">{attendanceHistory.map(([date, status]) => <div key={date}><span><b>{new Intl.DateTimeFormat("en-PH", { month: "long", day: "numeric", year: "numeric" }).format(new Date(`${date}T00:00:00`))}</b><small>{attendanceStudent.section}</small></span><em className={status.toLowerCase()}>{status}</em></div>)}</div> : <div className="ta-quick-empty"><CalendarDays/><b>No attendance record yet</b><small>Saved attendance for this learner will appear here.</small></div>}</section></div>}
     {healthStudent && <div className="ta-overlay" onMouseDown={() => setHealthStudent(null)}><section className="ta-modal ta-student-health-compose" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setHealthStudent(null)}><X/></button><div className="ta-quick-modal-title"><i><HeartPulse/></i><span><h2>Send Health Announcement</h2><p>Pin this only on {healthStudent.name}'s parent announcements.</p></span></div><div className={`ta-health-recipient ${healthStudent.parentId ? "linked" : "missing"}`}><UserRound/><span><small>Automatic recipient</small><b>{healthStudent.name}'s Parent</b><em>{healthStudent.parentId ? "Linked parent account" : "No linked parent account"}</em></span>{healthStudent.parentId ? <Check/> : <CircleAlert/>}</div><label>Sender<input value={teacherIdentity().name} readOnly/></label><label>Announcement title <small>Optional</small><input value={healthTitle} onChange={event => setHealthTitle(event.target.value)} placeholder="Health update"/></label><label>Message<textarea maxLength={300} value={healthMessage} onChange={event => setHealthMessage(event.target.value)} placeholder="Write the learner's health update…"/><small>{healthMessage.length}/300</small></label><div className="ta-student-health-templates"><header><b>Quick Health Templates</b><small>Tap to use</small></header><div>{[["Health Reminder", `Good day! Please remember to update us about ${healthStudent.name}'s current health condition.`],["Health Concern", `Good day! We observed a minor health concern for ${healthStudent.name} today. Please contact the teacher for details.`],["Wellness Check", `Good day! ${healthStudent.name}'s classroom wellness check has been recorded.`]].map(([title, message]) => <button type="button" key={title} onClick={() => { setHealthTitle(title); setHealthMessage(message); }}><b>{title}</b><span>{message}</span></button>)}</div></div><div className="ta-health-compose-actions ta-send-only"><button className="ta-primary" disabled={healthSending || !healthMessage.trim() || !healthStudent.parentId} onClick={() => void sendHealthToParent()}><Send/>{healthSending ? "Sending…" : "Pin to Parent"}</button></div><p className="ta-sms-note">Only this learner's parent will see it, pinned at the top of their Announcements.</p></section></div>}
@@ -700,7 +707,7 @@ function Activities({ notify }: { notify: Notify }) {
 
 function Attendance({ notify }: { notify: Notify }) {
   type AttendanceStatus = "Present" | "Late" | "Absent" | "Excused" | "Unmarked";
-  type AttendanceRow = { id: string; name: string; section: string; avatar: string; rate: number; today: AttendanceStatus };
+  type AttendanceRow = { id: string; name: string; section: string; avatar: ReactNode; rate: number; today: AttendanceStatus };
   const ATTENDANCE_KEY = "learnease.attendanceHistory";
   const todayKey = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`; };
   const readHistory = (): Record<string, Record<string, Exclude<AttendanceStatus, "Unmarked">>> => {
@@ -720,7 +727,12 @@ function Attendance({ notify }: { notify: Notify }) {
     const loadAttendanceRoster = async () => {
       setLoading(true);
       setLoadError("");
-      const { data, error } = await supabase.from("children_accounts").select("id, child_name, first_name, last_name, grade_level, is_active").order("created_at", { ascending: false });
+      let { data, error } = await supabase.from("children_accounts").select("id, child_name, first_name, last_name, grade_level, is_active, avatar").order("created_at", { ascending: false });
+      if (error && /avatar|column|schema cache|could not find/i.test(error.message)) {
+        const fallback = await supabase.from("children_accounts").select("id, child_name, first_name, last_name, grade_level, is_active").order("created_at", { ascending: false });
+        data = fallback.data?.map(row => ({ ...row, avatar: null })) ?? null;
+        error = fallback.error;
+      }
       if (!active) return;
       if (error) {
         console.error("Teacher attendance roster error:", error.message);
@@ -730,7 +742,7 @@ function Attendance({ notify }: { notify: Notify }) {
         const loadedRows = (data ?? []).map((student, index) => {
           const fullName = `${student.first_name ?? ""} ${student.last_name ?? ""}`.trim();
           const id = String(student.id);
-          return { id, name: student.child_name?.trim() || fullName || "Unnamed learner", section: student.grade_level?.trim() || "Preschool", avatar: index % 2 === 0 ? "🧒" : "👧", rate: 0, today: readHistory()[id]?.[selectedDate] || "Unmarked" } as AttendanceRow;
+          return { id, name: student.child_name?.trim() || fullName || "Unnamed learner", section: student.grade_level?.trim() || "Preschool", avatar: studentAvatarContent(normalizeChildAvatar(student.avatar) || getStoredChildAvatar(id), index % 2 === 0 ? "🧒" : "👧"), rate: 0, today: readHistory()[id]?.[selectedDate] || "Unmarked" } as AttendanceRow;
         });
         const remoteRecords = await getAttendanceRecords(loadedRows.map(row => row.id));
         const history = readHistory();
