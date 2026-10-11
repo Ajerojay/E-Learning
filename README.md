@@ -161,7 +161,7 @@ npx.cmd cap sync android
 
 `CAP_LIVE=1` writes your current Wi‑Fi IPv4 into Capacitor (`capacitor.config.ts`) so the app loads the live site instead of `dist/`.
 
-If your laptop IP changed (new Wi‑Fi, VPN), run those two lines again.
+If the phone says **Webpage not available** after a Wi‑Fi change or a switch to mobile data, follow [Webpage not available](#webpage-not-available-after-wi-fi-or-mobile-data) below. Do that whole checklist every time. The two lines above are only part of it.
 
 #### Step 4 — Run from Android Studio
 
@@ -181,6 +181,63 @@ The first launch can take a few minutes. After that, keep **both** Android Studi
 
 You do **not** need `npm run android:offline` on every save while live reload is on.
 
+#### Webpage not available after Wi-Fi or mobile data
+
+Do this **every time** the phone shows **Webpage not available** after you change Wi‑Fi or switch the phone to mobile data.
+
+The app is stuck on the laptop address from the last sync, for example `http://192.168.x.x:5174`. A new Wi‑Fi gives the laptop a new address. Mobile data is a different network, so the phone cannot open that address at all.
+
+1. Put the phone on the **same Wi‑Fi** as the laptop, and turn **mobile data off**. Live reload does not work over mobile data.
+2. On the laptop, keep Vite running. If that terminal was closed, start it again and leave it open:
+
+```powershell
+npm.cmd run dev:android
+```
+
+Read the **Network** line. That `http://192.168.x.x:5174` address is the one the phone must use.
+
+3. Open a **second** PowerShell in the project root (do not close Vite) and point the Android project at the new address:
+
+```powershell
+$env:CAP_LIVE="1"
+npx.cmd cap sync android
+```
+
+The terminal should print `[capacitor] live reload http://192.168.x.x:5174`. That address should match the Network line from step 2.
+
+4. In Android Studio, click **Run** (green play) again. The phone has to install this build. Opening the old app still uses the old address.
+5. Open LearnEase. It should load the Vite page.
+
+If it is still unavailable:
+
+- Windows Firewall: allow **Node.js** on private networks, or allow inbound TCP **5174**
+- Run `ipconfig` and confirm the IPv4 you synced is the Wi‑Fi adapter, not a VPN or `127.0.0.1`
+- Repeat steps 3 and 4 after any other network change
+
+**Phone must stay on mobile data (no shared Wi‑Fi).** Live reload cannot reach the laptop. Install the packaged app instead, then Run from Android Studio:
+
+```powershell
+Remove-Item Env:CAP_LIVE -ErrorAction SilentlyContinue
+npm run android:offline
+```
+
+That build does not need your laptop’s Wi‑Fi. New code shows up only after you run `npm run android:offline` and Run again.
+
+**Phone is on USB and has no Wi‑Fi.** Forward the port, sync to `127.0.0.1`, then Run in Android Studio:
+
+```powershell
+adb reverse tcp:5174 tcp:5174
+$env:CAP_LIVE="1"
+$env:CAP_LIVE_HOST="127.0.0.1"
+npx.cmd cap sync android
+```
+
+Before the next Wi‑Fi session, clear the override so the app does not stay on `127.0.0.1`:
+
+```powershell
+Remove-Item Env:CAP_LIVE_HOST -ErrorAction SilentlyContinue
+```
+
 #### When you are done coding
 
 The Android project still points at your laptop until you sync without live mode. Switch back to a normal packaged app:
@@ -197,9 +254,9 @@ Then **Run** again from Android Studio.
 | Check | What to do |
 | --- | --- |
 | Vite is not running | Start `npm run dev:android` first and leave it open |
-| IP changed | Run `$env:CAP_LIVE="1"; npx cap sync android` again, then Run in Android Studio |
+| IP changed, new Wi‑Fi, or mobile data (**Webpage not available**) | Follow [Webpage not available](#webpage-not-available-after-wi-fi-or-mobile-data): same Wi‑Fi, Vite running, `$env:CAP_LIVE="1"; npx.cmd cap sync android`, then **Run** in Android Studio |
 | Firewall | Allow **Node.js** on private networks, or allow inbound TCP **5174** |
-| Different Wi‑Fi | Phone and PC must be on the same LAN (or use USB + the steps below) |
+| Different Wi‑Fi | Phone and PC must be on the same LAN. Mobile data cannot load the live app. See the checklist above |
 | Emulator | Host IP is often `10.0.2.2`. If LAN IP fails, ask a teammate or set live URL to `http://10.0.2.2:5174` |
 | USB only, no Wi‑Fi | With the phone plugged in: `adb reverse tcp:5174 tcp:5174`, sync with live URL `http://127.0.0.1:5174`, then Run |
 
@@ -237,11 +294,12 @@ android/                         Capacitor Android project
 ## Common problems
 
 | Problem | What to try |
-| --- | --- |
+
 | Blank page or login always fails | Confirm `.env` exists in the project root, then stop and restart `npm run dev` |
 | `npm.ps1 cannot be loaded` / running scripts is disabled | Use `npm.cmd run dev:android` (and `npx.cmd`), or run `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned` once |
 | Port 5174 is already in use | Vite is already running. Skip starting it again and go to `$env:CAP_LIVE="1"; npx.cmd cap sync android`. Or stop the old Vite terminal with Ctrl+C |
 | Live Android app is blank | Keep `npm run dev:android` running, re-run `$env:CAP_LIVE="1"; npx cap sync android`, then Run in Android Studio |
+| **Webpage not available** after changing Wi‑Fi or switching to mobile data | Same Wi‑Fi as the laptop (mobile data off), Vite still running, then `$env:CAP_LIVE="1"; npx.cmd cap sync android`, then **Run** in Android Studio. Full checklist: [Webpage not available](#webpage-not-available-after-wi-fi-or-mobile-data) |
 | `npm run build` fails | Run `npm install` again and fix any TypeScript errors shown in the terminal |
 | Android Studio Gradle errors | Use JDK 17, **File → Sync Project with Gradle Files** |
 
