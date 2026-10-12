@@ -219,6 +219,35 @@
   border-radius: 999px;
 }
 
+.pc-progress-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.pc-progress-tabs .pc-section-heading {
+  margin-bottom: 8px;
+  border-color: rgba(26, 77, 143, 0.22);
+  background: rgba(255, 255, 255, 0.58);
+  color: #52617a;
+  -webkit-text-fill-color: #52617a;
+  cursor: pointer;
+}
+
+.pc-progress-tabs .pc-section-heading.is-active {
+  border-color: rgba(26, 77, 143, 0.38);
+  background: rgba(255, 255, 255, 0.95);
+  color: #1a4d8f;
+  -webkit-text-fill-color: #1a4d8f;
+  box-shadow: 0 3px 0 rgba(26, 77, 143, 0.12);
+}
+
+.pc-progress-tabs .pc-section-heading:focus-visible {
+  outline: 3px solid #397eff;
+  outline-offset: 2px;
+}
+
 .pc-section-divider {
   border: none;
   border-top: 2px dashed rgba(45, 42, 53, 0.22);
@@ -942,4 +971,3 @@
   background: #fff;
   box-shadow: 0 3px 0 rgba(196, 30, 58, 0.12);
 }
-

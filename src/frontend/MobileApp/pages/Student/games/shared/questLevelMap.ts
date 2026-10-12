@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getOrCreateActiveChildId } from "../../../../../../backend/childProgress";
 import { announceGameCertificate } from "../../../../../../backend/gameCertificates";
-import { persistQuestLevelResult } from "../../../../../../backend/questLevelResults";
+import { persistQuestLevelResult, restoreQuestLevelResults } from "../../../../../../backend/questLevelResults";
 
 export type QuestGameKey =
   | "colors"
@@ -36,6 +36,10 @@ function storageKey(childId: string, game: QuestGameKey) {
 
 function starsStorageKey(childId: string, game: QuestGameKey) {
   return `questStars:${childId}:${game}`;
+}
+
+function finishedStorageKey(childId: string, game: QuestGameKey) {
+  return `questFinished:${childId}:${game}`;
 }
 
 /** Too many misses: 1 star, no next-level unlock, game-over popup. */
@@ -150,13 +154,15 @@ export function saveQuestLevelStars(
   game: QuestGameKey,
   levelIndex: number,
   stars: number,
-  levelCount = 3
+  levelCount = 3,
+  finished = false,
+  wrongAttempts = 0
 ): number[] {
   const next = getQuestLevelStars(childId, game, levelCount);
   next[levelIndex] = Math.max(next[levelIndex] ?? 0, stars);
   localStorage.setItem(starsStorageKey(childId, game), JSON.stringify(next));
   setTimedStarFlag(childId, game, levelIndex, levelCount);
-  void persistQuestLevelResult(childId, game, levelIndex, next[levelIndex]);
+  void persistQuestLevelResult(childId, game, levelIndex, next[levelIndex], wrongAttempts, finished);
   return next;
 }
 
@@ -286,6 +292,16 @@ export function getUnlockedQuestLevelCount(childId: string, game: QuestGameKey):
 export function markQuestLevelComplete(childId: string, game: QuestGameKey, completedLevelIndex: number): number {
   const next = Math.min(3, Math.max(getUnlockedQuestLevelCount(childId, game), completedLevelIndex + 2));
   localStorage.setItem(storageKey(childId, game), String(next));
+  try {
+    const raw = JSON.parse(localStorage.getItem(finishedStorageKey(childId, game)) || "[]");
+    const finished = Array.isArray(raw) ? raw.map(Boolean) : [];
+    finished[completedLevelIndex] = true;
+    localStorage.setItem(finishedStorageKey(childId, game), JSON.stringify(finished));
+  } catch {
+    const finished = Array.from({ length: 3 }, () => false);
+    finished[completedLevelIndex] = true;
+    localStorage.setItem(finishedStorageKey(childId, game), JSON.stringify(finished));
+  }
   return next;
 }
 
@@ -297,6 +313,9 @@ export function useQuestLevelGate(gameKey: QuestGameKey, levelCount = 3) {
   const refreshUnlocks = useCallback(async () => {
     const childId = await getOrCreateActiveChildId();
     if (!childId) return;
+    if (typeof navigator === "undefined" || navigator.onLine) {
+      await restoreQuestLevelResults(childId);
+    }
     backfillQuestStarsFromUnlocks(childId, levelCount);
     try {
       const { getRecentChildAttempts } = await import("../../../../../../backend/supabaseData");
@@ -327,7 +346,15 @@ export function useQuestLevelGate(gameKey: QuestGameKey, levelCount = 3) {
   const recordLevelResult = useCallback(async (levelIndex: number, result: LevelStarResult) => {
     const childId = await getOrCreateActiveChildId();
     if (!childId) return;
-    setLevelStars(saveQuestLevelStars(childId, gameKey, levelIndex, starsForResult(result), levelCount));
+    setLevelStars(saveQuestLevelStars(
+      childId,
+      gameKey,
+      levelIndex,
+      starsForResult(result),
+      levelCount,
+      Boolean(result.finished),
+      result.wrongAttempts ?? 0
+    ));
   }, [gameKey, levelCount]);
 
   const completeLevel = useCallback(async (levelIndex: number, result?: LevelStarResult) => {
@@ -341,7 +368,9 @@ export function useQuestLevelGate(gameKey: QuestGameKey, levelCount = 3) {
         gameKey,
         levelIndex,
         starsForResult({ finished: true, ...result }),
-        levelCount
+        levelCount,
+        true,
+        result.wrongAttempts ?? 0
       );
       setLevelStars(stars);
     }

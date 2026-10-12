@@ -100,16 +100,17 @@ export default function AppSignIn() {
         return;
       }
 
-      const offlineParent = await authenticateOfflineParent(cleanUsername, cleanPassword);
-      if (offlineParent) {
-        localStorage.setItem("user", JSON.stringify({ role: "parent", id: offlineParent.id, username: offlineParent.username, source: "offline" }));
-        if (offlineParent.activeChildId) localStorage.setItem("activeChildId", offlineParent.activeChildId);
-        markSignedIn();
-        navigate("/parent-dashboard");
-        return;
+      if (!navigator.onLine) {
+        const offlineParent = await authenticateOfflineParent(cleanUsername, cleanPassword);
+        if (offlineParent) {
+          localStorage.setItem("user", JSON.stringify({ role: "parent", id: offlineParent.id, username: offlineParent.username, source: "offline" }));
+          if (offlineParent.activeChildId) localStorage.setItem("activeChildId", offlineParent.activeChildId);
+          markSignedIn();
+          navigate("/parent-dashboard");
+          return;
+        }
+        if (await finishCachedLogin()) return;
       }
-
-      if (!navigator.onLine && await finishCachedLogin()) return;
 
       if (isMobileApp() && navigator.onLine) {
         try {

@@ -233,8 +233,32 @@ export async function cacheOfflineChild(child: {
   await initializeOfflineSqlite();
   await CapacitorSQLite.run({
     database: DATABASE_NAME,
-    statement: "INSERT OR REPLACE INTO children (id, parent_id, child_name, first_name, last_name, pin_code, is_active, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    values: [child.id, child.parentId ?? null, child.childName ?? null, child.firstName ?? null, child.lastName ?? null, child.pinCode ?? null, child.isActive === false ? 0 : 1, new Date().toISOString()],
+    statement: `INSERT INTO children (id, parent_id, child_name, first_name, last_name, pin_code, is_active, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        parent_id = CASE WHEN ? = 1 THEN excluded.parent_id ELSE children.parent_id END,
+        child_name = CASE WHEN ? = 1 THEN excluded.child_name ELSE children.child_name END,
+        first_name = CASE WHEN ? = 1 THEN excluded.first_name ELSE children.first_name END,
+        last_name = CASE WHEN ? = 1 THEN excluded.last_name ELSE children.last_name END,
+        pin_code = CASE WHEN ? = 1 THEN excluded.pin_code ELSE children.pin_code END,
+        is_active = CASE WHEN ? = 1 THEN excluded.is_active ELSE children.is_active END,
+        updated_at = excluded.updated_at`,
+    values: [
+      child.id,
+      child.parentId ?? null,
+      child.childName ?? null,
+      child.firstName ?? null,
+      child.lastName ?? null,
+      child.pinCode ?? null,
+      child.isActive === false ? 0 : 1,
+      new Date().toISOString(),
+      child.parentId !== undefined ? 1 : 0,
+      child.childName !== undefined ? 1 : 0,
+      child.firstName !== undefined ? 1 : 0,
+      child.lastName !== undefined ? 1 : 0,
+      child.pinCode !== undefined ? 1 : 0,
+      child.isActive !== undefined ? 1 : 0,
+    ],
   });
 }
 

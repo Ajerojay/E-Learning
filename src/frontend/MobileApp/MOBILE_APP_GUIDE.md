@@ -10,6 +10,9 @@ Search the codebase for `SUPABASE DATABASE` to find active database code.
 - `VITE_SUPABASE_ANON_KEY`
 
 The web and Android app use this same client, tables, storage, and RPC functions.
+Quest-level stars and completed-level unlocks are also cached on the device for
+offline play. When the child opens a game while online, saved quest results are
+restored from Supabase before the level map applies its local lock state.
 
 ## Connected app flows
 

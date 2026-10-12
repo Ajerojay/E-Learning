@@ -226,6 +226,16 @@ body {
   margin-bottom: 28px;
 }
 
+.pp-empty-state {
+  margin: 0;
+  padding: 18px 22px;
+  border: 2px solid #7ab8af;
+  border-radius: 18px;
+  background: rgba(194, 251, 241, 0.85);
+  color: #1a4d8f;
+  text-align: center;
+}
+
 .pp-summary-row {
   display: grid;
   grid-template-columns: 1.1fr 0.9fr;
@@ -828,6 +838,91 @@ body {
   color: #166534;
 }
 
+.pp-parent-activity-track {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 0 16px 12px;
+  scroll-padding-inline: 16px;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+.pp-parent-activity-card {
+  display: flex;
+  flex: 0 0 min(82%, 340px);
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 190px;
+  padding: 14px;
+  border: 2px solid #eee3cd;
+  border-radius: 16px;
+  background: #fffaf2;
+  scroll-snap-align: center;
+  transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+.pp-parent-activity-card.is-checked {
+  border-color: #87c99b;
+  background: #effbf1;
+}
+
+.pp-parent-activity-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  color: #687386;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.pp-parent-activity-card.is-checked .pp-parent-activity-status {
+  color: #237448;
+}
+
+.pp-parent-activity-check {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.pp-parent-activity-card h4 {
+  margin: 0 0 7px;
+  color: #25324a;
+  font-size: 17px;
+}
+
+.pp-parent-activity-card p {
+  flex: 1;
+  margin: 0 0 8px;
+  color: #3e4a5c;
+  font-size: 14px;
+}
+
+.pp-parent-activity-card button {
+  margin: auto 0 0;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #e59a2b;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pp-parent-activity-card.is-checked button {
+  background: #328456;
+}
+
 .pp-recommend-box button {
   margin-top: 10px;
   border: none;
@@ -1242,21 +1337,34 @@ body {
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.16);
 }
 
-.pp-mobile-parent .pp-extra-activity {
-  margin: 10px 12px 0;
-  padding: 10px;
-  border: 2px dashed rgba(45, 42, 53, 0.18);
-  border-radius: 12px;
-  background: #fffaf2;
+.pp-mobile-parent .pp-parent-activity-track {
+  gap: 10px;
+  padding: 0 16px 12px;
+  scroll-padding-inline: 16px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 
-.pp-mobile-parent .pp-extra-activity strong,
-.pp-mobile-parent .pp-extra-activity p {
-  padding-left: 0;
-  padding-right: 0;
+.pp-mobile-parent .pp-parent-activity-track::-webkit-scrollbar {
+  display: none;
 }
 
-.pp-mobile-parent .pp-extra-activity button {
-  margin-left: 0;
-  margin-right: 0;
+.pp-mobile-parent .pp-parent-activity-card {
+  flex-basis: min(86%, 340px);
+  min-height: 185px;
+  padding: 12px;
+}
+
+.pp-mobile-parent .pp-parent-activity-card h4 {
+  padding: 0;
+  font-size: 15px;
+}
+
+.pp-mobile-parent .pp-parent-activity-card p {
+  padding: 0;
+  font-size: 13px;
+}
+
+.pp-mobile-parent .pp-parent-activity-card button {
+  margin: auto 0 0;
 }

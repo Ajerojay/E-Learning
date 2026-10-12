@@ -6,7 +6,7 @@ import { getOrCreateActiveChildId, getRememberedChildFirstName, rememberChildFir
 import { getStoredChildAvatar, normalizeChildAvatar, rememberChildAvatar } from "../../../../backend/childAvatar";
 import { childAvatarById } from "./childAvatars";
 import { getActiveChild } from "../../../../backend/supabaseData";
-import { syncLocalQuestStars } from "../../../../backend/questLevelResults";
+import { restoreQuestLevelResults, syncLocalQuestStars } from "../../../../backend/questLevelResults";
 import { cacheOfflineChild, getOfflineChildById } from "../../../../backend/offlineSqlite";
 import { getStudentGameAccess } from "../../../../backend/studentGameAccess";
 import { isActivityOpen } from "../../../../backend/activityConfig";
@@ -87,7 +87,11 @@ export default function StudentPage() {
     const loadChildName = async () => {
       const childId = await getOrCreateActiveChildId();
       if (!childId) return;
-      void syncLocalQuestStars(childId);
+      void restoreQuestLevelResults(childId).then(() => {
+        if (typeof navigator === "undefined" || navigator.onLine) {
+          void syncLocalQuestStars(childId);
+        }
+      });
       setAllowedGames(getStudentGameAccess(childId));
 
       const applyName = (name: string, allowPlaceholder = false) => {

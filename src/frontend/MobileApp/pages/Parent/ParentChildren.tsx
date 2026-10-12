@@ -57,6 +57,7 @@ export default function ParentChildren() {
   const [pinSaving, setPinSaving] = useState(false);
   const [gameCertificates, setGameCertificates] = useState<GameCertificate[]>([]);
   const [questStars, setQuestStars] = useState<Record<string, number[]>>({});
+  const [achievementTab, setAchievementTab] = useState<"achievements" | "certificates">("achievements");
 
   const loadChild = useCallback(async () => {
     console.log("loadChild: start");
@@ -94,7 +95,15 @@ export default function ParentChildren() {
         overall = remoteOverall;
         categories = (remoteCategories ?? []) as ChildCategoryProgressRow[];
         activity = remoteActivity.map(row => ({ ...row, gameTitle: row.gameTitle ?? null }));
-        if (childRow) await cacheOfflineChild({ id: childRow.id, childName: childRow.child_name, firstName: childRow.first_name, lastName: childRow.last_name, pinCode: childRow.pin_code });
+        if (childRow) await cacheOfflineChild({
+          id: childRow.id,
+          parentId: childProfile.parentId,
+          childName: childRow.child_name,
+          firstName: childRow.first_name,
+          lastName: childRow.last_name,
+          pinCode: childRow.pin_code,
+          isActive: childProfile.isActive,
+        });
         await cacheOfflineCategoryProgress(trimmedChildId, categories.map(row => ({ categoryCode: row.category_code, categoryScore: row.category_score })));
       } catch (offlineError) {
         console.error("loadChild: using offline cache", offlineError);
@@ -320,14 +329,33 @@ export default function ParentChildren() {
         <hr className="pc-section-divider" />
 
         <div className="pc-section">
-          <h2 className="pc-section-heading">Achievements</h2>
-          {achievements.length === 0 && gameCertificates.length === 0 ? (
-            <p className="pc-achievements-empty">
-              No achievements yet. Play a lesson to earn the first one.
-            </p>
-          ) : (
-            <>
-              {achievements.length > 0 && (
+          <div className="pc-progress-tabs" role="tablist" aria-label="Child achievements and certificates">
+            <button
+              type="button"
+              id="pc-achievements-tab"
+              role="tab"
+              aria-selected={achievementTab === "achievements"}
+              aria-controls="pc-achievements-panel"
+              className={`pc-section-heading${achievementTab === "achievements" ? " is-active" : ""}`}
+              onClick={() => setAchievementTab("achievements")}
+            >
+              Achievements
+            </button>
+            <button
+              type="button"
+              id="pc-certificates-tab"
+              role="tab"
+              aria-selected={achievementTab === "certificates"}
+              aria-controls="pc-certificates-panel"
+              className={`pc-section-heading${achievementTab === "certificates" ? " is-active" : ""}`}
+              onClick={() => setAchievementTab("certificates")}
+            >
+              Certificates
+            </button>
+          </div>
+          {achievementTab === "achievements" ? (
+            <div id="pc-achievements-panel" role="tabpanel" aria-labelledby="pc-achievements-tab">
+              {achievements.length > 0 ? (
                 <ul className="pc-achievement-list">
                   {achievements.map((item) => (
                     <li key={item.id} className="pc-achievement-item">
@@ -336,8 +364,15 @@ export default function ParentChildren() {
                     </li>
                   ))}
                 </ul>
+              ) : (
+                <p className="pc-achievements-empty">
+                  No achievements yet. Play a lesson to earn the first one.
+                </p>
               )}
-              {gameCertificates.length > 0 && (
+            </div>
+          ) : (
+            <div id="pc-certificates-panel" role="tabpanel" aria-labelledby="pc-certificates-tab">
+              {gameCertificates.length > 0 ? (
                 <ul className="pc-achievement-list pc-certificate-list">
                   {graduation && (
                     <li className="pc-achievement-item">
@@ -399,8 +434,12 @@ export default function ParentChildren() {
                     );
                   })}
                 </ul>
+              ) : (
+                <p className="pc-achievements-empty">
+                  No certificates yet. Complete all levels of a game to earn one.
+                </p>
               )}
-            </>
+            </div>
           )}
         </div>
 

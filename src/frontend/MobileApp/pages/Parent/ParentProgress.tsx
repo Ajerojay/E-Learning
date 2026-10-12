@@ -14,7 +14,7 @@ import {
 import { getActiveChild, getChildCategoryProgress, getParentChildren } from "../../../../backend/supabaseData";
 import { CHILD_AVATAR_UPDATED_EVENT, getStoredChildAvatar, normalizeChildAvatar } from "../../../../backend/childAvatar";
 import { childAvatarById } from "../Student/childAvatars";
-import { cacheOfflineCategoryProgress, getOfflineCategoryProgress, getOfflineChildrenFromSqlite } from "../../../../backend/offlineSqlite";
+import { cacheOfflineCategoryProgress, cacheOfflineChild, getOfflineCategoryProgress, getOfflineChildrenFromSqlite } from "../../../../backend/offlineSqlite";
 import BearLoading from "../../BearLoading";
 
 type ChildProgressCard = {
@@ -80,18 +80,29 @@ export default function ParentProgress() {
     const loadProgress = async () => {
       setLoading(true);
       const activeId = await getOrCreateActiveChildId();
+      const localUser = getLocalUser();
+      const parentId = localUser?.role === "parent" ? String(localUser.id || "") : "";
       let cards: ChildProgressCard[] = [];
 
       try {
-        const parentId = String(getLocalUser()?.id || "");
         const roster = parentId ? await getParentChildren(parentId) : [];
         if (roster.length) {
-          const named = roster.filter((kid) => kid.isActive !== false && getChildDisplayName({
+          const connected = roster.filter((kid) => kid.isActive !== false);
+          await Promise.all(connected.map((kid) => cacheOfflineChild({
+            id: kid.id,
+            parentId: kid.parentId,
+            childName: kid.childName,
+            firstName: kid.firstName,
+            lastName: kid.lastName,
+            pinCode: kid.pinCode,
+            isActive: kid.isActive,
+          })));
+          const named = connected.filter((kid) => getChildDisplayName({
             child_name: kid.childName,
             first_name: kid.firstName,
             last_name: kid.lastName,
           }) !== "Child");
-          const visible = named.length ? named : roster.filter((kid) => kid.isActive !== false);
+          const visible = named.length ? named : connected;
           cards = await Promise.all(visible.map((kid) => loadChildCard(
             kid.id,
             { child_name: kid.childName, first_name: kid.firstName, last_name: kid.lastName },
@@ -106,8 +117,11 @@ export default function ParentProgress() {
       if (!cards.length) {
         try {
           const cachedKids = await getOfflineChildrenFromSqlite();
-          if (cachedKids.length) {
-            cards = await Promise.all(cachedKids.map((kid) => loadChildCard(
+          const connectedKids = cachedKids.filter((kid) =>
+            parentId && kid.parent_id === parentId && kid.is_active !== 0
+          );
+          if (connectedKids.length) {
+            cards = await Promise.all(connectedKids.map((kid) => loadChildCard(
               kid.id,
               { child_name: kid.child_name, first_name: kid.first_name, last_name: kid.last_name },
             )));
@@ -120,22 +134,24 @@ export default function ParentProgress() {
       if (!cards.length && activeId) {
         try {
           const child = await getActiveChild(activeId);
-          cards = [await loadChildCard(
-            activeId,
-            child
-              ? { child_name: child.childName, first_name: child.firstName, last_name: child.lastName }
-              : { child_name: "Child" },
-            child?.gradeLevel,
-            child?.avatar,
-          )];
+          if (child?.parentId === parentId && child.isActive !== false) {
+            cards = [await loadChildCard(
+              activeId,
+              { child_name: child.childName, first_name: child.firstName, last_name: child.lastName },
+              child.gradeLevel,
+              child.avatar,
+            )];
+          }
         } catch {
-          const cached = (await getOfflineChildrenFromSqlite()).find((row) => row.id === activeId);
-          cards = [await loadChildCard(
-            activeId,
-            cached
-              ? { child_name: cached.child_name, first_name: cached.first_name, last_name: cached.last_name }
-              : { child_name: "Child" },
-          )];
+          const cached = (await getOfflineChildrenFromSqlite()).find((row) =>
+            row.id === activeId && parentId && row.parent_id === parentId && row.is_active !== 0
+          );
+          if (cached) {
+            cards = [await loadChildCard(
+              activeId,
+              { child_name: cached.child_name, first_name: cached.first_name, last_name: cached.last_name },
+            )];
+          }
         }
       }
 
@@ -213,18 +229,26 @@ export default function ParentProgress() {
     }
     const next: Record<string, number> = {};
     for (const key of SUBJECT_KEYS) {
-      const count = Number(localStorage.getItem(`parentTimeDone:${selectedChild.id}:${key}`)) || 0;
-      if (count > 0) next[key] = Math.min(2, count);
+      const cardKey = `parentTimeCardsDone:${selectedChild.id}:${key}`;
+      const savedCards = localStorage.getItem(cardKey);
+      if (savedCards !== null) {
+        const mask = Number(savedCards) || 0;
+        if (mask > 0) next[key] = mask;
+      } else {
+        const legacyCount = Number(localStorage.getItem(`parentTimeDone:${selectedChild.id}:${key}`)) || 0;
+        if (legacyCount > 0) next[key] = legacyCount >= 2 ? 3 : 1;
+      }
     }
     setParentDone(next);
   }, [selectedChild?.id]);
 
-  const markParentActivity = (key: SubjectKey) => {
+  const toggleParentActivity = (key: SubjectKey, activityIndex: number) => {
     if (!selectedChild?.id) return;
+    const activityBit = 1 << activityIndex;
     setParentDone((current) => {
-      const nextCount = Math.min(2, (current[key] ?? 0) + 1);
-      localStorage.setItem(`parentTimeDone:${selectedChild.id}:${key}`, String(nextCount));
-      return { ...current, [key]: nextCount };
+      const nextMask = (current[key] ?? 0) ^ activityBit;
+      localStorage.setItem(`parentTimeCardsDone:${selectedChild.id}:${key}`, String(nextMask));
+      return { ...current, [key]: nextMask };
     });
   };
 
@@ -247,6 +271,8 @@ export default function ParentProgress() {
     offlineDesc: string;
     offlineExtra: string;
     offlineExtraDesc: string;
+    offlineThird: string;
+    offlineThirdDesc: string;
   };
 
   const buildRecommendationForSubject = (
@@ -270,6 +296,8 @@ export default function ParentProgress() {
         "There is no recommended parent-guided activity at the moment.",
       offlineExtra: "",
       offlineExtraDesc: "",
+      offlineThird: "",
+      offlineThirdDesc: "",
     };
 
     if (score <= 0) return baseNoActivity;
@@ -309,6 +337,8 @@ export default function ParentProgress() {
           offlineDesc: "Ask her to find red, blue, and yellow objects around the house and name each one.",
           offlineExtra: "Laundry Colors",
           offlineExtraDesc: "Sort shirts or socks into color piles and name each pile out loud.",
+          offlineThird: "Color Mixing",
+          offlineThirdDesc: "Mix two paint or food colors together and guess what new color they will make.",
         };
       case "shapes":
         return {
@@ -331,6 +361,8 @@ export default function ParentProgress() {
           offlineDesc: "Look for circles, rectangles, and triangles around the house together.",
           offlineExtra: "Snack Shapes",
           offlineExtraDesc: "Before a snack, name the shape of the plate, crackers, or fruit slices.",
+          offlineThird: "Build a Shape",
+          offlineThirdDesc: "Use blocks or paper to build a shape, then count its sides and corners together.",
         };
       case "letters":
         return {
@@ -353,6 +385,8 @@ export default function ParentProgress() {
           offlineDesc: "Write letters on paper and ask her to find something that starts with each one.",
           offlineExtra: "Letter Walk",
           offlineExtraDesc: "Look for the first letter of her name on books, boxes, or signs.",
+          offlineThird: "Name Letter Search",
+          offlineThirdDesc: "Find and point out the letters in her name on a book cover or package.",
         };
       case "numbers":
         return {
@@ -375,6 +409,8 @@ export default function ParentProgress() {
           offlineDesc: "Count steps, toys, or snacks together and compare the numbers out loud.",
           offlineExtra: "Snack Count",
           offlineExtraDesc: "Count a small pile of snacks into her hand, then ask her to count them back.",
+          offlineThird: "Number Hop",
+          offlineThirdDesc: "Count aloud while hopping or clapping, and take turns choosing the next number.",
         };
       case "phonics":
         return {
@@ -397,6 +433,8 @@ export default function ParentProgress() {
           offlineDesc: "Make an animal sound and ask her to guess which animal it is.",
           offlineExtra: "First Sound Game",
           offlineExtraDesc: "Say a short word slowly and ask which sound she hears at the beginning.",
+          offlineThird: "Sound Hunt",
+          offlineThirdDesc: "Choose an easy sound and find objects nearby whose names begin with that sound.",
         };
       case "logic":
       default:
@@ -420,6 +458,8 @@ export default function ParentProgress() {
           offlineDesc: "Make a simple pattern with toys and ask her what comes next.",
           offlineExtra: "Clap the Pattern",
           offlineExtraDesc: "Clap a short pattern, ask her to copy it, then let her make one for you.",
+          offlineThird: "Color Pattern Train",
+          offlineThirdDesc: "Line up two colors of toys in a repeating pattern and ask what comes next.",
         };
     }
   };
@@ -526,15 +566,7 @@ export default function ParentProgress() {
           </section>
 
           <section className="pp-children-list">
-            {(children.length ? children : [{
-              id: "placeholder",
-              name: childName,
-              firstName: childFirstName,
-              grade: "Kinder",
-              avatarId: "",
-              overall: 0,
-              categories: emptyCategories(),
-            }]).map((child) => {
+            {children.map((child) => {
               const selected = child.id === (selectedChild?.id ?? child.id);
               const avatar = childAvatarById(child.avatarId);
               return (
@@ -570,8 +602,12 @@ export default function ParentProgress() {
                 </button>
               );
             })}
+            {!children.length && (
+              <p className="pp-empty-state">No connected child was found for this parent account.</p>
+            )}
           </section>
 
+          {selectedChild && <>
           <section className="pp-grid">
             {subjects.map((sub) => {
               const score = safeProgress[sub.key] || 0;
@@ -649,38 +685,43 @@ export default function ParentProgress() {
 
                     <div className="pp-recommend-box pp-recommend-box--home">
                       <p className="pp-mini-title">&#127968; {rec.offlineTitle}</p>
-                      <div className={`pp-parent-task${(parentDone[sub.key] ?? 0) >= 1 ? " is-checked" : ""}`}>
-                        <strong>
-                          {(parentDone[sub.key] ?? 0) >= 1 ? <span className="pp-task-check" aria-label="Done">✅</span> : null}
-                          {rec.offlineAction}
-                        </strong>
-                        <p>{rec.offlineDesc}</p>
-                        {(parentDone[sub.key] ?? 0) < 1 && rec.offlineExtra ? (
-                          <button type="button" onClick={() => markParentActivity(sub.key)}>
-                            &#9989; Mark as done
-                          </button>
-                        ) : null}
+                      <div className="pp-parent-activity-track" aria-label={`${sub.label} parent activities`}>
+                        {[
+                          { title: rec.offlineAction, description: rec.offlineDesc },
+                          { title: rec.offlineExtra, description: rec.offlineExtraDesc },
+                          { title: rec.offlineThird, description: rec.offlineThirdDesc },
+                        ].filter((activity) => activity.title).map((activity, activityIndex) => {
+                          const checked = ((parentDone[sub.key] ?? 0) & (1 << activityIndex)) !== 0;
+                          return (
+                            <article
+                              key={`${sub.key}-${activityIndex}`}
+                              className={`pp-parent-activity-card${checked ? " is-checked" : ""}`}
+                              aria-label={`${activity.title}, ${checked ? "done" : "not done"}`}
+                            >
+                              <div className="pp-parent-activity-status">
+                                <span className="pp-parent-activity-check" aria-hidden="true">{checked ? "✓" : ""}</span>
+                                <span>{checked ? "DONE" : "NOT DONE"}</span>
+                              </div>
+                              <h4>{activity.title}</h4>
+                              <p>{activity.description}</p>
+                              <button
+                                type="button"
+                                aria-pressed={checked}
+                                onClick={() => toggleParentActivity(sub.key, activityIndex)}
+                              >
+                                {checked ? "Mark as not done" : "Mark as done"}
+                              </button>
+                            </article>
+                          );
+                        })}
                       </div>
-                      {(parentDone[sub.key] ?? 0) >= 1 && rec.offlineExtra ? (
-                        <div className={`pp-extra-activity pp-parent-task${(parentDone[sub.key] ?? 0) >= 2 ? " is-checked" : ""}`}>
-                          <strong>
-                            {(parentDone[sub.key] ?? 0) >= 2 ? <span className="pp-task-check" aria-label="Done">✅</span> : null}
-                            {rec.offlineExtra}
-                          </strong>
-                          <p>{rec.offlineExtraDesc}</p>
-                          {(parentDone[sub.key] ?? 0) < 2 ? (
-                            <button type="button" onClick={() => markParentActivity(sub.key)}>
-                              &#9989; Mark as done
-                            </button>
-                          ) : null}
-                        </div>
-                      ) : null}
                     </div>
                   </div>
                 </div>
               );
             })}
           </section>
+          </>}
             </>
           )}
         </main>

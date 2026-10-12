@@ -202,3 +202,16 @@ export function announceGameCertificate(childId: string, gameKey: string, levelS
   };
   window.dispatchEvent(new CustomEvent(GAME_CERTIFICATE_EVENT, { detail }));
 }
+
+/** Rebuild the local award guard from completed levels restored from the server. */
+export function rememberEarnedGameCertificate(childId: string, gameKey: string, levelStars: number[]) {
+  if (!childId || !gameCertificateByKey(gameKey)) return;
+  const earned = levelStars.slice(0, 3).map((value) => Number(value) || 0);
+  if (earned.length < 3 || earned.some((value) => value <= 0)) return;
+  const kind = certificateKindForGame(earned.every((value) => value >= 3));
+  const seen = readSeen(childId);
+  if (seen[gameKey] === "certificate" || seen[gameKey] === "graduation") return;
+  if (seen[gameKey] === "appreciation" && kind === "appreciation") return;
+  seen[gameKey] = kind;
+  writeSeen(childId, seen);
+}
