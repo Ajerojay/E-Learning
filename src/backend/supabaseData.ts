@@ -557,7 +557,7 @@ export async function updateLesson(lessonId: string, updates: Partial<SupabaseLe
   if (error) throw error;
 }
 
-export type ParentAnnouncementKind = "classroom" | "health";
+export type ParentAnnouncementKind = "classroom" | "health" | "attendance";
 
 export type ParentAnnouncement = {
   id: string;
@@ -574,6 +574,7 @@ function isSchemaError(error: { message?: string } | null | undefined) {
 
 function announcementKind(row: Record<string, unknown>): ParentAnnouncementKind {
   const kind = String(row.kind || row.type || "").toLowerCase();
+  if (kind === "attendance") return "attendance";
   if (kind === "health") return "health";
   if (row.is_pinned === true || row.pinned === true) return "health";
   if (row.target_all === false) return "health";
@@ -650,7 +651,7 @@ export async function sendParentAnnouncement(input: {
   const title = input.title.trim() || (input.kind === "health" ? "Health update" : "Announcement");
   const message = input.message.trim();
   if (!message) throw new Error("Message is required.");
-  if (input.kind === "health" && !input.parentId) {
+  if (input.kind !== "classroom" && !input.parentId) {
     throw new Error("This learner has no linked parent account.");
   }
 
@@ -661,10 +662,15 @@ export async function sendParentAnnouncement(input: {
         { title, message, parent_id: null, child_id: input.childId ?? null, kind: "classroom", is_pinned: false, target_all: true, is_active: true },
         { title, message },
       ]
-    : [
-        { title, message, target_all: false, is_active: true, created_by: input.parentId },
-        { title, message, parent_id: input.parentId, child_id: input.childId ?? null, kind: "health", is_pinned: true, target_all: false, is_active: true, created_by: input.parentId },
-      ];
+    : input.kind === "health"
+      ? [
+          { title, message, target_all: false, is_active: true, created_by: input.parentId },
+          { title, message, parent_id: input.parentId, child_id: input.childId ?? null, kind: "health", is_pinned: true, target_all: false, is_active: true, created_by: input.parentId },
+        ]
+      : [
+          { title, message, parent_id: input.parentId, child_id: input.childId ?? null, kind: "attendance", is_pinned: false, target_all: false, is_active: true, created_by: input.parentId },
+          { title, message, target_all: false, is_active: true, created_by: input.parentId },
+        ];
 
   let lastError: { message?: string } | null = null;
   for (const payload of payloads) {
