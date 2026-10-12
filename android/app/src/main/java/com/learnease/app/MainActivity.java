@@ -1,6 +1,7 @@
 package com.learnease.app;
 
 import android.content.Intent;
+import android.content.Context;
 import android.content.res.Configuration;
 import android.net.Uri;
 import android.graphics.Color;
@@ -14,7 +15,10 @@ import android.view.autofill.AutofillManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebView;
 import android.webkit.WebChromeClient;
+import android.print.PrintDocumentAdapter;
+import android.print.PrintManager;
 import android.widget.FrameLayout;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
@@ -122,6 +126,7 @@ public class MainActivity extends BridgeActivity {
         bridge.getWebView().addJavascriptInterface(new BrowserBridge(), "AndroidBrowser");
         bridge.getWebView().addJavascriptInterface(new AutofillBridge(), "AndroidAutofill");
         bridge.getWebView().addJavascriptInterface(new DeepLinkBridge(), "AndroidDeepLink");
+        bridge.getWebView().addJavascriptInterface(new PrintBridge(), "AndroidPrint");
     }
 
     private void installVideoFullscreenClient() {
@@ -201,6 +206,23 @@ public class MainActivity extends BridgeActivity {
         public void open(String url) {
             if (url == null || (!url.startsWith("http://") && !url.startsWith("https://"))) return;
             runOnUiThread(() -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))));
+        }
+    }
+
+    public class PrintBridge {
+        @JavascriptInterface
+        public void print(String title) {
+            runOnUiThread(() -> {
+                if (bridge == null || bridge.getWebView() == null) return;
+                WebView webView = bridge.getWebView();
+                PrintManager printManager = (PrintManager) getSystemService(Context.PRINT_SERVICE);
+                if (printManager == null) return;
+                String jobName = title == null || title.trim().isEmpty()
+                        ? "LearnEase Attendance Record"
+                        : title.trim();
+                PrintDocumentAdapter adapter = webView.createPrintDocumentAdapter(jobName);
+                printManager.print(jobName, adapter, null);
+            });
         }
     }
 

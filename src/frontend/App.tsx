@@ -106,11 +106,6 @@ function AppDeepLinkListener() {
   return null;
 }
 
-function TeacherWebOnly() {
-  if (isMobileApp()) return <Navigate to="/" replace />;
-  return <AppTeacherDashboard />;
-}
-
 function App() {
   const [appReady, setAppReady] = useState(false);
 
@@ -229,7 +224,7 @@ function App() {
         <Route path="/parent-progress" element={<AppParentProgress />} />
 
         {/* TEACHER */}
-        <Route path="/teacher-dashboard" element={<TeacherWebOnly />} />
+        <Route path="/teacher-dashboard" element={<AppTeacherDashboard />} />
 
         {/* STUDENT */}
         <Route path="/student-access" element={<AppStudentAccess />} />

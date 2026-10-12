@@ -30,12 +30,9 @@ function teacherSiteUrl() {
 function openTeacherSite() {
   const url = teacherSiteUrl();
   if (!url) return;
-  const bridge = (window as Window & { AndroidBrowser?: { open?: (url: string) => void } }).AndroidBrowser;
-  if (typeof bridge?.open === "function") {
-    bridge.open(url);
-    return;
-  }
-  window.open(url, "_blank", "noopener,noreferrer");
+  const browser = (window as Window & { AndroidBrowser?: { open?: (url: string) => void } }).AndroidBrowser;
+  if (typeof browser?.open === "function") browser.open(url);
+  else window.open(url, "_blank", "noopener,noreferrer");
 }
 
 export default function AppSignIn() {
@@ -92,7 +89,7 @@ export default function AppSignIn() {
           setLeaveOpen(true);
           return;
         }
-        const teacherUser = { role: "teacher" as const, id: "temporary-teacher", username: cleanUsername, source: "web" };
+        const teacherUser = { role: "teacher" as const, id: "temporary-teacher", username: cleanUsername, source: "app" };
         localStorage.setItem("user", JSON.stringify(teacherUser));
         await cacheVerifiedLogin(cleanUsername, cleanPassword, teacherUser);
         markSignedIn();
@@ -136,7 +133,7 @@ export default function AppSignIn() {
         if (teacherError) console.error("Teacher login error:", teacherError.message);
         const teacher = Array.isArray(teacherRows) ? teacherRows[0] : teacherRows;
         if (teacher) {
-          const teacherUser = { ...teacher, role: "teacher" as const, source: "web" };
+          const teacherUser = { ...teacher, role: "teacher" as const, source: "app" };
           localStorage.setItem("user", JSON.stringify(teacherUser));
           await cacheVerifiedLogin(cleanUsername, cleanPassword, teacherUser);
           markSignedIn();
@@ -238,17 +235,11 @@ export default function AppSignIn() {
           <div className="app-auth-leave-card">
             <h2 id="leave-app-title">Leaving the app</h2>
             <p>You are leaving the LearnEase app. The teacher portal opens in your browser.</p>
-            <p>
-              {siteUrl
-                ? "Sign in again there with the same username and password. The app stays for parents and kids."
-                : "Open this website in Chrome or Safari on your phone or computer. This installed app has no public teacher address."}
-            </p>
-            <button className="app-auth-main-btn" type="button" onClick={openTeacherSite} disabled={!siteUrl}>
-              Open browser
-            </button>
-            <button className="app-auth-secondary-btn" type="button" onClick={() => setLeaveOpen(false)}>
-              Stay in the app
-            </button>
+            <p>{siteUrl
+              ? "Sign in again there with the same username and password. The app stays for parents and kids."
+              : "Open this website in Chrome or Safari on your phone or computer. This installed app has no public teacher address."}</p>
+            <button className="app-auth-main-btn" type="button" onClick={openTeacherSite} disabled={!siteUrl}>Open browser</button>
+            <button className="app-auth-secondary-btn" type="button" onClick={() => setLeaveOpen(false)}>Stay in the app</button>
           </div>
         </div>
       )}
