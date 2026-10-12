@@ -99,6 +99,18 @@ That runs `npm run build` and `npx cap sync android`. Then in **Android Studio**
 3. Pick a device or emulator in the device dropdown
 4. Click **Run** (green play)
 
+If Android opens to a blank screen because it is still pointing at an old live-reload URL, switch back to bundled assets and reinstall the updated app:
+
+In PowerShell, run these from the project folder. They clear the variables for that terminal session; no output is expected if a variable was already unset.
+
+```powershell
+Remove-Item Env:CAP_LIVE -ErrorAction SilentlyContinue
+Remove-Item Env:CAP_LIVE_HOST -ErrorAction SilentlyContinue
+npm.cmd run android:offline
+```
+
+Then click **Run** again in Android Studio. The offline sync removes the old `server.url` from Android's Capacitor config, so the WebView loads the newly built files from `dist/` instead of trying to reach a stale PC address. You do not need to keep Vite running in offline mode.
+
 ---
 
 ### Live reload in Android Studio (see code changes on the phone)
@@ -253,7 +265,8 @@ Then **Run** again from Android Studio.
 
 | Check | What to do |
 | --- | --- |
-| Vite is not running | Start `npm run dev:android` first and leave it open |
+| Blank screen after using live reload, or Android still points to an old PC address | Clear `CAP_LIVE` and `CAP_LIVE_HOST`, run `npm run android:offline`, then click **Run** again in Android Studio. This restores bundled assets and removes the stale live-server URL. |
+| Vite is not running while using live reload | Start `npm.cmd run dev:android` first and leave it open |
 | IP changed, new Wi‑Fi, or mobile data (**Webpage not available**) | Follow [Webpage not available](#webpage-not-available-after-wi-fi-or-mobile-data): same Wi‑Fi, Vite running, `$env:CAP_LIVE="1"; npx.cmd cap sync android`, then **Run** in Android Studio |
 | Firewall | Allow **Node.js** on private networks, or allow inbound TCP **5174** |
 | Different Wi‑Fi | Phone and PC must be on the same LAN. Mobile data cannot load the live app. See the checklist above |
@@ -281,14 +294,17 @@ Android Studio is still the usual way to pick the device, read Logcat, and press
 ## Project layout
 
 ```
-src/App.tsx                      Routes for parent, student, and teacher
-src/MobileApp/pages/Parent/      Parent dashboard, child profile, progress
-src/MobileApp/pages/Student/     Kid home, lessons, quests, level map
-src/MobileApp/teacher/           Teacher portal
-src/lib/supabase.ts              Supabase client
-src/lib/supabaseAuth.ts          Parent sign in / sign up
-src/lib/supabaseData.ts          Children, progress, lessons, announcements
-android/                         Capacitor Android project
+src/frontend/App.tsx                              Routes for parent, student, and teacher
+src/frontend/MobileApp/pages/Parent/              Parent dashboard, child profile, progress
+src/frontend/MobileApp/pages/Student/             Kid home, avatar, and music
+src/frontend/MobileApp/pages/Student/lessons/     Video lessons
+src/frontend/MobileApp/pages/Student/games/       Quests, one folder per subject
+src/frontend/MobileApp/teacher/                   Teacher portal
+src/backend/supabase.ts                           Supabase client
+src/backend/supabaseAuth.ts                       Parent sign in / sign up
+src/backend/supabaseData.ts                       Children, progress, lessons, announcements
+supabase/                                         Database migrations
+android/                                          Capacitor Android project
 ```
 
 ## Common problems
@@ -298,7 +314,7 @@ android/                         Capacitor Android project
 | Blank page or login always fails | Confirm `.env` exists in the project root, then stop and restart `npm run dev` |
 | `npm.ps1 cannot be loaded` / running scripts is disabled | Use `npm.cmd run dev:android` (and `npx.cmd`), or run `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned` once |
 | Port 5174 is already in use | Vite is already running. Skip starting it again and go to `$env:CAP_LIVE="1"; npx.cmd cap sync android`. Or stop the old Vite terminal with Ctrl+C |
-| Live Android app is blank | Keep `npm run dev:android` running, re-run `$env:CAP_LIVE="1"; npx cap sync android`, then Run in Android Studio |
+| Live Android app is blank while intentionally using live reload | Check that Vite is running and reachable at the URL saved in `android/app/src/main/assets/capacitor.config.json`; otherwise use the offline recovery above |
 | **Webpage not available** after changing Wi‑Fi or switching to mobile data | Same Wi‑Fi as the laptop (mobile data off), Vite still running, then `$env:CAP_LIVE="1"; npx.cmd cap sync android`, then **Run** in Android Studio. Full checklist: [Webpage not available](#webpage-not-available-after-wi-fi-or-mobile-data) |
 | `npm run build` fails | Run `npm install` again and fix any TypeScript errors shown in the terminal |
 | Android Studio Gradle errors | Use JDK 17, **File → Sync Project with Gradle Files** |

@@ -1,13 +1,13 @@
 from pathlib import Path
 
 files = [
-    Path("src/MobileApp/pages/Student/PhonicsQuestPage.tsx"),
-    Path("src/MobileApp/pages/Student/LogicQuestPage.tsx"),
-    Path("src/MobileApp/pages/Student/ColorsQuestPage.tsx"),
-    Path("src/MobileApp/pages/Student/ShapesQuestPage.tsx"),
-    Path("src/MobileApp/pages/Student/NumbersQuestPage.tsx"),
-    Path("src/MobileApp/pages/Student/LetterQuestPage.tsx"),
-    Path("src/MobileApp/pages/Student/LogicQuestPage.css"),
+    Path("src/frontend/MobileApp/pages/Student/games/phonics/PhonicsQuestPage.tsx"),
+    Path("src/frontend/MobileApp/pages/Student/games/logic/LogicQuestPage.tsx"),
+    Path("src/frontend/MobileApp/pages/Student/games/colors/ColorsQuestPage.tsx"),
+    Path("src/frontend/MobileApp/pages/Student/games/shapes/ShapesQuestPage.tsx"),
+    Path("src/frontend/MobileApp/pages/Student/games/numbers/NumbersQuestPage.tsx"),
+    Path("src/frontend/MobileApp/pages/Student/games/letters/LetterQuestPage.tsx"),
+    Path("src/frontend/MobileApp/pages/Student/games/logic/LogicQuestPage.css"),
 ]
 
 

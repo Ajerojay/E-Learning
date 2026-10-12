@@ -65,7 +65,7 @@ const repairMobileEncoding = {
   enforce: 'pre' as const,
   transform(code: string, id: string) {
     const normalizedId = id.replaceAll('\\', '/')
-    if (!normalizedId.includes('/src/MobileApp/') || !/\.(tsx|ts)$/.test(normalizedId)) return null
+    if (!normalizedId.includes('/src/frontend/MobileApp/') || !/\.(tsx|ts)$/.test(normalizedId)) return null
     const repaired = repairQuotedStrings(code)
     return repaired === code ? null : { code: repaired, map: null }
   },

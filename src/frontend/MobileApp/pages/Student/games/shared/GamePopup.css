@@ -1,0 +1,318 @@
+/* Shared Game Popup Styles */
+
+.game-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50000;
+  display: grid;
+  place-items: center;
+  padding: max(8px, env(safe-area-inset-top)) 12px max(10px, env(safe-area-inset-bottom));
+  background: rgba(28, 22, 18, 0.55);
+  backdrop-filter: blur(6px);
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+.game-popup {
+  width: min(92vw, 520px);
+  background: rgba(255, 255, 255, 0.92);
+  border: 3px solid rgba(176, 125, 115, 0.5);
+  border-radius: 18px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
+  padding: 24px 20px 20px;
+  text-align: center;
+  color: #6d5650;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+.game-popup-title {
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.game-popup-subtitle {
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 16px;
+  opacity: 0.9;
+  margin-bottom: 12px;
+}
+
+.game-popup-content {
+  font-weight: 600;
+  font-size: 14px;
+  margin: 12px 0;
+  opacity: 0.85;
+}
+
+.game-popup-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.game-popup-btn {
+  border: none;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-weight: 800;
+  cursor: pointer;
+  font-size: 16px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.game-popup-btn-inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.game-pause-btn {
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  color: #31415c;
+  box-shadow: 0 5px 12px rgba(40, 40, 70, 0.16);
+  cursor: pointer;
+}
+
+.game-pause-btn:hover,
+.game-pause-btn:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 7px 14px rgba(40, 40, 70, 0.2);
+}
+
+.game-popup-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+}
+
+.game-popup-btn.primary {
+  background: #6aa7ff;
+  color: white;
+}
+
+.game-popup-btn.secondary {
+  background: #ffb347;
+  color: white;
+}
+
+.game-popup-btn.yes {
+  background: #34c759;
+  color: white;
+}
+
+.game-popup-btn.no {
+  background: #ff4d4f;
+  color: white;
+}
+
+.game-popup.game-popup--celebrate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(92vw, 420px);
+  max-height: min(92dvh, 720px);
+  min-height: 0;
+  overflow: hidden;
+  padding: 18px 20px 16px;
+  border: 3px solid rgba(255, 248, 220, 0.7);
+  border-radius: 28px;
+  background: linear-gradient(180deg, #ffe98a 0%, #f6d45c 48%, #efc44a 100%);
+  color: #8a5520;
+  box-shadow: 0 22px 40px rgba(80, 50, 10, 0.28);
+}
+
+.game-popup--celebrate .game-popup-title {
+  position: relative;
+  z-index: 2;
+  margin: 4px 0 6px;
+  font-size: 40px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: #8a4f16;
+  text-shadow: 0 2px 0 rgba(255, 255, 255, 0.35);
+  animation: lceleb-copy-in 0.35s ease both;
+}
+
+.game-popup--celebrate .game-popup-subtitle,
+.game-popup--celebrate .game-popup-content,
+.game-popup--celebrate .game-popup-actions {
+  opacity: 0;
+  animation: lceleb-copy-in 0.42s ease 2.2s both;
+}
+
+.game-popup--celebrate .game-popup-actions {
+  pointer-events: none;
+  animation:
+    lceleb-copy-in 0.42s ease 2.2s both,
+    lceleb-enable-click 0s linear 2.55s both;
+}
+
+.game-popup--celebrate .game-popup-subtitle {
+  position: relative;
+  z-index: 2;
+  max-width: 92%;
+  margin: 2px 8px 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 248, 230, 0.72);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.25;
+  color: #8a5520;
+}
+
+.game-popup--celebrate .game-popup-actions {
+  position: relative;
+  z-index: 2;
+  margin-top: 8px;
+  padding-top: 4px;
+  flex: 0 0 auto;
+}
+
+.game-popup--celebrate .game-popup-btn {
+  min-width: 168px;
+  border-radius: 999px;
+  padding: 13px 26px;
+  font-size: 17px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.game-popup--celebrate .game-popup-btn.yes {
+  background: #2fbf5a;
+  color: #fff;
+  box-shadow: 0 4px 0 #1e8a3e;
+}
+
+.game-popup--celebrate .game-popup-btn.no {
+  background: #ff5a5f;
+  color: #fff;
+  box-shadow: 0 4px 0 #c43c40;
+}
+
+.game-popup--celebrate .game-popup-btn.primary {
+  background: #8d6b4a;
+  color: #fff8ee;
+  box-shadow: 0 4px 0 #6e5136;
+}
+
+.game-popup--celebrate .game-popup-btn.secondary {
+  background: #fff6e4;
+  color: #8d6b4a;
+  box-shadow: 0 4px 0 #e0c9a0;
+}
+
+.game-popup-btn.yes.is-lit {
+  transform: scale(1.08);
+  box-shadow: 0 4px 0 #1e8a3e, 0 0 0 7px rgba(47, 191, 90, 0.55);
+}
+
+.game-popup-btn.no.is-lit {
+  transform: scale(1.08);
+  box-shadow: 0 4px 0 #c43c40, 0 0 0 7px rgba(255, 90, 95, 0.55);
+}
+
+.game-popup--celebrate .game-popup-btn:active {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+@keyframes lceleb-copy-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes lceleb-enable-click {
+  from {
+    pointer-events: none;
+  }
+  to {
+    pointer-events: auto;
+  }
+}
+
+.game-popup--over {
+  border-color: rgba(196, 92, 92, 0.55);
+  background: linear-gradient(180deg, #fff7f4 0%, #ffe8e0 100%);
+}
+
+.game-popup--over .game-popup-title {
+  color: #c45c5c;
+  font-size: 28px;
+}
+
+.game-countdown {
+  font-family: inherit;
+  font-size: 64px;
+  line-height: 1;
+  font-weight: 900;
+  color: #b07d73;
+}
+
+@media (max-width: 600px) {
+  .game-popup {
+    width: 95vw;
+    padding: 20px 16px;
+  }
+
+  .game-popup-title {
+    font-size: 20px;
+  }
+
+  .game-popup-btn {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+}
+
+@media (orientation: landscape) {
+  .game-popup--celebrate {
+    width: min(72vw, 460px);
+    max-height: 94dvh;
+    padding: 10px 18px 12px;
+    border-radius: 24px;
+  }
+
+  .game-popup--celebrate .game-popup-title {
+    font-size: clamp(24px, 6vh, 34px);
+    margin: 0 0 2px;
+    line-height: 1.1;
+  }
+
+  .game-popup--celebrate .game-popup-subtitle {
+    margin: 2px 8px 4px;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .game-popup--celebrate .game-popup-actions {
+    margin-top: 6px;
+    gap: 10px;
+  }
+
+  .game-popup--celebrate .game-popup-btn {
+    min-width: 132px;
+    padding: 9px 22px;
+    font-size: 16px;
+  }
+}

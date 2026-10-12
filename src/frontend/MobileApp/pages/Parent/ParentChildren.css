@@ -1,0 +1,945 @@
+/* Your Children page - matches parent dashboard mockup */
+
+.pc-page-title {
+  text-align: center;
+  margin-bottom: 22px;
+  padding: 16px 24px;
+  background: rgba(173, 216, 255, 0.92);
+  border-radius: 16px;
+  border: 2px solid #6ea7de;
+  box-shadow: 0 4px 0 #5f8db6;
+}
+
+.pc-page-title h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a4d8f;
+  margin: 0;
+}
+
+.pc-top-row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 14px;
+  margin-bottom: 16px;
+  align-items: stretch;
+}
+
+.pc-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px 18px;
+  background: rgba(159, 217, 212, 0.95);
+  border-radius: 16px;
+  border: 2px solid #5fb8b0;
+  box-shadow: 0 4px 0 #4a9e97;
+}
+
+.pc-profile-copy {
+  min-width: 0;
+}
+
+.pc-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  display: grid;
+  place-items: center;
+  font-size: 40px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.pc-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.pc-profile-name,
+.pd-main .pc-profile-name {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0d6b5c;
+  margin: 0 0 4px;
+  line-height: 1.2;
+}
+
+.pc-profile-grade,
+.pd-main .pc-profile-grade {
+  display: inline-flex;
+  margin: 0;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+  font-weight: 800;
+  color: #1d6f8a;
+}
+
+.pc-summary-card {
+  min-width: 0;
+  padding: 14px 16px;
+  background: rgba(248, 180, 196, 0.95);
+  border-radius: 16px;
+  border: 2px solid #e89ab0;
+  box-shadow: 0 4px 0 #d67a94;
+  display: grid;
+  grid-template-columns: minmax(88px, 0.7fr) minmax(0, 1.3fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.pc-nickname-block,
+.pc-overall {
+  min-width: 0;
+}
+
+.pc-nickname-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pc-nickname-block strong,
+.pc-detail-copy strong,
+.pd-main .pc-nickname-block strong,
+.pd-main .pc-detail-copy strong {
+  font-size: 16px;
+  font-weight: 800;
+  color: #1a3d4a;
+  line-height: 1.2;
+  overflow-wrap: break-word;
+}
+
+.pc-kicker,
+.pd-main .pc-kicker {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #7a4a58;
+}
+
+.pc-overall-head,
+.pd-main .pc-overall-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #7a3044;
+}
+
+.pc-star {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.pc-progress-value,
+.pd-main .pc-progress-value {
+  margin-left: auto;
+  color: #c2414e;
+  font-weight: 800;
+}
+
+.pc-progress-track {
+  height: 14px;
+  padding: 3px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: inset 0 1px 3px rgba(180, 70, 100, 0.16);
+  overflow: hidden;
+}
+
+.pc-progress-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #fecdd3, #fb7185);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  transition: width 0.45s ease;
+}
+
+.pc-progress-fill.is-low {
+  background: linear-gradient(90deg, #fda4af, #f43f5e);
+}
+
+.pc-progress-fill.is-mid {
+  background: linear-gradient(90deg, #fde68a, #f59e0b);
+}
+
+.pc-progress-fill.is-high {
+  background: linear-gradient(90deg, #86efac, #22c55e);
+}
+
+/* Single lavender card for details, achievements, and settings */
+.pc-main-card {
+  background: rgba(196, 181, 232, 0.92);
+  border-radius: 18px;
+  border: 2px solid #9b87c8;
+  box-shadow: 0 4px 0 #7d6aad;
+  padding: 22px 26px 26px;
+  margin-bottom: 20px;
+}
+
+.pc-main-card h2,
+.pc-main-card h3,
+.pc-main-card p,
+.pc-main-card li,
+.pc-main-card span,
+.pc-main-card button {
+  -webkit-text-fill-color: currentColor;
+}
+
+.pc-section {
+  padding: 4px 0;
+}
+
+.pc-section-heading {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0 12px;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: #1a4d8f;
+  -webkit-text-fill-color: #1a4d8f;
+  background: rgba(255, 255, 255, 0.88);
+  border: 2px solid rgba(26, 77, 143, 0.28);
+  border-radius: 999px;
+}
+
+.pc-section-divider {
+  border: none;
+  border-top: 2px dashed rgba(45, 42, 53, 0.22);
+  margin: 20px 0;
+}
+
+.pc-detail-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.pc-detail-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.pc-detail-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pc-detail-copy .pc-kicker {
+  color: #5c4d78;
+}
+
+.pc-detail-icon {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  font-size: 18px;
+}
+
+.pc-achievement-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.pc-achievement-item {
+  font-size: 15px;
+  font-weight: 700;
+  color: #2a2438;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.pc-achievement-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  font-size: 16px;
+}
+
+.pc-achievement-item--locked {
+  opacity: 0.55;
+}
+
+.pc-certificate-list {
+  margin-top: 8px;
+}
+
+.pc-achievement-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.pc-achievement-copy small {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6d6478;
+}
+
+.pc-achievement-item .pc-action-link {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.pc-achievements-empty {
+  margin: 0;
+  padding: 14px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.4);
+  border: 2px dashed rgba(74, 68, 88, 0.28);
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  color: #4a4458;
+}
+
+.pc-settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pc-settings-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "label action"
+    "value value";
+  align-items: center;
+  gap: 4px 10px;
+  margin: 0;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  font-size: 15px;
+  color: #1a1a1a;
+}
+
+.pc-manage-pin-button {
+  background: #1a5fb4;
+  color: #fff;
+  border: 2px solid #1d6fbf;
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.12);
+}
+
+.pc-manage-pin-button:hover {
+  background: #1e4a8d;
+}
+
+.pc-pin-field {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.pc-toggle-pin-visibility {
+  position: absolute;
+  right: 8px;
+  top: 40%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  color: #2f4bbd;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.pc-toggle-pin-visibility:hover,
+.pc-toggle-pin-visibility:focus-visible,
+.pc-toggle-pin-visibility:focus,
+.pc-toggle-pin-visibility:active {
+  background: transparent;
+  outline: none;
+  box-shadow: none;
+  border: none;
+}
+
+.pc-settings-row:last-child {
+  margin-bottom: 0;
+}
+
+.pc-settings-label {
+  grid-area: label;
+  font-weight: 800;
+  color: #2a2450;
+}
+
+.pc-pin-dots,
+.pc-settings-value {
+  grid-area: value;
+  font-weight: 700;
+  color: #3a3450;
+}
+
+.pc-pin-dots {
+  letter-spacing: 4px;
+  font-size: 16px;
+}
+
+.pc-manage-pin-button,
+.pc-action-link {
+  grid-area: action;
+  justify-self: end;
+}
+
+.pc-action-link {
+  font-weight: 800;
+  font-size: 13px;
+  color: #c41e3a;
+  background: rgba(255, 255, 255, 0.7);
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 6px 10px;
+}
+
+.pc-action-link:hover {
+  text-decoration: underline;
+}
+
+.pc-loading {
+  text-align: center;
+  padding: 40px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #444;
+}
+
+@media (max-width: 768px) {
+  .pc-page-title {
+    margin-bottom: 14px;
+    padding: 14px 12px;
+  }
+
+  .pc-page-title h1 {
+    font-size: clamp(25px, 7vw, 32px);
+  }
+
+  .pc-top-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .pc-profile-card {
+    padding: 16px 18px;
+    gap: 14px;
+  }
+
+  .pc-summary-card {
+    grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .pc-avatar {
+    width: 64px;
+    height: 64px;
+    font-size: 34px;
+  }
+
+  .pc-profile-name {
+    font-size: 22px;
+  }
+
+  .pc-profile-grade {
+    font-size: 14px;
+    padding: 2px 10px;
+  }
+
+  .pc-main-card {
+    padding: 16px 14px 18px;
+    margin-bottom: 14px;
+  }
+
+  .pc-detail-grid {
+    gap: 8px;
+  }
+
+  .pc-detail-tile {
+    gap: 8px;
+    padding: 8px 8px;
+    border-radius: 12px;
+  }
+
+  .pc-detail-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    font-size: 15px;
+  }
+
+  .pc-detail-copy .pc-kicker,
+  .pd-main .pc-detail-copy .pc-kicker {
+    font-size: 10px;
+  }
+
+  .pc-detail-copy strong,
+  .pd-main .pc-detail-copy strong {
+    font-size: 13px;
+  }
+
+  .pc-section-heading {
+    margin-bottom: 10px;
+    padding: 7px 12px;
+    font-size: 14px;
+  }
+
+  .pc-section-divider {
+    margin: 14px 0;
+  }
+
+  .pc-achievements-empty,
+  .pc-settings-row {
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 560px) {
+  .pc-achievement-list {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 340px) {
+  .pc-summary-card {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+/* PIN manage modal */
+.pc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 35, 90, 0.55);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.pc-modal {
+  background: #f7f9ff;
+  border-radius: 18px;
+  padding: 30px 34px;
+  max-width: 420px;
+  width: 100%;
+  max-height: min(90dvh, 680px);
+  overflow-y: auto;
+  box-shadow: 0 18px 44px rgba(23, 38, 92, 0.18);
+  border: 1px solid rgba(88, 108, 216, 0.14);
+}
+
+.pc-modal h3 {
+  margin: 0 0 10px;
+  font-size: 22px;
+  color: #202646;
+}
+
+.pc-modal p {
+  margin: 0 0 18px;
+  font-size: 15px;
+  color: #4b557d;
+  line-height: 1.5;
+}
+
+.pc-modal-input {
+  width: 100%;
+  height: 52px;
+  border-radius: 14px;
+  border: 2px solid #a8b8f4;
+  background: #f6f8ff;
+  padding: 0 48px 0 14px;
+  font-size: 18px;
+  letter-spacing: 8px;
+  text-align: center;
+  margin-bottom: 16px;
+  color: #1c2240;
+}
+
+.pc-modal-input::placeholder {
+  color: #8e97b6;
+}
+
+.pc-modal-input:focus {
+  outline: none;
+  border-color: #556de3;
+  box-shadow: 0 0 0 4px rgba(85, 109, 227, 0.14);
+}
+
+.pc-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.pc-modal-btn {
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pc-modal-btn--primary {
+  background: #b8d99a;
+  color: #111;
+}
+
+.pc-modal-btn--ghost {
+  background: #eee;
+  color: #333;
+}
+
+.pc-modal-error {
+  color: #c41e3a;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+/* Match the compact size of the Progress screen. */
+.pd-mobile-parent .pc-page-title {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+}
+
+.pd-mobile-parent .pc-page-title h1 {
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.pd-mobile-parent .pc-top-row {
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.pd-mobile-parent .pc-profile-card {
+  padding: 8px 10px;
+  gap: 8px;
+  border-radius: 14px;
+}
+
+.pd-mobile-parent .pc-avatar {
+  width: 44px;
+  height: 44px;
+  font-size: 24px;
+  border-width: 2px;
+}
+
+.pd-mobile-parent .pc-profile-name,
+.pd-mobile-parent .pd-main .pc-profile-name {
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.pd-mobile-parent .pc-profile-grade,
+.pd-mobile-parent .pd-main .pc-profile-grade {
+  font-size: 13px;
+  padding: 1px 8px;
+}
+
+.pd-mobile-parent .pc-summary-card {
+  padding: 8px 10px;
+  gap: 10px;
+  border-radius: 14px;
+}
+
+.pd-mobile-parent .pc-nickname-block strong,
+.pd-mobile-parent .pd-main .pc-nickname-block strong,
+.pd-mobile-parent .pc-detail-copy strong,
+.pd-mobile-parent .pd-main .pc-detail-copy strong {
+  font-size: 13px;
+}
+
+.pd-mobile-parent .pc-kicker,
+.pd-mobile-parent .pd-main .pc-kicker,
+.pd-mobile-parent .pc-detail-copy .pc-kicker,
+.pd-mobile-parent .pd-main .pc-detail-copy .pc-kicker {
+  font-size: 10px;
+}
+
+.pd-mobile-parent .pc-overall-head,
+.pd-mobile-parent .pd-main .pc-overall-head {
+  gap: 4px;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.pd-mobile-parent .pc-progress-track {
+  height: 10px;
+  padding: 2px;
+}
+
+.pd-mobile-parent .pc-main-card {
+  padding: 12px 10px 12px;
+  margin-bottom: 10px;
+  border-radius: 14px;
+}
+
+.pd-mobile-parent .pc-section-heading {
+  margin-bottom: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.pd-mobile-parent .pc-section-divider {
+  margin: 10px 0;
+}
+
+.pd-mobile-parent .pc-detail-grid {
+  gap: 8px;
+}
+
+.pd-mobile-parent .pc-detail-tile {
+  gap: 8px;
+  padding: 8px;
+  border-radius: 12px;
+}
+
+.pd-mobile-parent .pc-detail-icon {
+  width: 26px;
+  height: 26px;
+  font-size: 14px;
+  border-radius: 8px;
+}
+
+.pd-mobile-parent .pc-achievement-list {
+  gap: 6px;
+}
+
+.pd-mobile-parent .pc-achievement-item {
+  gap: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  border-radius: 12px;
+}
+
+.pd-mobile-parent .pc-achievement-icon {
+  width: 26px;
+  height: 26px;
+  font-size: 14px;
+}
+
+.pd-mobile-parent .pc-achievements-empty,
+.pd-mobile-parent .pc-settings-row {
+  font-size: 13px;
+}
+
+.pd-mobile-parent .pc-settings-stack {
+  gap: 8px;
+}
+
+.pd-mobile-parent .pc-settings-row {
+  padding: 8px 10px;
+  border-radius: 12px;
+}
+
+.pd-mobile-parent .pc-manage-pin-button {
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 10px;
+}
+
+.pd-mobile-parent .pc-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 12px;
+  padding: 12px 12px 10px;
+  border: 3px solid #fff;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(255, 255, 255, 0.95), transparent 26%),
+    linear-gradient(145deg, #b7f0d4 0%, #fff8ea 46%, #ffd0e4 100%);
+  box-shadow: 0 10px 24px rgba(120, 80, 40, 0.12);
+}
+
+.pd-mobile-parent .pc-hero .pc-profile-card,
+.pd-mobile-parent .pc-hero .pc-summary-card {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.pd-mobile-parent .pc-hero .pc-profile-card {
+  margin-bottom: 10px;
+}
+
+.pd-mobile-parent .pc-hero .pc-avatar {
+  width: 52px;
+  height: 52px;
+  font-size: 28px;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 3px #7dcf9a, 0 6px 0 rgba(40, 90, 50, 0.08);
+}
+
+.pd-mobile-parent .pc-hero .pc-profile-name,
+.pd-mobile-parent .pc-hero .pd-main .pc-profile-name {
+  font-size: 18px;
+}
+
+.pd-mobile-parent .pc-hero .pc-profile-grade {
+  background: #fff;
+  border-color: transparent;
+  box-shadow: 0 3px 0 rgba(40, 90, 50, 0.08);
+}
+
+.pd-mobile-parent .pc-hero .pc-summary-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.pd-mobile-parent .pc-hero .pc-nickname-block strong {
+  display: inline-flex;
+  margin-top: 2px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fff;
+  color: #9a4d78;
+}
+
+.pd-mobile-parent .pc-hero .pc-progress-track {
+  height: 16px;
+  padding: 3px;
+  border-radius: 999px;
+  background: #efe7f8;
+  box-shadow: inset 0 2px 4px rgba(70, 40, 90, 0.12);
+}
+
+.pd-mobile-parent .pc-hero .pc-progress-fill {
+  border-radius: 999px;
+  background: linear-gradient(90deg, #34d399, #16a34a);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45);
+}
+
+.pd-mobile-parent .pc-hero .pc-progress-value {
+  min-width: 38px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #ecfdf3;
+  color: #15803d;
+  text-align: center;
+}
+
+.pd-mobile-parent .pc-main-card {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.pd-mobile-parent .pc-section {
+  margin-bottom: 10px;
+  padding: 12px;
+  border: 2px solid #efe8ff;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 8px 0 rgba(90, 70, 120, 0.05);
+}
+
+.pd-mobile-parent .pc-section-divider {
+  display: none;
+}
+
+.pd-mobile-parent .pc-section-heading {
+  background: #f4efff;
+  border-color: transparent;
+}
+
+.pd-mobile-parent .pc-detail-tile,
+.pd-mobile-parent .pc-achievement-item,
+.pd-mobile-parent .pc-settings-row {
+  background: #f7f4ff;
+  border: 2px solid #fff;
+  box-shadow: 0 4px 0 rgba(90, 70, 120, 0.04);
+}
+
+.pd-mobile-parent .pc-detail-tile:first-child {
+  background: #fff4f8;
+}
+
+.pd-mobile-parent .pc-detail-tile:last-child {
+  background: #f3f8ff;
+}
+
+.pd-mobile-parent .pc-achievement-item:nth-child(3n + 1) .pc-achievement-icon { background: #fff4cc; }
+.pd-mobile-parent .pc-achievement-item:nth-child(3n + 2) .pc-achievement-icon { background: #d9f5e5; }
+.pd-mobile-parent .pc-achievement-item:nth-child(3n) .pc-achievement-icon { background: #e4dcff; }
+
+.pd-mobile-parent .pc-manage-pin-button {
+  border: 0;
+  border-radius: 999px;
+  background: #2457c5;
+  box-shadow: 0 3px 0 #163a86;
+}
+
+.pd-mobile-parent .pc-action-link {
+  background: #fff;
+  box-shadow: 0 3px 0 rgba(196, 30, 58, 0.12);
+}
+

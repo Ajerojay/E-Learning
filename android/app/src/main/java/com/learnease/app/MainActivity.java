@@ -1,6 +1,8 @@
 package com.learnease.app;
 
+import android.content.Intent;
 import android.content.res.Configuration;
+import android.net.Uri;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -8,13 +10,16 @@ import android.content.pm.ActivityInfo;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.view.autofill.AutofillManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.widget.FrameLayout;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import java.util.Locale;
+import org.json.JSONObject;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.core.splashscreen.SplashScreen;
@@ -34,6 +39,7 @@ public class MainActivity extends BridgeActivity {
     private WebChromeClient.CustomViewCallback videoCustomViewCallback;
     private FrameLayout videoFullscreenContainer;
     private int orientationBeforeVideoFullscreen = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
+    private volatile String pendingDeepLinkPath = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,12 +47,20 @@ public class MainActivity extends BridgeActivity {
         splash.setKeepOnScreenCondition(() -> keepNativeSplash);
         splash.setOnExitAnimationListener(splashView -> splashView.remove());
         super.onCreate(savedInstanceState);
+        pendingDeepLinkPath = deepLinkPath(getIntent());
         new Handler(Looper.getMainLooper()).postDelayed(() -> keepNativeSplash = false, 8000);
         attachNativeBridges();
         installVideoFullscreenClient();
         textToSpeech = new TextToSpeech(this, status -> {
             if (status == TextToSpeech.SUCCESS) {
                 textToSpeech.setLanguage(Locale.US);
+                textToSpeech.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                    @Override public void onStart(String utteranceId) { notifyTts(utteranceId, "start"); }
+                    @Override public void onDone(String utteranceId) { notifyTts(utteranceId, "done"); }
+                    @Override public void onError(String utteranceId) { notifyTts(utteranceId, "error"); }
+                    @Override public void onError(String utteranceId, int errorCode) { notifyTts(utteranceId, "error"); }
+                    @Override public void onStop(String utteranceId, boolean interrupted) { notifyTts(utteranceId, "stop"); }
+                });
                 textToSpeechReady = true;
             }
         });
@@ -63,6 +77,37 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        String path = deepLinkPath(intent);
+        if (path == null) return;
+        pendingDeepLinkPath = path;
+        if (bridge != null && bridge.getWebView() != null) {
+            bridge.getWebView().post(() -> bridge.getWebView().evaluateJavascript(
+                    "window.dispatchEvent(new Event('learnease-deeplink'))", null));
+        }
+    }
+
+    /** learnease://open/app/signin -> "/app/signin" */
+    private static String deepLinkPath(Intent intent) {
+        if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction())) return null;
+        Uri uri = intent.getData();
+        if (uri == null || !"learnease".equals(uri.getScheme()) || !"open".equals(uri.getHost())) return null;
+        String path = uri.getPath();
+        if (path == null || !path.startsWith("/") || path.startsWith("//")) return null;
+        return path;
+    }
+
+    public class DeepLinkBridge {
+        @JavascriptInterface
+        public String consume() {
+            String path = pendingDeepLinkPath;
+            pendingDeepLinkPath = null;
+            return path == null ? "" : path;
+        }
+    }
+
+    @Override
     public void onStart() {
         super.onStart();
         attachNativeBridges();
@@ -74,6 +119,9 @@ public class MainActivity extends BridgeActivity {
         bridge.getWebView().addJavascriptInterface(new OrientationBridge(), "AndroidOrientation");
         bridge.getWebView().addJavascriptInterface(new TextToSpeechBridge(), "AndroidTts");
         bridge.getWebView().addJavascriptInterface(new SplashBridge(), "AndroidSplash");
+        bridge.getWebView().addJavascriptInterface(new BrowserBridge(), "AndroidBrowser");
+        bridge.getWebView().addJavascriptInterface(new AutofillBridge(), "AndroidAutofill");
+        bridge.getWebView().addJavascriptInterface(new DeepLinkBridge(), "AndroidDeepLink");
     }
 
     private void installVideoFullscreenClient() {
@@ -148,19 +196,68 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
+    public class BrowserBridge {
+        @JavascriptInterface
+        public void open(String url) {
+            if (url == null || (!url.startsWith("http://") && !url.startsWith("https://"))) return;
+            runOnUiThread(() -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))));
+        }
+    }
+
+    public class AutofillBridge {
+        @JavascriptInterface
+        public void setEnabled(boolean enabled) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+            runOnUiThread(() -> {
+                if (bridge == null || bridge.getWebView() == null) return;
+                bridge.getWebView().setImportantForAutofill(enabled
+                        ? View.IMPORTANT_FOR_AUTOFILL_AUTO
+                        : View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
+                if (!enabled) {
+                    AutofillManager autofill = getSystemService(AutofillManager.class);
+                    if (autofill != null) autofill.cancel();
+                }
+            });
+        }
+    }
+
+    private void notifyTts(String utteranceId, String event) {
+        if (utteranceId == null || utteranceId.startsWith("learnease-")) return;
+        if (bridge == null || bridge.getWebView() == null) return;
+        final String script = "window.__androidTtsEvent&&window.__androidTtsEvent("
+                + JSONObject.quote(utteranceId) + "," + JSONObject.quote(event) + ")";
+        bridge.getWebView().post(() -> {
+            if (bridge != null && bridge.getWebView() != null) {
+                bridge.getWebView().evaluateJavascript(script, null);
+            }
+        });
+    }
+
+    private void speakOnUiThread(String text, float rate, float pitch, boolean interrupt, String utteranceId) {
+        if (text == null || text.trim().isEmpty()) return;
+        final String id = (utteranceId == null || utteranceId.isEmpty())
+                ? "learnease-" + System.nanoTime()
+                : utteranceId;
+        runOnUiThread(() -> {
+            if (!textToSpeechReady || textToSpeech == null) return;
+            textToSpeech.setSpeechRate(Math.max(0.55f, Math.min(rate, 1.6f)));
+            textToSpeech.setPitch(Math.max(0.7f, Math.min(pitch, 1.8f)));
+            textToSpeech.speak(text,
+                    interrupt ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD,
+                    null,
+                    id);
+        });
+    }
+
     public class TextToSpeechBridge {
         @JavascriptInterface
         public void speak(String text, float rate, float pitch, boolean interrupt) {
-            if (text == null || text.trim().isEmpty()) return;
-            runOnUiThread(() -> {
-                if (!textToSpeechReady || textToSpeech == null) return;
-                textToSpeech.setSpeechRate(Math.max(0.55f, Math.min(rate, 1.6f)));
-                textToSpeech.setPitch(Math.max(0.7f, Math.min(pitch, 1.8f)));
-                textToSpeech.speak(text,
-                        interrupt ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD,
-                        null,
-                        "learnease-" + System.nanoTime());
-            });
+            speakOnUiThread(text, rate, pitch, interrupt, null);
+        }
+
+        @JavascriptInterface
+        public void speakTracked(String text, float rate, float pitch, boolean interrupt, String utteranceId) {
+            speakOnUiThread(text, rate, pitch, interrupt, utteranceId);
         }
 
         @JavascriptInterface public void cancel() {

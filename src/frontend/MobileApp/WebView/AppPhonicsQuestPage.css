@@ -1,0 +1,311 @@
+/* Android phone: ask children to rotate before playing. */
+@media (orientation: portrait) and (max-width: 1200px) {
+  .phonics-page .pq-rotate-notice {
+    position: fixed !important;
+    inset: 0;
+    z-index: 12000 !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 28px;
+    background: linear-gradient(145deg, #dff6ff, #fff0c9 52%, #f7ddff);
+    color: #334155;
+    text-align: center;
+  }
+  .pq-phone-icon { font-size: 76px; animation: pqRotatePhone 2s ease-in-out infinite; }
+  .pq-rotate-notice strong { margin-top: 15px; font-size: 27px; }.pq-rotate-notice p { max-width: 280px; margin: 8px 0; font-size: 16px; font-weight: 700; }.pq-turn-arrow { font-size: 42px; color: #7c5cc4; }
+}
+
+/* Dedicated landscape game board for Android phones. */
+@media (orientation: landscape) {
+  .phonics-page.game-container {
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    max-height: 100dvh;
+    margin: 0;
+    padding: 6px 10px 4px;
+    overflow: hidden;
+  }
+  .phonics-page .pq-back-btn {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    min-width: 68px;
+    min-height: 34px;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .phonics-page .pq-page-title {
+    width: 100%;
+    max-width: none;
+    height: auto;
+    min-height: 36px;
+    margin: 0 !important;
+    top: 0;
+    padding: 0 6px 0 78px;
+    gap: 6px;
+  }
+  .phonics-page .pq-main-title {
+    display: block;
+    overflow: hidden;
+    font-size: clamp(15px, 2.6vw, 22px);
+    line-height: 1.15;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    transform: none;
+  }
+  .phonics-page .pq-page-title > br { display: none; }
+  .phonics-page .pq-meta-row {
+    position: static;
+    margin: 0;
+    gap: 4px;
+    flex-wrap: nowrap;
+  }
+  .phonics-page .pq-level-pill,
+  .phonics-page .pq-timer-pill {
+    min-height: 32px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+  .phonics-page .pq-sound-toggle {
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
+    font-size: 15px;
+  }
+  .phonics-page.game-container > .sound-area {
+    position: relative !important;
+    inset: auto;
+    width: 100%;
+    height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 18px;
+    margin: 0;
+    padding: 0;
+  }
+  .phonics-page .sound-circle-wrapper {
+    flex: 0 0 30%;
+    width: 30%;
+  }
+  .phonics-page .sound-circle {
+    width: clamp(96px, 24vh, 148px);
+    height: clamp(96px, 24vh, 148px);
+    margin: 0;
+    font-size: clamp(38px, 9vh, 62px);
+  }
+  .phonics-page .sound-circle small {
+    font-size: clamp(11px, 2.2vh, 14px);
+  }
+  .phonics-page .sound-guide-img {
+    width: clamp(120px, 32vh, 200px);
+    max-height: 38vh;
+  }
+  .phonics-page .sound-guide-emoji {
+    width: clamp(120px, 32vh, 200px);
+    height: clamp(120px, 32vh, 200px);
+    font-size: clamp(64px, 16vh, 108px);
+  }
+  .phonics-page .choices {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: center;
+    gap: 12px !important;
+    flex: 1 1 0;
+    min-width: 0;
+    margin-top: 0 !important;
+  }
+  .phonics-page .choice-btn {
+    width: 100%;
+    max-width: none;
+    height: clamp(84px, 22vh, 124px);
+    font-size: clamp(28px, 7.2vh, 44px);
+    padding: 10px 8px;
+    border-radius: 22px;
+  }
+  .phonics-page .choice-btn small {
+    font-size: clamp(12px, 2.4vh, 16px);
+  }
+  .phonics-page.game-container > .pq-panel {
+    position: relative !important;
+    inset: auto;
+    width: min(92vw, 560px);
+    min-width: 0;
+    max-width: none;
+    min-height: 0;
+    margin: 2px auto 4px;
+    padding: 5px 12px;
+    border-radius: 14px;
+  }
+  .phonics-page .pq-message {
+    margin: 0 0 1px;
+    font-size: clamp(12px, 2.2vh, 15px);
+    line-height: 1.1;
+  }
+  .phonics-page .pq-progress {
+    font-size: clamp(10px, 1.8vh, 12px);
+  }
+  .phonics-page .pq-actions { margin-top: 5px; flex-direction: row; }
+  .phonics-page .pq-action-btn { min-height: 32px; padding: 5px 10px; font-size: 11px; }
+}
+
+@media (orientation: landscape) and (max-height: 340px) {
+  .phonics-page .pq-page-title { min-height: 30px; padding-left: 72px; }
+  .phonics-page .pq-main-title { font-size: 14px; }
+  .phonics-page.game-container > .sound-area { gap: 6px; }
+  .phonics-page .sound-circle-wrapper { flex-basis: 26%; width: 26%; }
+  .phonics-page .sound-circle { width: 72px; height: 72px; font-size: 30px; }
+  .phonics-page .sound-guide-img { width: 88px; }
+  .phonics-page .choice-btn { height: 66px; font-size: 22px; }
+  .phonics-page .choice-btn img { height: 38px; }
+  .phonics-page.game-container > .pq-panel { padding-block: 3px; }
+}
+
+/* The Android phonics game is playable in portrait and landscape. */
+.phonics-page .choices .choice-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.phonics-page .choices .choice-animal-img {
+  display: block;
+  visibility: visible;
+  opacity: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: min(100%, 150px);
+  height: clamp(42px, 10vh, 82px);
+  object-fit: contain;
+}
+
+.phonics-page .pq-rotate-notice {
+  display: none !important;
+}
+
+@media (orientation: portrait) and (max-width: 1200px) {
+  .phonics-page.game-container {
+    width: 100%;
+    height: 100dvh;
+    min-height: 0;
+    max-height: 100dvh;
+    margin: 0;
+    padding: 8px 12px 6px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    scrollbar-width: none;
+  }
+
+  .phonics-page.game-container::-webkit-scrollbar { display: none; }
+
+  .phonics-page .pq-back-btn { position: absolute; top: 8px; left: 8px; }
+  .phonics-page .pq-page-title {
+    flex-wrap: wrap;
+    top: 0;
+    width: 100%;
+    margin: 0 auto 4px !important;
+    padding: 36px 4px 0;
+    gap: 6px;
+  }
+  .phonics-page .pq-main-title {
+    flex: 1 1 100%;
+    display: block;
+    font-size: clamp(18px, 5.4vw, 24px);
+    line-height: 1.12;
+    white-space: nowrap;
+  }
+  .phonics-page .pq-page-title > br { display: none; }
+  .phonics-page .pq-meta-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .phonics-page.game-container > .sound-area {
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 0 auto;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  .phonics-page .sound-circle-wrapper {
+    flex: 0 0 30%;
+    width: 30%;
+  }
+  .phonics-page .sound-circle {
+    width: clamp(96px, 18vh, 140px);
+    height: clamp(96px, 18vh, 140px);
+    margin: 0;
+    font-size: clamp(36px, 8vh, 56px);
+  }
+  .phonics-page .sound-guide-img { width: clamp(120px, 24vh, 176px); max-height: 28vh; }
+
+  .phonics-page .choices {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: center;
+    flex: 1 1 0;
+    min-width: 0;
+    gap: 10px !important;
+    margin: 0 auto !important;
+  }
+
+  .phonics-page .choice-btn {
+    width: 100%;
+    max-width: none;
+    min-height: 0;
+    height: clamp(78px, 15vh, 112px);
+    padding: 8px;
+    font-size: clamp(28px, 6vh, 40px);
+  }
+
+  .phonics-page .choice-animal-img { height: clamp(42px, 8vh, 62px); }
+
+  .phonics-page.game-container > .pq-panel {
+    position: static !important;
+    flex: 0 0 auto;
+    width: min(100%, 520px);
+    min-width: 0;
+    max-width: none;
+    margin: 4px auto 0;
+    padding: 6px 10px;
+    min-height: 0;
+  }
+
+  .phonics-page .pq-message {
+    margin-bottom: 2px;
+    font-size: clamp(13px, 3.4vw, 16px);
+  }
+  .phonics-page .pq-progress {
+    font-size: clamp(11px, 3vw, 13px);
+  }
+}
+
+/* Extra-short portrait phones keep a compact fallback and may scroll safely. */
+@media (orientation: portrait) and (max-height: 640px) {
+  .phonics-page.game-container { padding-top: 58px; }
+  .phonics-page .pq-page-title { margin-bottom: 2px !important; }
+  .phonics-page .pq-main-title { font-size: 22px; }
+  .phonics-page .pq-meta-row { margin-top: 4px; }
+  .phonics-page .pq-level-pill { min-height: 30px; }
+  .phonics-page.game-container > .sound-area { flex: 0 0 auto; gap: 8px; }
+  .phonics-page .sound-circle { width: 112px; height: 112px; font-size: 50px; }
+  .phonics-page .sound-guide-img { width: 120px; }
+  .phonics-page .choice-btn { height: 76px; font-size: 30px; }
+  .phonics-page .choice-animal-img { height: 40px; }
+  .phonics-page.game-container > .pq-panel { margin-top: 5px; padding-block: 6px; }
+}
