@@ -16,6 +16,10 @@ const TEACHER_USERNAME = "teacher";
 const TEACHER_PASSWORD = "teacher123";
 
 function teacherSiteUrl() {
+  const configuredUrl = String(import.meta.env.VITE_TEACHER_PORTAL_URL || "https://e-learning-5sk.pages.dev/").trim();
+  if (/^https:\/\/[^\s]+$/i.test(configuredUrl)) {
+    return configuredUrl.endsWith("/") ? configuredUrl : `${configuredUrl}/`;
+  }
   const { origin, protocol } = window.location;
   if (!/^https?:$/i.test(protocol)) return "";
   try {
