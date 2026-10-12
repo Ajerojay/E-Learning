@@ -9,6 +9,7 @@ import { useQuestLevelGate, useStarTimeUp, useWrongAttemptGameOver } from "../sh
 import { PhonicsGameFooter, PhonicsMiniChrome, phonicsNextLevelButtons } from "./PhonicsMiniChrome";
 import { useColorsMiniClock } from "../shared/useColorsMiniClock";
 import type { LevelIntroContent } from "../shared/levelIntro";
+import { shuffleDifferentFromLast } from "../shared/questionSequence";
 import bear from "../../images/bear-3.png";
 import "./PhonicsMiniGames.css";
 
@@ -109,8 +110,12 @@ function dealExclusivePacks(
   });
 }
 
-function makeQueueFromPack(pack: SoundItem[], choiceCount: number) {
-  return shuffle(pack).map((item) => ({
+function makeQueueFromPack(pack: SoundItem[], choiceCount: number, levelIndex: number) {
+  return shuffleDifferentFromLast(
+    `phonics-beginning-level-${levelIndex}`,
+    pack,
+    (item) => item.letter
+  ).map((item) => ({
     ...item,
     choices: makeChoices(item.letter, choiceCount),
   }));
@@ -122,7 +127,7 @@ export default function PhonicsBeginningSounds() {
   const packsRef = useRef(dealExclusivePacks());
   const [levelIndex, setLevelIndex] = useState(0);
   const [queue, setQueue] = useState(() =>
-    makeQueueFromPack(packsRef.current[0], LEVELS[0].choices)
+    makeQueueFromPack(packsRef.current[0], LEVELS[0].choices, 0)
   );
   const [round, setRound] = useState(0);
   const [wrong, setWrong] = useState(0);
@@ -249,7 +254,7 @@ export default function PhonicsBeginningSounds() {
     }
     const pack = packsRef.current[index];
     setLevelIndex(index);
-    setQueue(makeQueueFromPack(pack, level.choices));
+    setQueue(makeQueueFromPack(pack, level.choices, index));
     setRound(0);
     setWrong(0);
     setPaused(false);

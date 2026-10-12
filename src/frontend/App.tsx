@@ -5,6 +5,7 @@ import { getOrCreateActiveChildId, type SubjectKey } from "../backend/childProgr
 import { completePendingParentRegistration, EMAIL_VERIFIED_PATH, openEmailLinkSession, RESET_PASSWORD_PATH } from "../backend/supabaseAuth";
 import { pendingEmailLink, supabase } from "../backend/supabase";
 import { syncOfflineProgress } from "../backend/gameProgressDb";
+import { syncLocalQuestStars } from "../backend/questLevelResults";
 import { pullSharedClassSettings, syncQueuedClassSettings } from "../backend/classSettings";
 import { initializeOfflineSqlite } from "../backend/offlineSqlite";
 import { isMobileApp } from "./MobileApp/isMobileApp";
@@ -131,22 +132,23 @@ function App() {
       if (!isMobileApp()) await syncQueuedClassSettings();
       await pullSharedClassSettings();
     };
+    const sync = () => {
+      if (!navigator.onLine) return;
+      void syncOfflineProgress();
+      const childId = localStorage.getItem("activeChildId");
+      if (childId) void syncLocalQuestStars(childId);
+      void syncShared();
+    };
     void initializeOfflineSqlite()
       .then(async () => {
-        if (navigator.onLine) {
-          await syncOfflineProgress();
-          await syncShared();
-        }
+        sync();
       })
       .finally(() => {
         const wait = Math.max(0, splashMs - (Date.now() - splashStarted));
         splashTimer = window.setTimeout(markReady, wait);
       });
-    const sync = () => {
-      void syncOfflineProgress();
-      void syncShared();
-    };
     window.addEventListener("online", sync);
+    document.addEventListener("visibilitychange", sync);
 
     if (navigator.onLine) {
       void supabase.auth.getSession().then(({ data }) => {
@@ -164,6 +166,7 @@ function App() {
       window.clearTimeout(splashTimer);
       stopMojibakeRepair();
       window.removeEventListener("online", sync);
+      document.removeEventListener("visibilitychange", sync);
       authListener.subscription.unsubscribe();
     };
   }, []);

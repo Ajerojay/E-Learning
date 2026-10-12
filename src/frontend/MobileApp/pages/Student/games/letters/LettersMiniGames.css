@@ -224,12 +224,12 @@
 
 .lat-block {
   appearance: none;
-  width: clamp(46px, 8vh, 62px);
-  height: clamp(46px, 8vh, 62px);
+  width: clamp(48px, 8vh, 64px);
+  height: clamp(48px, 8vh, 64px);
   border: 0;
   border-radius: 14px;
   font: inherit;
-  font-size: clamp(20px, 4vh, 28px);
+  font-size: clamp(22px, 4vh, 30px);
   font-weight: 900;
   color: #4a3d28;
   box-shadow: 0 6px 0 rgba(120, 90, 40, 0.16);
@@ -238,9 +238,9 @@
 }
 
 .lat-block--parked {
-  width: clamp(36px, 6.5vh, 48px);
-  height: clamp(36px, 6.5vh, 48px);
-  font-size: clamp(16px, 3.4vh, 24px);
+  width: clamp(38px, 6.5vh, 50px);
+  height: clamp(38px, 6.5vh, 50px);
+  font-size: clamp(18px, 3.4vh, 26px);
   box-shadow: 0 4px 0 rgba(120, 90, 40, 0.14);
   pointer-events: none;
 }
@@ -278,15 +278,15 @@
 }
 
 .lat-engine {
-  font-size: clamp(44px, 9vh, 64px);
+  font-size: clamp(48px, 9vh, 68px);
   line-height: 1;
   transform: scaleX(-1);
   filter: drop-shadow(0 8px 0 rgba(120, 90, 40, 0.12));
 }
 
 .lat-car {
-  width: clamp(52px, 9vh, 72px);
-  height: clamp(42px, 7.5vh, 58px);
+  width: clamp(54px, 9vh, 76px);
+  height: clamp(44px, 7.5vh, 62px);
   border: 3px dashed rgba(180, 150, 70, 0.55);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.45);

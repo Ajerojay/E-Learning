@@ -8,6 +8,7 @@ import { useQuestLevelGate, useStarTimeUp, useWrongAttemptGameOver } from "../sh
 import { LogicGameFooter, LogicMiniChrome, logicNextLevelButtons } from "./LogicMiniChrome";
 import { useColorsMiniClock } from "../shared/useColorsMiniClock";
 import type { LevelIntroContent } from "../shared/levelIntro";
+import { shuffleDifferentFromLast } from "../shared/questionSequence";
 import "./LogicMiniGames.css";
 
 type OddItem = { id: string; emoji: string; label: string };
@@ -129,9 +130,9 @@ const SETS: OddSet[] = [
 ];
 
 const LEVELS = [
-  { name: "Level 1", rounds: 3, time: 45, choices: 4 },
-  { name: "Level 2", rounds: 4, time: 50, choices: 6 },
-  { name: "Level 3", rounds: 5, time: 55, choices: 8 },
+  { name: "Level 1", rounds: 2, time: 45, choices: 4 },
+  { name: "Level 2", rounds: 3, time: 50, choices: 6 },
+  { name: "Level 3", rounds: 4, time: 55, choices: 8 },
 ];
 
 const INTRO: LevelIntroContent = {
@@ -171,11 +172,7 @@ function dealLevelSets(previousSets: OddSet[][] = [], preserveThroughIndex = -1)
     }
     const fresh = shuffle(SETS.filter((set) => !used.has(set))).slice(0, level.rounds);
     fresh.forEach((set) => used.add(set));
-    const selected = [...fresh];
-    while (selected.length < level.rounds && fresh.length > 0) {
-      selected.push(fresh[(selected.length - fresh.length) % fresh.length]);
-    }
-    selectedByLevel.push(selected);
+    selectedByLevel.push(fresh);
   }
   return selectedByLevel;
 }
@@ -183,7 +180,11 @@ function dealLevelSets(previousSets: OddSet[][] = [], preserveThroughIndex = -1)
 function makeQueue(index: number, selectedSets: OddSet[]) {
   const level = LEVELS[index] ?? LEVELS[0];
   const count = Math.max(2, level.choices);
-  return selectedSets.map((set) => {
+  return shuffleDifferentFromLast(
+    `logic-odd-one-out-level-${index}`,
+    selectedSets,
+    (set) => set.odd.id
+  ).map((set) => {
     const mates = shuffle(set.mates).slice(0, count - 1);
     return {
       oddId: set.odd.id,

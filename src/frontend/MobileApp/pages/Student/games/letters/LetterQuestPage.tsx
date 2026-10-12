@@ -19,29 +19,16 @@ import ChildMusicToggle from "../../ChildMusicToggle";
 import { useQuestLevelGate, useStarTimeUp, useWrongAttemptGameOver } from "../shared/questLevelMap";
 import { LiveStarHud } from "../shared/LevelStars";
 import { KidGameTitle } from "../shared/KidGameTitle";
+import { shuffleDifferentFromLast } from "../shared/questionSequence";
+import { letterMatchAssets } from "./letterMatchAssets";
 
 import bear from "../../images/bear-2.png";
 
-import appleA from "../../images/a.png";
-import appleB from "../../images/b.png";
-import appleC from "../../images/c.png";
+import appleA from "../../images/letter-match/a.png";
+import appleB from "../../images/letter-match/b.png";
+import appleC from "../../images/letter-match/c.png";
 
-import basketSet from "../../images/basket.png";
-
-import appleZ from "../../images/z.png";
-import appleK from "../../images/k.png";
-import appleI from "../../images/i.png";
-import appleE from "../../images/e.png";
-import appleM from "../../images/m.png";
-import appleR from "../../images/r.png";
-
-import basketZ from "../../images/z-basket.png";
-import basketK from "../../images/k-basket.png";
-import basketI from "../../images/I-basket.png";
-import basketE from "../../images/e-basket.png";
-import basketM from "../../images/m-basket.png";
-import basketO from "../../images/o-basket.png";
-import basketR from "../../images/r-basket.png";
+import basketSet from "../../images/letter-match/basket.png";
 
 /* LEVELS */
 const levels = [
@@ -52,14 +39,13 @@ const levels = [
   ],
 ];
 
-const level3Pool = [
-  { letter: "Z", apple: appleZ, basket: basketZ },
-  { letter: "K", apple: appleK, basket: basketK },
-  { letter: "I", apple: appleI, basket: basketI },
-  { letter: "E", apple: appleE, basket: basketE },
-  { letter: "M", apple: appleM, basket: basketM },
-  { letter: "R", apple: appleR, basket: basketR },
-];
+const level3Pool = letterMatchAssets;
+const LEVEL_SECONDS_PER_ITEM = [10, 9, 8] as const;
+type AdvancedLevelPack = {
+  items: typeof level3Pool;
+  pageSizes: number[];
+};
+type AdvancedLevelPacks = [AdvancedLevelPack, AdvancedLevelPack];
 
 export default function LetterQuestPage({ mobileApp = false }: { mobileApp?: boolean }) {
   const navigate = useNavigate();
@@ -133,48 +119,75 @@ export default function LetterQuestPage({ mobileApp = false }: { mobileApp?: boo
   };
 
   const dealAdvancedLevelPacks = (
-    previousPacks: ReadonlyArray<ReadonlyArray<(typeof level3Pool)[number]>> = [],
+    previousPacks: ReadonlyArray<AdvancedLevelPack> = [],
     preserveThroughIndex = -1
-  ): [
-    Array<(typeof level3Pool)[number]>,
-    Array<(typeof level3Pool)[number]>
-  ] => {
-    const preservedPacks = previousPacks.slice(0, preserveThroughIndex + 1);
-    const usedLetters = new Set(
-      preservedPacks.flatMap((pack) => pack.slice(0, 3).map((item) => item.letter))
+  ): AdvancedLevelPacks => {
+    const preservedPacks = previousPacks.slice(
+      0,
+      Math.max(0, preserveThroughIndex + 1)
     );
-    const remaining = shuffleList(level3Pool.filter((item) => !usedLetters.has(item.letter)));
-    const makeTwoPageDeck = (letters: Array<(typeof level3Pool)[number]>) => {
-      const secondPage = [...letters.slice(1), letters[0]];
-      return [...letters, ...secondPage];
-    };
-    return [
+    const usedLetters = new Set(
+      preservedPacks.flatMap((pack) => pack.items.map((item) => item.letter))
+    );
+    const available = level3Pool.filter((item) => !usedLetters.has(item.letter));
+    const requiredLevel2 = available.filter((item) => ["D", "F", "G"].includes(item.letter));
+    const remaining = shuffleList(available.filter((item) => !["D", "F", "G"].includes(item.letter)));
+    const level2Pack =
       preserveThroughIndex >= 0
-        ? [...(previousPacks[0] ?? [])]
-        : makeTwoPageDeck(remaining.splice(0, 3)),
+        ? previousPacks[0]
+        : {
+            items: [...requiredLevel2, ...remaining.splice(0, 5)],
+            pageSizes: [4, 4],
+          };
+    const level3Items = preserveThroughIndex >= 1
+      ? previousPacks[1]?.items ?? []
+      : remaining;
+    const level3PageCount = Math.ceil(level3Items.length / 5);
+    const level3PageSizes = Array(level3PageCount).fill(4);
+    const extraPageItems = level3Items.length - level3PageCount * 4;
+    const pageOrder = shuffleList(level3PageSizes.map((_, index) => index));
+    pageOrder.slice(0, extraPageItems).forEach((pageIndex) => {
+      level3PageSizes[pageIndex] += 1;
+    });
+    const level3Pack =
       preserveThroughIndex >= 1
-        ? [...(previousPacks[1] ?? [])]
-        : makeTwoPageDeck(remaining.splice(0, 3)),
-    ];
+        ? previousPacks[1]
+        : { items: level3Items, pageSizes: level3PageSizes };
+
+    return [level2Pack, level3Pack];
   };
 
   const [advancedLevelPacks, setAdvancedLevelPacks] = useState(dealAdvancedLevelPacks);
   const [appleOrder, setAppleOrder] = useState(() =>
     shuffleAwayFromTargets(levels[0], levels[0])
   );
-  const [level3Targets, setLevel3Targets] = useState(() => advancedLevelPacks[0]);
+  const [level3Targets, setLevel3Targets] = useState(() => advancedLevelPacks[0].items);
   const [level3Remaining, setLevel3Remaining] = useState(() => level3Targets);
-  const [letterDeck, setLetterDeck] = useState(() => advancedLevelPacks[0]);
+  const [letterDeck, setLetterDeck] = useState(() => advancedLevelPacks[0].items);
   const [poolPage, setPoolPage] = useState(0);
   const usesLetterPool = levelIndex >= 1;
-  const poolPageSize = 3;
-  const poolPageCount = Math.max(1, Math.ceil(letterDeck.length / poolPageSize));
+  const poolPageSizes = advancedLevelPacks[levelIndex - 1]?.pageSizes ?? [];
+  const poolPageCount = Math.max(1, poolPageSizes.length);
+  const poolPageStart = poolPageSizes
+    .slice(0, poolPage)
+    .reduce((total, pageSize) => total + pageSize, 0);
 
-  const applyPoolPage = (deck: typeof level3Pool, page: number) => {
-    const slice = deck.slice(page * poolPageSize, page * poolPageSize + poolPageSize);
-    const targets = shuffleList(slice);
+  const applyPoolPage = (
+    pack: AdvancedLevelPack,
+    page: number,
+    questionLevel = levelIndex
+  ) => {
+    const pageStart = pack.pageSizes
+      .slice(0, page)
+      .reduce((total, pageSize) => total + pageSize, 0);
+    const slice = pack.items.slice(pageStart, pageStart + pack.pageSizes[page]);
+    const targets = shuffleDifferentFromLast(
+      `letters-match-level-${questionLevel}-page-${page}`,
+      slice,
+      (item) => item.letter
+    );
     const apples = shuffleAwayFromTargets(slice, targets);
-    setLetterDeck(deck);
+    setLetterDeck(pack.items);
     setPoolPage(page);
     setLevel3Targets(targets);
     setLevel3Remaining(apples);
@@ -182,16 +195,18 @@ export default function LetterQuestPage({ mobileApp = false }: { mobileApp?: boo
 
   const startPoolLevel = (
     index: number,
-    packs: typeof advancedLevelPacks = advancedLevelPacks
+    packs: AdvancedLevelPacks = advancedLevelPacks
   ) => {
-    const deck = packs[index - 1] ?? packs[0];
-    applyPoolPage(deck, 0);
+    const pack = packs[index - 1] ?? packs[0];
+    applyPoolPage(pack, 0, index);
   };
 
   const currentApples = levels[levelIndex] || [];
   const totalItems = usesLetterPool ? letterDeck.length : currentApples.length;
+  const levelTimeLimit =
+    totalItems * (LEVEL_SECONDS_PER_ITEM[levelIndex] ?? LEVEL_SECONDS_PER_ITEM[2]);
   const progress = usesLetterPool
-    ? poolPage * poolPageSize + (level3Targets.length - level3Remaining.length)
+    ? poolPageStart + (level3Targets.length - level3Remaining.length)
     : placedIds.length;
 
   useStarTimeUp(timeUpOpen, levelIndex, progress > 0 || wrongAttempts > 0, recordLevelResult, wrongAttempts);
@@ -395,7 +410,7 @@ export default function LetterQuestPage({ mobileApp = false }: { mobileApp?: boo
     setHasPlayed(false);
     setProceedPromptLevel(null);
     setLevelSummaryOpen(false);
-    setTimeLeft(30);
+    setTimeLeft(levelTimeLimit);
     setTimerRunning(false);
     setCountdown(null);
     setTimeUpOpen(false);
@@ -567,10 +582,14 @@ const handleDrop = (e: any) => {
 
       if (updated.length === 0) {
         const nextPage = poolPage + 1;
-        const doneCount = nextPage * poolPageSize;
+        const doneCount = poolPageStart + level3Targets.length;
         if (nextPage < poolPageCount) {
           persistLetterProgress(levelIndex, doneCount, letterDeck.length, false, wrongAttempts);
-          applyPoolPage(letterDeck, nextPage);
+          applyPoolPage(
+            { items: letterDeck, pageSizes: poolPageSizes },
+            nextPage,
+            levelIndex
+          );
           setFeedback("Great! More letters are coming!");
           speakFeedback("More letters!");
         } else {
@@ -595,7 +614,7 @@ const handleDrop = (e: any) => {
       } else {
         persistLetterProgress(
           levelIndex,
-          poolPage * poolPageSize + (level3Targets.length - updated.length),
+          poolPageStart + (level3Targets.length - updated.length),
           letterDeck.length,
           false,
           wrongAttempts
@@ -625,7 +644,7 @@ const handleDrop = (e: any) => {
 
       persistLetterProgress(
         levelIndex,
-        poolPage * poolPageSize + (level3Targets.length - level3Remaining.length),
+        poolPageStart + (level3Targets.length - level3Remaining.length),
         letterDeck.length,
         false,
         nextWrong
@@ -748,7 +767,7 @@ const handleDrop = (e: any) => {
   }, []);
 
   useEffect(() => {
-    setTimeLeft(30);
+    setTimeLeft(levelTimeLimit);
     setTimerRunning(false);
     setCountdown(null);
     setTimeUpOpen(false);
@@ -756,7 +775,7 @@ const handleDrop = (e: any) => {
     warnedSecondsRef.current = new Set();
     if (levelIndex < 1) setAppleOrder(shuffleAwayFromTargets(levels[0], levels[0]));
     if (!mapOpen) onLevelStart();
-  }, [levelIndex, onLevelStart, mapOpen]);
+  }, [levelIndex, levelTimeLimit, onLevelStart, mapOpen]);
 
   useEffect(() => {
     if (levelIntroActive) setTimerRunning(false);
@@ -867,7 +886,7 @@ const handleDrop = (e: any) => {
         <div className="cq-level-meta">
           <strong className="cq-level-pill">Level {levelIndex + 1}</strong>
           <LiveStarHud timeLeft={timeLeft} tried={progress > 0 || wrongAttempts > 0} wrong={wrongAttempts} />
-          {usesLetterPool ? (
+          {usesLetterPool && poolPageCount > 1 ? (
             <strong className="cq-level-pill">Page {poolPage + 1}/{poolPageCount}</strong>
           ) : null}
           <span className="cq-timer-pill">⏱ {timeLeft}s</span>
@@ -1061,6 +1080,7 @@ const handleDrop = (e: any) => {
                 <img
                   key={`${levelIndex}-${poolPage}-${a.letter}`}
                   src={a.apple}
+                  alt={`Apple with the letter ${a.letter}`}
                   draggable={!mobileApp && !levelIntroActive && countdown === null && !timeUpOpen}
                   onDragStart={(e) => handleDragStart(e, a.letter, slotIndex)}
                   onPointerDown={(e) => handleTouchDragStart(e, a.letter, slotIndex)}
@@ -1072,7 +1092,7 @@ const handleDrop = (e: any) => {
                     left: `${
                       level3Remaining.length === 1
                         ? 50
-                        : 24 + (appleIndex * 52) / (level3Remaining.length - 1)
+                        : 12 + (appleIndex * 76) / (level3Remaining.length - 1)
                     }%`,
                   }}
                 />
@@ -1116,7 +1136,7 @@ const handleDrop = (e: any) => {
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={handleDrop}
                   >
-                    <img src={b.basket} className="basket-img" />
+                    <img src={b.basket} alt={`Basket for the letter ${b.letter}`} className="basket-img" />
                   </div>
                 ))}
               </div>

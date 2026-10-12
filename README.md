@@ -99,6 +99,10 @@ That runs `npm run build` and `npx cap sync android`. Then in **Android Studio**
 3. Pick a device or emulator in the device dropdown
 4. Click **Run** (green play)
 
+The installed app loads its web assets from the app package, not from the laptop, so games do not depend on a particular Wi-Fi network and can be played offline. Sign in and select the child while online before the first offline session so the device has the cached account and child profile. Game attempts and earned level stars are kept on that device while offline, then uploaded when connectivity returns and the app is opened or resumed. Sync uses the configured Supabase HTTPS endpoint over either Wi-Fi or mobile data. Each device keeps its own pending results until it can sync.
+
+Offline play does not provide live code updates: after changing the app, rebuild/sync and press **Run** in Android Studio to install the new package. The live-reload workflow below is development-only and requires the phone to reach the laptop's current address.
+
 If Android opens to a blank screen because it is still pointing at an old live-reload URL, switch back to bundled assets and reinstall the updated app:
 
 In PowerShell, run these from the project folder. They clear the variables for that terminal session; no output is expected if a variable was already unset.

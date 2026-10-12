@@ -40,11 +40,11 @@ export default function StudentPage() {
   const greetedRef = useRef(false);
 
   const lessons = [
-    { name: "Phonics", icon: <GiSoundWaves />, key: "phonics" },
-    { name: "Numbers", icon: <MdNumbers />, key: "numbers" },
-    { name: "Colors", icon: <MdColorLens />, key: "colors" },
-    { name: "Shapes", icon: <FaShapes />, key: "shapes" },
     { name: "Letters", icon: <FaFont />, key: "letters" },
+    { name: "Colors", icon: <MdColorLens />, key: "colors" },
+    { name: "Numbers", icon: <MdNumbers />, key: "numbers" },
+    { name: "Shapes", icon: <FaShapes />, key: "shapes" },
+    { name: "Phonics", icon: <GiSoundWaves />, key: "phonics" },
     { name: "Logic", icon: <FaPuzzlePiece />, key: "logic" },
   ];
 
@@ -231,4 +231,3 @@ export default function StudentPage() {
     </div>
   );
 }
-

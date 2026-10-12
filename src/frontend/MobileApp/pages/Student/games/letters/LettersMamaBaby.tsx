@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   DndContext,
@@ -18,6 +18,7 @@ import { useQuestLevelGate, useStarTimeUp, useWrongAttemptGameOver } from "../sh
 import { LettersGameFooter, LettersMiniChrome, lettersNextLevelButtons } from "./LettersMiniChrome";
 import { useColorsMiniClock } from "../shared/useColorsMiniClock";
 import type { LevelIntroContent } from "../shared/levelIntro";
+import { shuffleDifferentFromLast } from "../shared/questionSequence";
 import bear from "../../images/bear-2.png";
 import "./LettersMiniGames.css";
 
@@ -71,16 +72,37 @@ function dealPagesByLevel(
     ANIMALS.map((animal) => animal.letter).filter((letter) => !"ABCDEF".includes(letter))
   );
   return LEVELS.map((level, levelIndex) => {
-    if (levelIndex === 0) return ["ABC", "DEF"];
     if (levelIndex <= preserveThroughIndex && previousPages) {
       const pages = previousPages[levelIndex];
-      pages.join("").split("").forEach((letter) => {
-        const usedIndex = remaining.indexOf(letter);
-        if (usedIndex >= 0) remaining.splice(usedIndex, 1);
-      });
+      if (levelIndex > 0) {
+        pages.join("").split("").forEach((letter) => {
+          const usedIndex = remaining.indexOf(letter);
+          if (usedIndex >= 0) remaining.splice(usedIndex, 1);
+        });
+      }
       return pages;
     }
-    return level.pages.map((page) => remaining.splice(0, page.length).join(""));
+
+    if (levelIndex === 0) {
+      return shuffleDifferentFromLast(
+        "letters-mama-baby-level-0",
+        ["ABC", "DEF"],
+        (page) => page
+      );
+    }
+
+    const pageSizes = level.pages.map((page) => page.length);
+    if (levelIndex === LEVELS.length - 1) {
+      const pageSize = pageSizes[pageSizes.length - 1] ?? 4;
+      while (pageSizes.reduce((sum, size) => sum + size, 0) < remaining.length) {
+        pageSizes.push(Math.min(pageSize, remaining.length - pageSizes.reduce((sum, size) => sum + size, 0)));
+      }
+    }
+    return shuffleDifferentFromLast(
+      `letters-mama-baby-level-${levelIndex}`,
+      pageSizes.map((size) => remaining.splice(0, size).join("")),
+      (page) => page
+    );
   });
 }
 

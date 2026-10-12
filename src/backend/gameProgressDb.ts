@@ -118,8 +118,9 @@ export async function recordGameProgressRpc(
   }
 }
 
-export async function syncOfflineProgress(): Promise<void> {
-  if (!isOnline()) return;
+let syncingOfflineProgress: Promise<void> | null = null;
+
+async function syncOfflineProgressQueue(): Promise<void> {
   const queued = await getOfflineProgress();
   for (const progress of queued) {
     const parentId = await resolveChildParentId(progress.childId);
@@ -140,4 +141,13 @@ export async function syncOfflineProgress(): Promise<void> {
       return;
     }
   }
+}
+
+export function syncOfflineProgress(): Promise<void> {
+  if (!isOnline()) return Promise.resolve();
+  if (syncingOfflineProgress) return syncingOfflineProgress;
+  syncingOfflineProgress = syncOfflineProgressQueue().finally(() => {
+    syncingOfflineProgress = null;
+  });
+  return syncingOfflineProgress;
 }

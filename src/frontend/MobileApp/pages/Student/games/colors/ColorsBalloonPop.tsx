@@ -20,6 +20,7 @@ type Balloon = {
   left: number;
   duration: number;
   delay: number;
+  popping?: boolean;
 };
 
 const INTRO: LevelIntroContent = {
@@ -31,14 +32,13 @@ const INTRO: LevelIntroContent = {
 
 const LEVELS: Array<{
   name: string;
-  target: BalloonColor;
   goal: number;
   time: number;
   palette: BalloonColor[];
 }> = [
-  { name: "Level 1", target: "blue", goal: 5, time: 40, palette: ["red", "blue", "yellow"] },
-  { name: "Level 2", target: "green", goal: 7, time: 45, palette: ["red", "blue", "yellow", "green", "orange"] },
-  { name: "Level 3", target: "red", goal: 8, time: 50, palette: ["red", "blue", "yellow", "green", "orange"] },
+  { name: "Level 1", goal: 5, time: 40, palette: ["red", "blue", "yellow"] },
+  { name: "Level 2", goal: 7, time: 45, palette: ["red", "blue", "yellow", "green", "orange"] },
+  { name: "Level 3", goal: 8, time: 50, palette: ["red", "blue", "yellow", "green", "orange"] },
 ];
 
 const FILL: Record<BalloonColor, string> = {
@@ -48,6 +48,23 @@ const FILL: Record<BalloonColor, string> = {
   green: "#62d26f",
   orange: "#ff9f43",
 };
+
+const BALLOON_LANES = Array.from({ length: 9 }, (_, index) => 4 + index * 10);
+
+function shuffleLanes() {
+  const lanes = [...BALLOON_LANES];
+  for (let index = lanes.length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(Math.random() * (index + 1));
+    [lanes[index], lanes[swap]] = [lanes[swap], lanes[index]];
+  }
+  return lanes;
+}
+
+function pickTargetColor(palette: BalloonColor[], previous?: BalloonColor): BalloonColor {
+  const available = palette.filter((color) => color !== previous);
+  const choices = available.length > 0 ? available : palette;
+  return choices[Math.floor(Math.random() * choices.length)];
+}
 
 function BalloonGoalTrack({
   goal,
@@ -78,13 +95,13 @@ function BalloonGoalTrack({
   );
 }
 
-function makeBalloon(palette: BalloonColor[], bias?: BalloonColor): Balloon {
+function makeBalloon(palette: BalloonColor[], left: number, bias?: BalloonColor): Balloon {
   const roll = Math.random();
   const color = bias && roll < 0.45 ? bias : palette[Math.floor(Math.random() * palette.length)];
   return {
     id: `${Date.now()}-${Math.random()}`,
     color,
-    left: 10 + Math.random() * 72,
+    left,
     duration: 7 + Math.random() * 4,
     delay: Math.random() * 0.4,
   };
@@ -103,7 +120,12 @@ export default function ColorsBalloonPop({ mobileApp = false }: { mobileApp?: bo
   const [gameOverOpen, setGameOverOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [childId, setChildId] = useState<string | null>(null);
+  const [targetColor, setTargetColor] = useState(() => pickTargetColor(LEVELS[0].palette));
+  const previousTargetRef = useRef(targetColor);
+  const balloonLanesRef = useRef([...BALLOON_LANES]);
+  const nextBalloonLaneRef = useRef(0);
   const doneRef = useRef(false);
+  const poppingBalloonIdsRef = useRef(new Set<string>());
   const level = LEVELS[levelIndex];
 
   const clock = useColorsMiniClock({
@@ -130,27 +152,40 @@ export default function ColorsBalloonPop({ mobileApp = false }: { mobileApp?: bo
 
   const resetBoard = useCallback((index: number) => {
     const next = LEVELS[index];
+    const target = pickTargetColor(next.palette, previousTargetRef.current);
+    previousTargetRef.current = target;
+    const lanes = shuffleLanes();
+    balloonLanesRef.current = lanes;
+    nextBalloonLaneRef.current = 0;
+    const initialBalloons = Array.from({ length: 6 }, (_, balloonIndex) =>
+      makeBalloon(next.palette, lanes[balloonIndex], target)
+    );
     doneRef.current = false;
+    poppingBalloonIdsRef.current.clear();
     setLevelIndex(index);
     setPopped(0);
     setWrong(0);
     setPaused(false);
     setCompleteOpen(false); setGameOverOpen(false);
-    setBalloons(Array.from({ length: 6 }, () => makeBalloon(next.palette, next.target)));
+    setTargetColor(target);
+    setBalloons(initialBalloons);
   }, []);
 
   useEffect(() => {
     if (!clock.playing || !soundEnabled) return;
-    speakKidPrompt("Pop the balloons that match the goal!", { interrupt: false });
-  }, [clock.playing, soundEnabled]);
+    speakKidPrompt(`Pop all the ${targetColor} balloons.`, { interrupt: false });
+  }, [clock.playing, soundEnabled, targetColor]);
 
   useEffect(() => {
     if (!clock.playing) return;
     const timer = window.setInterval(() => {
-      setBalloons((current) => [...current.slice(-10), makeBalloon(level.palette, level.target)]);
+      const laneIndex = nextBalloonLaneRef.current % balloonLanesRef.current.length;
+      nextBalloonLaneRef.current += 1;
+      const balloon = makeBalloon(level.palette, balloonLanesRef.current[laneIndex], targetColor);
+      setBalloons((current) => [...current.slice(-10), balloon]);
     }, 1400);
     return () => window.clearInterval(timer);
-  }, [clock.playing, level.palette, level.target]);
+  }, [clock.playing, level.palette, targetColor]);
 
   const finish = useCallback(() => {
     if (doneRef.current) return;
@@ -164,17 +199,24 @@ export default function ColorsBalloonPop({ mobileApp = false }: { mobileApp?: bo
   }, [childId, completeLevel, levelIndex, soundEnabled, wrong, clock.timeLeft]);
 
   const onPop = (balloon: Balloon) => {
-    if (!clock.playing || doneRef.current) return;
+    if (!clock.playing || doneRef.current || poppingBalloonIdsRef.current.has(balloon.id)) return;
+    poppingBalloonIdsRef.current.add(balloon.id);
     playBalloonPopSound(soundEnabled);
-    setBalloons((current) => current.filter((item) => item.id !== balloon.id));
-    if (balloon.color !== level.target) {
+    setBalloons((current) =>
+      current.map((item) => item.id === balloon.id ? { ...item, popping: true } : item)
+    );
+    window.setTimeout(() => {
+      poppingBalloonIdsRef.current.delete(balloon.id);
+      setBalloons((current) => current.filter((item) => item.id !== balloon.id));
+    }, 280);
+    if (balloon.color !== targetColor) {
       setWrong((count) => count + 1);
       if (soundEnabled) speakKidPrompt("Oops, not that color.", { interrupt: true });
       return;
     }
     setPopped((count) => {
       const next = count + 1;
-      if (next >= level.goal) window.setTimeout(finish, 200);
+      if (next >= level.goal) window.setTimeout(finish, 320);
       return next;
     });
   };
@@ -190,8 +232,10 @@ export default function ColorsBalloonPop({ mobileApp = false }: { mobileApp?: bo
         onSelectLevel={resetBoard}
         title={
           <>
-            <span className="cmini-title-balloon" style={{ background: FILL[level.target] }} />
-            Pop the matching balloons!
+            <span className="cmini-title-balloon" style={{ background: FILL[targetColor] }} />
+            Pop the{" "}
+            <span style={{ color: FILL[targetColor] }}>{targetColor}</span>
+            {" "}balloons!
           </>
         }
         levelIndex={levelIndex}
@@ -209,14 +253,14 @@ export default function ColorsBalloonPop({ mobileApp = false }: { mobileApp?: bo
         wrong={wrong}
         extraHeader={<GamePauseButton onClick={() => setPaused(true)} />}
       >
-        <BalloonGoalTrack goal={level.goal} popped={popped} color={level.target} />
+        <BalloonGoalTrack goal={level.goal} popped={popped} color={targetColor} />
         <img className="cmini-bear" src={bear} alt="" />
         <div className="cmini-sky">
           {balloons.map((balloon) => (
             <button
               key={balloon.id}
               type="button"
-              className="cmini-balloon"
+              className={`cmini-balloon${balloon.popping ? " is-popping" : ""}`}
               style={{
                 left: `${balloon.left}%`,
                 animationDuration: `${balloon.duration}s`,
@@ -224,7 +268,11 @@ export default function ColorsBalloonPop({ mobileApp = false }: { mobileApp?: bo
                 animationPlayState: clock.playing ? "running" : "paused",
               }}
               onClick={() => onPop(balloon)}
-              onAnimationEnd={() => setBalloons((current) => current.filter((item) => item.id !== balloon.id))}
+              onAnimationEnd={(event) => {
+                if (event.target === event.currentTarget) {
+                  setBalloons((current) => current.filter((item) => item.id !== balloon.id));
+                }
+              }}
               aria-label={`${balloon.color} balloon`}
             >
               <span className="cmini-balloon-body" style={{ background: FILL[balloon.color] }} />
@@ -234,7 +282,11 @@ export default function ColorsBalloonPop({ mobileApp = false }: { mobileApp?: bo
         </div>
         {!completeOpen && (
           <div className="cq-panel">
-            <p className="cq-message">Pop the balloons that match the goal!</p>
+            <p className="cq-message">
+              Pop the{" "}
+              <span style={{ color: FILL[targetColor] }}>{targetColor}</span>
+              {" "}balloons!
+            </p>
             <p className="cq-score">
               {popped >= level.goal ? "All the balloons!" : "Fill the balloons!"} · Oops: {wrong}
             </p>

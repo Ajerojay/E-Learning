@@ -77,7 +77,7 @@
 
 /* APP LANDSCAPE ONLY — responsive phones and tablets. */
 @media (orientation: landscape) and (max-width:1600px) {
-  .cq-page--mobile-app { width:100%; height:100dvh; min-height:0; padding:44px 10px 56px; overflow:hidden; scrollbar-width:none; }
+  .cq-page--mobile-app { box-sizing:border-box; width:100%; height:100dvh; min-height:0; padding:44px 10px 56px; overflow:hidden; scrollbar-width:none; }
   .cq-page--mobile-app::-webkit-scrollbar { display:none; }
   .cq-page .cq-back-btn { position:fixed; top:7px; left:8px; min-width:76px; min-height:38px; padding:7px 12px; font-size:13px; }
   .cq-page .cq-title { position:absolute; top:0; left:0; width:100%; height:44px; transform:none; margin:0; padding:0 220px 0 88px; overflow:hidden; font-size:clamp(20px,3.4vw,28px); line-height:42px; text-align:center; white-space:nowrap; text-overflow:ellipsis; color:#fff8ee; text-shadow:0 2px 0 rgba(50,70,30,.4),0 4px 12px rgba(0,0,0,.28); }
@@ -103,19 +103,19 @@
   .cq-page .cq-level-pill { background:rgba(255,255,255,.96); }
   .cq-page .cq-timer-pill { background:#dff2ff; }
   .cq-page .cq-sound-toggle { width:38px; height:38px; min-height:38px; padding:0; font-size:17px; }
-  .cq-page--mobile-app > .game-container { flex:0 0 auto; width:min(100%,1050px); height:calc(100dvh - 100px); min-height:300px; margin:0 auto; overflow:hidden; transform:none; }
+  .cq-page--mobile-app > .game-container { flex:0 0 auto; width:min(100%,1050px); height:calc(100dvh - 100px); min-height:0; margin:0 auto; overflow:hidden; transform:none; }
   .cq-page--mobile-app .apple,
-  .cq-page--mobile-app .apple--l3 { width:72px; height:72px; object-fit:cover; object-position:center; top:9%; z-index:8; }
+  .cq-page--mobile-app .apple--l3 { width:76px; height:76px; object-fit:cover; object-position:center; top:9%; z-index:8; }
   .cq-page--mobile-app .bear { left:12%; bottom:70px; width:clamp(72px,11vw,110px); z-index:3; }
-  .cq-page--mobile-app .basket-set { left:52%; bottom:8px; width:clamp(260px,40vw,400px); transform:translateX(-50%); z-index:6; }
-  .cq-page--mobile-app .basket-img { width:100%; max-width:400px; object-fit:contain; }
+  .cq-page--mobile-app .basket-set { left:50%; bottom:8px; width:min(94%,360px); transform:translateX(-50%); z-index:6; }
+  .cq-page--mobile-app .basket-img { width:100%; max-width:360px; object-fit:contain; }
   .cq-page--mobile-app .level3-baskets { width:100%; flex-wrap:nowrap; gap:6px; padding:0; align-items:flex-end; }
   .cq-page--mobile-app .letter-basket-zone { flex:1 1 0; min-width:0; display:grid; place-items:end center; }
-  .cq-page--mobile-app .level3-baskets .basket-img { width:100%; max-width:92px; }
-  .cq-page--mobile-app .letter-pool .basket-set { left:52%; bottom:8px; width:clamp(320px,48vw,500px); }
+  .cq-page--mobile-app .level3-baskets .basket-img { width:100%; max-width:108px; }
+  .cq-page--mobile-app .letter-pool .basket-set { left:50%; bottom:8px; width:min(94%,600px); }
   .cq-page--mobile-app .letter-pool .level3-baskets { gap:clamp(4px,1vw,12px); }
   .cq-page--mobile-app .letter-pool .level3-baskets .basket-img { max-width:108px; }
-  .cq-page--mobile-app .letter-pool .apple--l3 { width:72px; height:72px; }
+  .cq-page--mobile-app .letter-pool .apple--l3 { width:76px; height:76px; }
   .cq-page .cq-panel { position:absolute; right:5%; bottom:6px; left:5%; width:auto; min-height:44px; margin:0; padding:6px 12px; }
   .cq-page .cq-message,.cq-page .cq-score { margin:0; line-height:1.15; font-size:clamp(12px,1.8vw,16px); }
 }
@@ -123,18 +123,19 @@
 @media (orientation: landscape) and (min-height:650px) {
   .cq-page--mobile-app > .game-container { height:calc(100dvh - 110px); transform:none; }
   .cq-page--mobile-app .bear { width:clamp(110px,13vw,155px); }
-  .cq-page--mobile-app .basket-set { width:clamp(300px,40vw,440px); }
+  .cq-page--mobile-app .basket-set { width:min(94%,360px); }
 }
 
-/* Extra-short phones retain the same design and scroll only when necessary. */
+/* Extra-short phones keep the same design fitted to the available height. */
 @media (orientation: landscape) and (max-height:390px) {
-  .cq-page--mobile-app > .game-container { min-height:280px; }
+  .cq-page--mobile-app > .game-container { min-height:0; }
   .cq-page--mobile-app .bear { bottom:58px; width:64px; }
-  .cq-page--mobile-app .basket-set,
-  .cq-page--mobile-app .letter-pool .basket-set { bottom:6px; width:250px; }
-  .cq-page--mobile-app .letter-pool .level3-baskets .basket-img { max-width:70px; }
+  .cq-page--mobile-app .basket-set { bottom:6px; width:min(92%,330px); }
+  .cq-page--mobile-app .letter-pool .basket-set { bottom:6px; width:min(92%,540px); }
+  .cq-page--mobile-app .level3-baskets .basket-img { max-width:96px; }
+  .cq-page--mobile-app .letter-pool .level3-baskets .basket-img { max-width:96px; }
   .cq-page--mobile-app .apple,
-  .cq-page--mobile-app .letter-pool .apple--l3 { width:58px; height:58px; top:7%; }
+  .cq-page--mobile-app .letter-pool .apple--l3 { width:62px; height:62px; top:7%; }
 }
 
 @keyframes cqLetterRotatePhone {

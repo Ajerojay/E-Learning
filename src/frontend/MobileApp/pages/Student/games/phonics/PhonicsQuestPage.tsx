@@ -43,6 +43,7 @@ import ChildMusicToggle from "../../ChildMusicToggle";
 import { useQuestLevelGate, useStarTimeUp, useWrongAttemptGameOver } from "../shared/questLevelMap";
 import { LiveStarHud } from "../shared/LevelStars";
 import { KidGameTitle } from "../shared/KidGameTitle";
+import { shuffleDifferentFromLast } from "../shared/questionSequence";
 
 type SoundAnimal = {
   name: string;
@@ -71,9 +72,9 @@ const ANIMALS: SoundAnimal[] = [
 ];
 
 const LEVEL_CONFIG = [
-  { pages: 3, choices: 3, time: 40, animals: ["cat", "dog", "cow"] },
-  { pages: 2, choices: 4, time: 50, animals: ["chicken", "lion", "pig", "duck"] },
-  { pages: 2, choices: 5, time: 60, animals: ["sheep", "horse", "frog", "bird", "owl"] },
+  { choices: 3, time: 40, animals: ["cat", "dog", "cow"] },
+  { choices: 4, time: 50, animals: ["chicken", "lion", "pig", "duck"] },
+  { choices: 5, time: 60, animals: ["sheep", "horse", "frog", "bird", "owl"] },
 ] as const;
 
 function animalsByName(names: readonly string[]): SoundAnimal[] {
@@ -89,7 +90,11 @@ function buildLevelRound(levelIndex: number) {
   const pool = animalsByName(config.animals);
   return {
     pool,
-    pages: shuffleArray(pool).slice(0, config.pages),
+    pages: shuffleDifferentFromLast(
+      `phonics-sound-level-${levelIndex}`,
+      pool,
+      (animal) => animal.name
+    ),
     config,
   };
 }
@@ -158,7 +163,7 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
   const currentAnimal = round.pages[pageIndex] ?? round.pages[0];
   const currentAnimalRef = useRef(currentAnimal);
   currentAnimalRef.current = currentAnimal;
-  const pageCount = round.config.pages;
+  const pageCount = round.pages.length;
 
   const startCountdown = useCallback(() => setCountdown(3), []);
 
@@ -511,7 +516,7 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
   };
 
   return (
-    <div className="game-container phonics-bg-image phonics-page">
+    <div className={`game-container phonics-bg-image phonics-page${mobileApp ? " phonics-page--mobile-app" : ""}`}>
       {mapOpen && (
         <QuestLevelSelect
           title="Sound Quest"

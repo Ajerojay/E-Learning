@@ -121,12 +121,6 @@
   height: 92px;
 }
 
-.game-container.letter-pool .apple--l3 {
-  animation: none;
-  opacity: 1;
-  transform: translateX(-50%);
-}
-
 /* SPEED PER LEVEL */
 .game-container.level-0 .apple {
   animation-duration: 8s;
@@ -176,14 +170,14 @@
   bottom: -200px;
   left: 55%;
   transform: translateX(-50%);
-  width: min(100%, 420px);
+  width: min(100%, 560px);
   display: flex;
   justify-content: center;
 }
 
 .basket-img {
   width: 100%;
-  max-width: 420px;
+  max-width: 560px;
   height: auto;
   pointer-events: none;
 }
@@ -202,17 +196,27 @@
 
 .level3-baskets {
   display: flex;
+  display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 12px;
-  width: min(100%, 420px);
+  align-items: flex-end;
+  gap: clamp(4px, 1vw, 12px);
+  width: 100%;
   padding-bottom: 22px;
 }
 
+.letter-basket-zone {
+  flex: 1 1 0;
+  min-width: 0;
+  display: grid;
+  place-items: end center;
+}
+
 .level3-baskets .basket-img {
-  width: min(120px, 24vw);
-  max-width: 120px;
+  width: 100%;
+  max-width: 160px;
   height: auto;
+  object-fit: contain;
 }
 
 /* LEVEL TEXT */
@@ -342,11 +346,7 @@
   transform: scale(1.07);
 }
 .level3-baskets {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  gap: 40px;
+  flex-wrap: nowrap;
 }
 
 /* Summary popup tweaks (pic 2) */

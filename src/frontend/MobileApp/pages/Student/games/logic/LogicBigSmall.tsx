@@ -17,6 +17,7 @@ import { useQuestLevelGate, useStarTimeUp, useWrongAttemptGameOver } from "../sh
 import { LogicGameFooter, LogicMiniChrome, logicNextLevelButtons } from "./LogicMiniChrome";
 import { useColorsMiniClock } from "../shared/useColorsMiniClock";
 import type { LevelIntroContent } from "../shared/levelIntro";
+import { shuffleDifferentFromLast } from "../shared/questionSequence";
 import openBox from "../../images/logic/open-box.png";
 import "./LogicMiniGames.css";
 
@@ -67,7 +68,7 @@ const PAIRS: Array<[SizeItem, SizeItem]> = [
 const LEVELS = [
   { name: "Level 1", pairCount: 2, time: 50 },
   { name: "Level 2", pairCount: 3, time: 60 },
-  { name: "Level 3", pairCount: 4, time: 70 },
+  { name: "Level 3", pairCount: 3, time: 70 },
 ];
 
 const PRAISE = [
@@ -115,15 +116,11 @@ function dealBoards(previousBoards: SizeItem[][] = [], preserveThroughIndex = -1
     if (index <= preserveThroughIndex) return preservedBoards[index];
     const selectedPairs = availablePairs.slice(offset, offset + level.pairCount);
     offset += selectedPairs.length;
-    while (selectedPairs.length < level.pairCount) {
-      const pair = selectedPairs[selectedPairs.length % selectedPairs.length];
-      const repeatId = selectedPairs.length;
-      selectedPairs.push([
-        { ...pair[0], id: `${pair[0].id}-repeat-${repeatId}` },
-        { ...pair[1], id: `${pair[1].id}-repeat-${repeatId}` },
-      ]);
-    }
-    return shuffle(selectedPairs.flat());
+    return shuffleDifferentFromLast(
+      `logic-big-small-level-${index}`,
+      selectedPairs.flat(),
+      (item) => item.id
+    );
   });
 }
 

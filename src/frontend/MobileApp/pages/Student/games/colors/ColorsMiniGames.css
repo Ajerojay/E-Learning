@@ -151,15 +151,41 @@
 .cmini-balloon {
   position: absolute;
   bottom: -90px;
+  appearance: none;
   width: 54px;
   height: 80px;
   padding: 0;
-  border: 0;
+  border: 0 !important;
+  outline: 0 !important;
   background: transparent;
+  box-shadow: none !important;
   cursor: pointer;
   animation-name: cmini-float;
   animation-timing-function: linear;
   animation-fill-mode: forwards;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cmini-balloon:focus,
+.cmini-balloon:focus-visible,
+.cmini-balloon:active {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+.cmini-balloon.is-popping {
+  pointer-events: none;
+}
+
+.cmini-balloon.is-popping .cmini-balloon-body {
+  animation: cmini-pop 280ms ease-out forwards;
+  transform-origin: center bottom;
+}
+
+.cmini-balloon.is-popping .cmini-balloon-string {
+  animation: cmini-pop-string 180ms ease-out forwards;
+  transform-origin: top center;
 }
 
 .cmini-balloon-body {
@@ -170,6 +196,16 @@
   border-radius: 50% 50% 46% 46%;
   background: currentColor;
   box-shadow: inset -8px -10px 0 rgba(0, 0, 0, 0.08);
+}
+
+@keyframes cmini-pop {
+  0% { opacity: 1; transform: scale(1); }
+  35% { opacity: 1; transform: scale(1.3); }
+  100% { opacity: 0; transform: scale(0.1); }
+}
+
+@keyframes cmini-pop-string {
+  to { opacity: 0; transform: scaleY(0); }
 }
 
 .cmini-balloon-string {
@@ -250,6 +286,35 @@
 .cmini-goal--pair .cmini-goal-art {
   width: 78px;
   height: 78px;
+}
+
+.cmini-goal--level-three {
+  width: 112px;
+  max-height: calc(100vh - 72px);
+  padding: 8px 6px;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.cmini-goal--level-three .cmini-goal-art {
+  width: 72px;
+  height: 72px;
+}
+
+.cmini-goal--car {
+  width: 108px;
+  height: 108px;
+}
+
+.cmini-goal--car .cmini-goal-art {
+  width: 96px;
+  height: 96px;
+}
+
+.cmini-drawing--car {
+  width: min(28vw, 260px);
+  height: min(38vh, 180px);
+  object-fit: contain;
 }
 
 .cmini-drawings {
@@ -366,6 +431,21 @@
   .cmini-goal--solo .cmini-goal-art {
     width: 62px;
     height: 62px;
+  }
+
+  .cmini-goal--car {
+    width: 72px;
+    height: 72px;
+  }
+
+  .cmini-goal--car .cmini-goal-art {
+    width: 62px;
+    height: 62px;
+  }
+
+  .cmini-drawing--car {
+    width: min(28vw, 200px);
+    height: min(38vh, 140px);
   }
 }
 

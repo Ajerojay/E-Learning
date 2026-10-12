@@ -27,6 +27,7 @@ import ChildMusicToggle from "../../ChildMusicToggle";
 import { useQuestLevelGate, useStarTimeUp, useWrongAttemptGameOver } from "../shared/questLevelMap";
 import { LiveStarHud } from "../shared/LevelStars";
 import { KidGameTitle } from "../shared/KidGameTitle";
+import { shuffleDifferentFromLast } from "../shared/questionSequence";
 
 const LOGIC_GAME_INTRO: LevelIntroContent = {
   title: "What comes next?",
@@ -69,7 +70,11 @@ function dealPatternSymbols(
 }
 
 function buildPattern(levelIndex: number, symbolsForLevel: string[]): LogicLevel {
-  const symbols = shuffleList(symbolsForLevel);
+  const symbols = shuffleDifferentFromLast(
+    `logic-pattern-level-${levelIndex}`,
+    symbolsForLevel,
+    (symbol) => symbol
+  );
   const [first, second, third] = symbols;
   if (levelIndex <= 0) {
     return {

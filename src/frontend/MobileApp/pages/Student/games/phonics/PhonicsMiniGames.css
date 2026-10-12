@@ -309,7 +309,8 @@
   width: clamp(108px, 21vw, 168px);
   height: clamp(132px, 26vw, 204px);
   padding: 0;
-  border: 0;
+  border: 0 !important;
+  outline: 0 !important;
   background: transparent;
   display: flex;
   align-items: flex-end;
@@ -317,6 +318,15 @@
   font: inherit;
   cursor: pointer;
   filter: drop-shadow(0 6px 0 rgba(90, 80, 110, 0.12));
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pvowel-bird:focus,
+.pvowel-bird:focus-visible,
+.pvowel-bird:active {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
 }
 
 .pvowel-bird img {

@@ -2,12 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getOrCreateActiveChildId } from "../../../../../../backend/childProgress";
 import { recordGameProgressRpc } from "../../../../../../backend/gameProgressDb";
-import { speakKidPrompt, cancelNativeSpeech } from "../../../../nativeTts";
+import { speakKidPrompt, speakKidPromptAsync, cancelNativeSpeech } from "../../../../nativeTts";
 import { GameOverlay, GamePopup, GamePauseButton, GamePausePopup, GameOverPopup } from "../shared/GamePopup";
 import { useQuestLevelGate, useStarTimeUp, useWrongAttemptGameOver } from "../shared/questLevelMap";
 import { PhonicsGameFooter, PhonicsMiniChrome, phonicsNextLevelButtons } from "./PhonicsMiniChrome";
 import { useColorsMiniClock } from "../shared/useColorsMiniClock";
 import type { LevelIntroContent } from "../shared/levelIntro";
+import { randomSequenceDifferentFromLast } from "../shared/questionSequence";
 import bear from "../../images/bear-3.png";
 import birdA from "../../images/vowels/a.png";
 import birdE from "../../images/vowels/e.png";
@@ -76,10 +77,18 @@ const VOWEL_CLIPS: Record<VowelLetter, string[]> = {
   U: [uh1, uh2, uh4],
 };
 
+const VOWEL_SOUNDS: Record<VowelLetter, string> = {
+  A: "ah",
+  E: "eh",
+  I: "ih",
+  O: "oh",
+  U: "uh",
+};
+
 const LEVELS = [
-  { name: "Level 1", rounds: 3, time: 50, shuffle: false },
-  { name: "Level 2", rounds: 4, time: 55, shuffle: false },
-  { name: "Level 3", rounds: 5, time: 60, shuffle: true },
+  { name: "Level 1", rounds: 2, time: 50, shuffle: false },
+  { name: "Level 2", rounds: 3, time: 60, shuffle: false },
+  { name: "Level 3", rounds: 5, time: 75, shuffle: true },
 ];
 
 const INTRO: LevelIntroContent = {
@@ -119,27 +128,14 @@ function dealTargetPacks(
   previousPacks: VowelBird[][] = [],
   preserveThroughIndex = -1
 ) {
-  const usedLetters = new Set(
-    previousPacks
-      .slice(0, preserveThroughIndex + 1)
-      .flat()
-      .map((bird) => bird.letter)
-  );
-  const remaining = shuffle(BIRDS.filter((bird) => !usedLetters.has(bird.letter)));
   return LEVELS.map((level, index) => {
     if (index <= preserveThroughIndex) return previousPacks[index];
-    const fresh = shuffle(remaining).slice(0, Math.min(level.rounds, remaining.length));
-    fresh.forEach((bird) => {
-      const index = remaining.findIndex((item) => item.letter === bird.letter);
-      if (index >= 0) remaining.splice(index, 1);
-    });
-    const pack = [...fresh];
-    while (pack.length < level.rounds) {
-      const fallbackPool = fresh.length ? fresh : BIRDS;
-      const fallback = fallbackPool[(pack.length - fresh.length) % fallbackPool.length];
-      pack.push(fallback);
-    }
-    return pack;
+    return randomSequenceDifferentFromLast(
+      `phonics-vowels-level-${index}`,
+      BIRDS,
+      level.rounds,
+      (bird) => bird.letter
+    );
   });
 }
 
@@ -171,6 +167,8 @@ export default function PhonicsSingingVowels() {
   const [order, setOrder] = useState<VowelBird[]>(BIRDS);
   const doneRef = useRef(false);
   const busyRef = useRef(false);
+  const promptSequenceRef = useRef(0);
+  const activeClipFinishRef = useRef<(() => void) | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -198,11 +196,12 @@ export default function PhonicsSingingVowels() {
   }, [levelIndex, recordLevelResult, wrong]);
   useWrongAttemptGameOver(wrong, onTooManyWrong);
 
-  const askFor = useCallback(() => {
-    return "Listen for the matching vowel sound!";
+  const askFor = useCallback((letter: VowelLetter) => {
+    return `Find the ${VOWEL_SOUNDS[letter]} sound!`;
   }, []);
 
   const stopClip = useCallback(() => {
+    activeClipFinishRef.current?.();
     playIdRef.current += 1;
     window.clearTimeout(promptTimerRef.current);
     highlightTimers.current.forEach((id) => window.clearTimeout(id));
@@ -224,8 +223,36 @@ export default function PhonicsSingingVowels() {
 
   const playClip = useCallback((src: string, gainValue = 1) => {
     return new Promise<void>((resolve) => {
+      activeClipFinishRef.current?.();
       playIdRef.current += 1;
+      const playId = playIdRef.current;
+      let settled = false;
+      let watchdog = 0;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(watchdog);
+        if (activeClipFinishRef.current === finish) {
+          activeClipFinishRef.current = null;
+          if (sourceRef.current) {
+            sourceRef.current.onended = null;
+            try { sourceRef.current.stop(); } catch { /* already stopped */ }
+            sourceRef.current = null;
+          }
+          if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.onended = null;
+            audioRef.current.onerror = null;
+            audioRef.current.ontimeupdate = null;
+            audioRef.current = null;
+          }
+        }
+        resolve();
+      };
+      watchdog = window.setTimeout(finish, 10000);
+      activeClipFinishRef.current = finish;
       if (sourceRef.current) {
+        sourceRef.current.onended = null;
         try { sourceRef.current.stop(); } catch { /* already stopped */ }
         sourceRef.current = null;
       }
@@ -238,13 +265,6 @@ export default function PhonicsSingingVowels() {
       }
       cancelNativeSpeech();
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-      const playId = playIdRef.current;
-      const finish = () => {
-        if (playId !== playIdRef.current) return;
-        if (audioRef.current) audioRef.current = null;
-        if (sourceRef.current) sourceRef.current = null;
-        resolve();
-      };
 
       const playPlain = () => {
         const audio = new Audio(src);
@@ -292,26 +312,27 @@ export default function PhonicsSingingVowels() {
     });
   }, []);
 
-  const promptFindSound = useCallback((bird: VowelBird) => {
-    const text = askFor();
+  const promptFindSound = useCallback(async (bird: VowelBird) => {
+    const promptSequence = ++promptSequenceRef.current;
+    const text = askFor(bird.letter);
     setMessage(text);
     window.clearTimeout(promptTimerRef.current);
     const clip = pickVowelClip(bird.letter);
     busyRef.current = true;
-    if (!soundEnabled) {
-      return playClip(clip, 4.2).then(() => {
+    const promptId = playIdRef.current;
+    try {
+      if (!soundEnabled) {
         busyRef.current = false;
-      });
+        await playClip(clip, 4.2);
+        return;
+      }
+      await speakKidPromptAsync("Find the sound!", { interrupt: true, rate: 0.92, pitch: 1.28 });
+      if (promptId !== playIdRef.current || promptSequence !== promptSequenceRef.current) return;
+      busyRef.current = false;
+      await playClip(clip, 4.2);
+    } finally {
+      if (promptSequence === promptSequenceRef.current) busyRef.current = false;
     }
-    speakKidPrompt(text, { interrupt: true, rate: 0.92, pitch: 1.28 });
-    return new Promise<void>((resolve) => {
-      promptTimerRef.current = window.setTimeout(() => {
-        void playClip(clip, 4.2).then(() => {
-          busyRef.current = false;
-          resolve();
-        });
-      }, 900);
-    });
   }, [askFor, playClip, soundEnabled]);
 
   const resetBoard = useCallback((index: number, refreshPacks = true) => {
@@ -427,6 +448,9 @@ export default function PhonicsSingingVowels() {
 
   const onTapBird = (bird: VowelBird) => {
     if (!clock.playing || completeOpen || gameOverOpen || doneRef.current || busyRef.current || demoPlaying || !demoDone) return;
+    promptSequenceRef.current += 1;
+    stopClip();
+    busyRef.current = false;
     setSinging(bird.letter);
     window.setTimeout(() => setSinging((current) => (current === bird.letter ? null : current)), 900);
 
@@ -472,7 +496,7 @@ export default function PhonicsSingingVowels() {
         unlockedCount={unlockedCount}
         levelStars={levelStars}
         onSelectLevel={resetBoard}
-        title={demoPlaying || !demoDone ? "Sing A E I O U!" : target ? askFor() : "The Singing Vowels"}
+        title={demoPlaying || !demoDone ? "Sing A E I O U!" : target ? askFor(target.letter) : "The Singing Vowels"}
         levelIndex={levelIndex}
         timeLeft={clock.timeLeft}
         soundEnabled={soundEnabled}

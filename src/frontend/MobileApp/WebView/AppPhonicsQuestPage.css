@@ -187,6 +187,65 @@
   object-fit: contain;
 }
 
+.phonics-page--mobile-app .choices {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  align-content: center;
+}
+
+.phonics-page--mobile-app .choices .choice-btn {
+  flex-direction: row;
+  justify-content: center;
+  gap: clamp(4px, 1vw, 12px);
+  height: auto;
+  min-height: 0;
+  padding: 2px 4px;
+  border: 0 !important;
+  border-radius: 16px;
+  background: transparent;
+  box-shadow: none;
+  outline: 0 !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.phonics-page--mobile-app .choices .choice-animal-img {
+  flex: 0 1 72%;
+  width: min(72%, 220px);
+  height: clamp(88px, 21vh, 168px);
+  max-width: 100%;
+}
+
+.phonics-page--mobile-app .choices .choice-btn small {
+  flex: 0 1 28%;
+  margin: 0;
+  color: #374151;
+  font-size: clamp(12px, 2.2vh, 18px);
+  text-align: left;
+  text-shadow: 0 1px 5px rgba(255, 255, 255, 0.9);
+}
+
+.phonics-page--mobile-app .choices .choice-btn:hover {
+  transform: scale(1.03);
+  background: rgba(255, 255, 255, 0.22);
+  box-shadow: none;
+}
+
+.phonics-page--mobile-app .choices .choice-btn:focus-visible {
+  background: rgba(219, 234, 254, 0.55);
+}
+
+.phonics-page--mobile-app .choices .choice-btn:focus,
+.phonics-page--mobile-app .choices .choice-btn:active {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none;
+}
+
+.phonics-page--mobile-app .choices .choice-btn.choice-btn-wrong {
+  background: rgba(254, 226, 226, 0.72);
+  box-shadow: none;
+}
+
 .phonics-page .pq-rotate-notice {
   display: none !important;
 }

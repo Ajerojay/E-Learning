@@ -32,39 +32,20 @@ const INTRO: LevelIntroContent = {
   compact: true,
 };
 
-const LEVELS: Array<{ name: string; pageCount: number; pageSize: number; minStart: number; maxStart: number; time: number }> = [
-  { name: "Level 1", pageCount: 2, pageSize: 3, minStart: 0, maxStart: 3, time: 45 },
-  { name: "Level 2", pageCount: 2, pageSize: 4, minStart: 6, maxStart: 10, time: 50 },
-  { name: "Level 3", pageCount: 2, pageSize: 5, minStart: 14, maxStart: 19, time: 55 },
+const LEVELS: Array<{ name: string; pageSize: number; minStart: number; maxEnd: number; time: number }> = [
+  { name: "Level 1", pageSize: 3, minStart: 0, maxEnd: 6, time: 45 },
+  { name: "Level 2", pageSize: 4, minStart: 6, maxEnd: 14, time: 50 },
+  { name: "Level 3", pageSize: 5, minStart: 14, maxEnd: ALPHABET.length, time: 55 },
 ];
 
 function pagesForLevel(index: number) {
   const next = LEVELS[index];
-  if (index === 0) return [["A", "B", "C"], ["D", "E", "F"]];
-  const maxStart = Math.min(next.maxStart, ALPHABET.length - next.pageSize);
-  const validStarts = Array.from(
-    { length: maxStart - next.minStart + 1 },
-    (_, index) => next.minStart + index
-  );
-  const startSets: number[][] = [];
-  const chooseStarts = (chosen: number[], remaining: number[]) => {
-    if (chosen.length === next.pageCount) {
-      startSets.push(chosen);
-      return;
-    }
-    remaining.forEach((start, index) => {
-      if (chosen.every((used) => Math.abs(used - start) >= next.pageSize)) {
-        chooseStarts([...chosen, start], remaining.slice(index + 1));
-      }
-    });
-  };
-  chooseStarts([], validStarts);
-  if (!startSets.length) {
-    throw new Error(`Not enough unique letters to deal pages for ${next.name}.`);
+  const available = ALPHABET.slice(next.minStart, next.maxEnd);
+  const pages: string[][] = [];
+  for (let offset = 0; offset < available.length; offset += next.pageSize) {
+    pages.push(available.slice(offset, offset + next.pageSize));
   }
-  return shuffle(startSets[Math.floor(Math.random() * startSets.length)]).map((start) =>
-    ALPHABET.slice(start, start + next.pageSize)
-  );
+  return pages;
 }
 
 function dealPagesByLevel(previousPages?: string[][][], preserveThroughIndex = -1) {
@@ -82,6 +63,12 @@ function shuffle<T>(items: T[]): T[] {
     [next[i], next[j]] = [next[j], next[i]];
   }
   return next;
+}
+
+function shuffleLetterBlocks(letters: string[]) {
+  const shuffled = shuffle(letters);
+  if (shuffled.some((letter, index) => letter !== letters[index])) return shuffled;
+  return [...shuffled.slice(1), shuffled[0]];
 }
 
 function playWhistle() {
@@ -198,7 +185,7 @@ export default function LettersAlphabetTrain() {
 
   const showPage = (letters: string[]) => {
     setTrack(letters);
-    setBlocks(shuffle(letters));
+    setBlocks(shuffleLetterBlocks(letters));
     setFilled({});
     setMotion("enter");
   };

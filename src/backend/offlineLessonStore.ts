@@ -173,9 +173,11 @@ export async function removeOfflineLesson(id: string): Promise<void> {
 export async function queueOfflineProgress(progress: OfflineProgress): Promise<void> {
   const database = await openDatabase();
   await new Promise<void>((resolve, reject) => {
-    const request = database.transaction(PROGRESS_STORE_NAME, "readwrite").objectStore(PROGRESS_STORE_NAME).put(progress);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error ?? new Error("Offline progress could not be saved."));
+    const transaction = database.transaction(PROGRESS_STORE_NAME, "readwrite");
+    transaction.objectStore(PROGRESS_STORE_NAME).put(progress);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error ?? new Error("Offline progress could not be saved."));
+    transaction.onabort = () => reject(transaction.error ?? new Error("Offline progress save was cancelled."));
   });
   database.close();
 }

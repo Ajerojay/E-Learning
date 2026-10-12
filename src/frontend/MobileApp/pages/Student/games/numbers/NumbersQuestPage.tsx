@@ -20,6 +20,7 @@ import ChildMusicToggle from "../../ChildMusicToggle";
 import { useQuestLevelGate, useStarTimeUp, useWrongAttemptGameOver } from "../shared/questLevelMap";
 import { LiveStarHud } from "../shared/LevelStars";
 import { KidGameTitle } from "../shared/KidGameTitle";
+import { randomSequenceDifferentFromLast } from "../shared/questionSequence";
 
 import cloudImg from "../../images/cloud.png";
 import bgImg from "../../images/numbers-bg.jpg";
@@ -55,7 +56,15 @@ function pickTargetForLevel(levelIndex: number, history: Set<number>[]) {
         { length: current.targetMax - current.targetMin + 1 },
         (_, index) => current.targetMin + index
       );
-  const target = choices[Math.floor(Math.random() * choices.length)];
+  const [target] = randomSequenceDifferentFromLast(
+    `numbers-quest-level-${levelIndex}`,
+    choices,
+    1,
+    (value) => String(value)
+  );
+  if (target === undefined) {
+    throw new Error(`No available number target for ${current.name}.`);
+  }
   history[levelIndex]?.add(target);
   return target;
 }
