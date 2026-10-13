@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Activity, Award, BarChart3, Bell, BookOpen, CalendarDays, Camera,
@@ -83,7 +83,17 @@ type RecentGameActivity = {
   createdAt: string;
 };
 
-function teacherIdentity() {
+type TeacherIdentity = {
+  name: string;
+  firstName: string;
+  email: string;
+  section: string;
+  id: string;
+  role: string;
+  avatar: string;
+};
+
+function teacherIdentity(): TeacherIdentity {
   try {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     const name = user.full_name || user.teacher_name || user.name || user.username || "Teacher";
@@ -94,8 +104,54 @@ function teacherIdentity() {
       section: String(user.section || user.handled_section || user.grade_level || ""),
       id: String(user.id || user.teacher_id || ""),
       role: String(user.position || user.title || "Teacher"),
+      avatar: String(user.avatar || user.avatar_url || ""),
     };
-  } catch { return { name: "Teacher", firstName: "Teacher", email: "", section: "", id: "", role: "Teacher" }; }
+  } catch { return { name: "Teacher", firstName: "Teacher", email: "", section: "", id: "", role: "Teacher", avatar: "" }; }
+}
+
+function teacherProfileKey(teacher: TeacherIdentity) {
+  return teacher.id || `username:${teacher.name.trim().toLowerCase()}`;
+}
+
+function mergeTeacherIntoLogin(profile: TeacherIdentity) {
+  let stored: Record<string, unknown> = {};
+  try { stored = JSON.parse(localStorage.getItem("user") || "{}"); } catch { /* replace invalid local data */ }
+  localStorage.setItem("user", JSON.stringify({ ...stored, full_name: profile.name, email: profile.email, handled_section: profile.section, avatar: profile.avatar }));
+}
+
+async function loadTeacherProfile(base: TeacherIdentity): Promise<TeacherIdentity> {
+  const { data, error } = await supabase.from("teacher_profiles").select("teacher_id,full_name,email,handled_section,avatar").eq("teacher_id", teacherProfileKey(base)).maybeSingle();
+  if (error) throw error;
+  if (!data) return base;
+  const name = String(data.full_name || base.name);
+  return { ...base, name, firstName: name.trim().split(/\s+/)[0] || "Teacher", email: String(data.email || ""), section: String(data.handled_section || ""), avatar: String(data.avatar || "") };
+}
+
+function teacherAvatarContent(teacher: TeacherIdentity) {
+  return teacher.avatar ? <img className="ta-teacher-avatar-image" src={teacher.avatar} alt={`${teacher.name} profile`} /> : <>👩🏻‍🏫</>;
+}
+
+function resizeProfilePhoto(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) { reject(new Error("Please select an image file.")); return; }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("The selected photo could not be read."));
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => reject(new Error("The selected photo is not valid."));
+      image.onload = () => {
+        const size = Math.min(image.naturalWidth, image.naturalHeight);
+        const canvas = document.createElement("canvas");
+        canvas.width = 320; canvas.height = 320;
+        const context = canvas.getContext("2d");
+        if (!context) { reject(new Error("Photo editing is unavailable on this device.")); return; }
+        context.drawImage(image, (image.naturalWidth - size) / 2, (image.naturalHeight - size) / 2, size, size, 0, 0, 320, 320);
+        resolve(canvas.toDataURL("image/jpeg", .78));
+      };
+      image.src = String(reader.result || "");
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function relativeActivityTime(value: string) {
@@ -1314,10 +1370,32 @@ function Rewards() {
   </>;
 }
 
-function ProfileSettings({ notify, logout }: { notify: Notify; logout: () => void }) {
-  const teacher = teacherIdentity();
+function ProfileSettings({ teacher, notify, logout, onProfileUpdated }: { teacher: TeacherIdentity; notify: Notify; logout: () => void; onProfileUpdated: (teacher: TeacherIdentity) => void }) {
   const [edit, setEdit] = useState(false); const [toggles, setToggles] = useState([true,true,false]);
-  return <><Heading eyebrow="YOUR ACCOUNT" title="Profile & Settings" detail="Information shown here comes from the signed-in teacher account."/><div className="ta-settings-grid"><section className="ta-card ta-profile"><div>👩🏻‍🏫<button><Camera /></button></div><h2>{teacher.name}</h2><p>{teacher.role}</p><span><i /> Signed-in faculty account</span><dl><dt>Handled Section</dt><dd>{teacher.section || "Not provided"}</dd><dt>Teacher ID</dt><dd>{teacher.id || "Not provided"}</dd></dl><button className="ta-primary ta-full" onClick={() => setEdit(true)}><Pencil /> Edit Profile</button></section><section className="ta-card ta-settings"><header><span className="purple"><Settings /></span><div><h2>Account Details</h2><p>Loaded from your login record</p></div></header><div className="ta-setting"><UserRound/><span><b>Full Name</b><small>{teacher.name}</small></span></div><div className="ta-setting"><Mail/><span><b>Email Address</b><small>{teacher.email || "Not provided"}</small></span></div><h3>Notification Preferences</h3>{[["Push notifications","Student activity and alerts"],["Email notifications","Account email updates"],["Weekly class summary","Summary notifications"]].map(([a,b],i) => <div className="ta-setting" key={a}><Bell/><span><b>{a}</b><small>{b}</small></span><button className={`ta-toggle ${toggles[i] ? "on" : ""}`} onClick={() => setToggles(toggles.map((x,j) => i===j?!x:x))}><i/></button></div>)}<button className="ta-danger" onClick={logout}><LogOut /> Logout of Teacher Account</button></section></div>{edit && <SimpleForm title="Edit Teacher Profile" close={() => setEdit(false)} submit={() => { setEdit(false); notify("Profile editing requires a teacher profile database update."); }} fields={["Full Name", "Email Address", "Handled Section"]}/>}</>;
+  const photoInput = useRef<HTMLInputElement>(null);
+  const [draft, setDraft] = useState({ name: teacher.name, email: teacher.email, section: teacher.section, avatar: teacher.avatar });
+  const [saving, setSaving] = useState(false);
+  useEffect(() => setDraft({ name: teacher.name, email: teacher.email, section: teacher.section, avatar: teacher.avatar }), [teacher]);
+  const openEditor = () => { setDraft({ name: teacher.name, email: teacher.email, section: teacher.section, avatar: teacher.avatar }); setEdit(true); };
+  const choosePhoto = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try { const avatar = await resizeProfilePhoto(file); setDraft(current => ({ ...current, avatar })); }
+    catch (error) { notify(error instanceof Error ? error.message : "Unable to use that photo."); }
+    event.target.value = "";
+  };
+  const saveProfile = async (event: FormEvent) => {
+    event.preventDefault();
+    const name = draft.name.trim();
+    if (!name) { notify("Please enter the teacher's full name."); return; }
+    setSaving(true);
+    const next: TeacherIdentity = { ...teacher, name, firstName: name.split(/\s+/)[0] || "Teacher", email: draft.email.trim(), section: draft.section.trim(), avatar: draft.avatar };
+    const { error } = await supabase.from("teacher_profiles").upsert({ teacher_id: teacherProfileKey(teacher), full_name: next.name, email: next.email || null, handled_section: next.section || null, avatar: next.avatar || null, updated_at: new Date().toISOString() }, { onConflict: "teacher_id" });
+    setSaving(false);
+    if (error) { notify(`Profile was not saved: ${error.message}`); return; }
+    mergeTeacherIntoLogin(next); onProfileUpdated(next); setEdit(false); notify("Teacher profile updated successfully.");
+  };
+  return <><Heading eyebrow="YOUR ACCOUNT" title="Profile & Settings" detail="Update the signed-in teacher profile. Changes are saved to Supabase and appear on other devices."/><div className="ta-settings-grid"><section className="ta-card ta-profile"><div>{teacherAvatarContent(teacher)}<button type="button" aria-label="Change profile photo" onClick={openEditor}><Camera /></button></div><h2>{teacher.name}</h2><p>{teacher.role}</p><span><i /> Signed-in faculty account</span><dl><dt>Handled Section</dt><dd>{teacher.section || "Not provided"}</dd><dt>Teacher ID</dt><dd>{teacher.id || "Not provided"}</dd></dl><button className="ta-primary ta-full" onClick={openEditor}><Pencil /> Edit Profile</button></section><section className="ta-card ta-settings"><header><span className="purple"><Settings /></span><div><h2>Account Details</h2><p>Synced with the teacher profile database</p></div></header><div className="ta-setting"><UserRound/><span><b>Full Name</b><small>{teacher.name}</small></span></div><div className="ta-setting"><Mail/><span><b>Email Address</b><small>{teacher.email || "Not provided"}</small></span></div><h3>Notification Preferences</h3>{[["Push notifications","Student activity and alerts"],["Email notifications","Account email updates"],["Weekly class summary","Summary notifications"]].map(([a,b],i) => <div className="ta-setting" key={a}><Bell/><span><b>{a}</b><small>{b}</small></span><button className={`ta-toggle ${toggles[i] ? "on" : ""}`} onClick={() => setToggles(toggles.map((x,j) => i===j?!x:x))}><i/></button></div>)}<button className="ta-danger" onClick={logout}><LogOut /> Logout of Teacher Account</button></section></div>{edit && <div className="ta-overlay" onMouseDown={() => setEdit(false)}><form className="ta-modal ta-form ta-teacher-profile-form" onMouseDown={event => event.stopPropagation()} onSubmit={saveProfile}><button type="button" className="ta-close" onClick={() => setEdit(false)}><X /></button><h2>Edit Teacher Profile</h2><p>Your changes will appear anywhere this teacher account is used.</p><div className="ta-profile-photo-preview">{draft.avatar ? <img src={draft.avatar} alt="Selected teacher profile" /> : <>👩🏻‍🏫</>}<button type="button" onClick={() => photoInput.current?.click()}><Camera /> Change photo</button><input ref={photoInput} type="file" accept="image/*" onChange={choosePhoto}/></div><label>Full Name<input required value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} placeholder="Enter full name" /></label><label>Email Address<input type="email" value={draft.email} onChange={event => setDraft({ ...draft, email: event.target.value })} placeholder="Enter email address" /></label><label>Handled Section<input value={draft.section} onChange={event => setDraft({ ...draft, section: event.target.value })} placeholder="Example: Nursery A" /></label><button className="ta-primary ta-full" disabled={saving}>{saving ? "Saving Profile..." : "Save Profile"}</button></form></div>}</>;
 }
 
 function SimpleForm({ title, fields, close, submit }: { title: string; fields: string[]; close: () => void; submit: () => void }) {
@@ -1326,7 +1404,7 @@ function SimpleForm({ title, fields, close, submit }: { title: string; fields: s
 
 export default function TeacherApp() {
   const navigate = useNavigate(); const [page, setPage] = useState<PageKey>("dashboard"); const [menu, setMenu] = useState(false); const [profile, setProfile] = useState(false); const [alerts, setAlerts] = useState(false); const [toast, setToast] = useState("");
-  const teacher = teacherIdentity();
+  const [teacher, setTeacher] = useState<TeacherIdentity>(() => teacherIdentity());
   const current = useMemo(() => navItems.find(x => x.key === page)!, [page]);
   const CurrentIcon = current.icon;
   const notify: Notify = text => { setToast(text); window.setTimeout(() => setToast(""), 2400); };
@@ -1336,7 +1414,11 @@ export default function TeacherApp() {
     window.addEventListener("online", flush);
     return () => window.removeEventListener("online", flush);
   }, []);
+  useEffect(() => {
+    const base = teacherIdentity();
+    void loadTeacherProfile(base).then(next => { mergeTeacherIntoLogin(next); setTeacher(next); }).catch(error => console.warn("Teacher profile could not be loaded:", error));
+  }, []);
   const go = (key: PageKey) => { setPage(key); setMenu(false); setProfile(false); setAlerts(false); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const logout = () => { localStorage.removeItem("user"); navigate("/"); };
-  return <div className="teacher-app"><aside className={`ta-sidebar ${menu ? "open" : ""}`}><div className="ta-logo"><img src={logo}/><span><b>LearnEase</b><small>Teacher Portal</small></span><button onClick={() => setMenu(false)}><X/></button></div><nav>{navItems.map(({key,label,icon:Icon}) => <button className={page===key?"active":""} onClick={() => go(key)} key={key}><i><Icon/></i><b>{label}</b></button>)}</nav><div className="ta-side-profile"><i>👩🏻‍🏫</i><span><b>{teacher.name}</b><small>{teacher.role}</small></span><button onClick={logout}><LogOut/></button></div></aside>{menu && <button className="ta-backdrop" onClick={() => setMenu(false)}/>}<main><header className="ta-top"><button className="ta-menu" onClick={() => setMenu(true)}><Menu/></button><div className="ta-mobile-logo"><img src={logo}/><b>LearnEase</b></div><span className="ta-current"><CurrentIcon/><b>{current.label}</b></span><div className="ta-top-actions"><div><button className="ta-bell" onClick={() => {setAlerts(!alerts);setProfile(false)}}><Bell/></button>{alerts && <section className="ta-pop ta-alert-pop"><h3>Notifications</h3><div className="ta-feed-empty"><Bell/><b>No notifications yet</b><small>Recorded alerts will appear here.</small></div></section>}</div><div><button className="ta-top-profile" onClick={() => {setProfile(!profile);setAlerts(false)}}><i>👩🏻‍🏫</i><span><b>{teacher.name}</b><small>{teacher.section || teacher.role}</small></span><ChevronDown/></button>{profile && <section className="ta-pop ta-profile-pop"><button onClick={() => go("settings")}><UserRound/> My Profile</button><button onClick={() => go("settings")}><Settings/> Settings</button><button onClick={logout}><LogOut/> Logout</button></section>}</div></div></header><div className="ta-content">{page === "dashboard" && <Dashboard go={go} notify={notify}/>} {page === "students" && <Students notify={notify}/>} {page === "lessons" && <Lessons notify={notify}/>} {page === "activities" && <Activities notify={notify}/>} {page === "attendance" && <Attendance notify={notify}/>} {page === "announcements" && <Announcements notify={notify}/>} {page === "health" && <Health notify={notify}/>} {page === "rewards" && <Rewards />} {page === "settings" && <ProfileSettings notify={notify} logout={logout}/>}</div></main><nav className="ta-bottom">{navItems.slice(0,5).map(({key,label,icon:Icon}) => <button className={page===key?"active":""} onClick={() => go(key)} key={key}><Icon/><span>{label.split(" ")[0]}</span></button>)}<button onClick={() => setMenu(true)}><MoreHorizontal/><span>More</span></button></nav>{toast && <div className="ta-toast"><Check/>{toast}</div>}</div>;
+  return <div className="teacher-app"><aside className={`ta-sidebar ${menu ? "open" : ""}`}><div className="ta-logo"><img src={logo}/><span><b>LearnEase</b><small>Teacher Portal</small></span><button onClick={() => setMenu(false)}><X/></button></div><nav>{navItems.map(({key,label,icon:Icon}) => <button className={page===key?"active":""} onClick={() => go(key)} key={key}><i><Icon/></i><b>{label}</b></button>)}</nav><div className="ta-side-profile"><i>{teacherAvatarContent(teacher)}</i><span><b>{teacher.name}</b><small>{teacher.role}</small></span><button onClick={logout}><LogOut/></button></div></aside>{menu && <button className="ta-backdrop" onClick={() => setMenu(false)}/>}<main><header className="ta-top"><button className="ta-menu" onClick={() => setMenu(true)}><Menu/></button><div className="ta-mobile-logo"><img src={logo}/><b>LearnEase</b></div><span className="ta-current"><CurrentIcon/><b>{current.label}</b></span><div className="ta-top-actions"><div><button className="ta-bell" onClick={() => {setAlerts(!alerts);setProfile(false)}}><Bell/></button>{alerts && <section className="ta-pop ta-alert-pop"><h3>Notifications</h3><div className="ta-feed-empty"><Bell/><b>No notifications yet</b><small>Recorded alerts will appear here.</small></div></section>}</div><div><button className="ta-top-profile" onClick={() => {setProfile(!profile);setAlerts(false)}}><i>{teacherAvatarContent(teacher)}</i><span><b>{teacher.name}</b><small>{teacher.section || teacher.role}</small></span><ChevronDown/></button>{profile && <section className="ta-pop ta-profile-pop"><button onClick={() => go("settings")}><UserRound/> My Profile</button><button onClick={() => go("settings")}><Settings/> Settings</button><button onClick={logout}><LogOut/> Logout</button></section>}</div></div></header><div className="ta-content">{page === "dashboard" && <Dashboard go={go} notify={notify}/>} {page === "students" && <Students notify={notify}/>} {page === "lessons" && <Lessons notify={notify}/>} {page === "activities" && <Activities notify={notify}/>} {page === "attendance" && <Attendance notify={notify}/>} {page === "announcements" && <Announcements notify={notify}/>} {page === "health" && <Health notify={notify}/>} {page === "rewards" && <Rewards />} {page === "settings" && <ProfileSettings teacher={teacher} notify={notify} logout={logout} onProfileUpdated={setTeacher}/>}</div></main><nav className="ta-bottom">{navItems.slice(0,5).map(({key,label,icon:Icon}) => <button className={page===key?"active":""} onClick={() => go(key)} key={key}><Icon/><span>{label.split(" ")[0]}</span></button>)}<button onClick={() => setMenu(true)}><MoreHorizontal/><span>More</span></button></nav>{toast && <div className="ta-toast"><Check/>{toast}</div>}</div>;
 }
