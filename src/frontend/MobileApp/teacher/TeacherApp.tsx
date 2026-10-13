@@ -18,7 +18,7 @@ import { createOfflineLessonUrl, getOfflineLessons, removeOfflineLesson, saveOff
 import { cacheOfflineCategoryProgress, cacheOfflineLessons, cacheOfflineChild, getOfflineCategoryProgress, getOfflineChildrenFromSqlite, getOfflineLessonsFromSqlite } from "../../../backend/offlineSqlite";
 import { getAttendanceRecords, localDateKey, saveAttendanceRecords } from "../../../backend/attendance";
 import { getChildCategoryProgress, getRecentChildAttempts, getRecentClassActivity, sendParentAnnouncement } from "../../../backend/supabaseData";
-import { getStoredChildAvatar, normalizeChildAvatar } from "../../../backend/childAvatar";
+import { CHILD_AVATAR_UPDATED_EVENT, getStoredChildAvatar, normalizeChildAvatar } from "../../../backend/childAvatar";
 import { childAvatarById } from "../pages/Student/childAvatars";
 import {
   GAME_CERTIFICATES,
@@ -390,6 +390,7 @@ function getSavedAttendanceRate(studentId: string) {
 
 function Students({ notify }: { notify: Notify }) {
   const [students, setStudents] = useState<DatabaseStudent[]>([]);
+  const [rosterRefresh, setRosterRefresh] = useState(0);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All");
   const [profile, setProfile] = useState<DatabaseStudent | null>(null);
@@ -491,6 +492,19 @@ function Students({ notify }: { notify: Notify }) {
     };
     void loadStudents();
     return () => { active = false; };
+  }, [rosterRefresh]);
+
+  useEffect(() => {
+    const refreshRoster = () => setRosterRefresh(value => value + 1);
+    const refreshVisibleRoster = () => { if (document.visibilityState === "visible") refreshRoster(); };
+    window.addEventListener(CHILD_AVATAR_UPDATED_EVENT, refreshRoster);
+    window.addEventListener("focus", refreshRoster);
+    document.addEventListener("visibilitychange", refreshVisibleRoster);
+    return () => {
+      window.removeEventListener(CHILD_AVATAR_UPDATED_EVENT, refreshRoster);
+      window.removeEventListener("focus", refreshRoster);
+      document.removeEventListener("visibilitychange", refreshVisibleRoster);
+    };
   }, []);
 
   const shown = students.filter(student =>

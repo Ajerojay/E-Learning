@@ -26,6 +26,10 @@
 
 .ta-teacher-avatar-image{width:100%;height:100%;display:block;border-radius:inherit;object-fit:cover}.ta-profile-photo-preview{width:110px;height:110px;margin:13px auto 22px;position:relative;display:grid;place-items:center;border-radius:31px;background:#eee3ff;font-size:59px}.ta-profile-photo-preview>img{width:100%;height:100%;border-radius:inherit;object-fit:cover}.ta-profile-photo-preview>button{position:absolute;left:50%;bottom:-14px;transform:translateX(-50%);width:max-content;padding:7px 10px;border:2px solid #fff;border-radius:20px;background:#687edf;color:#fff;display:flex;align-items:center;gap:5px;font-size:9px}.ta-profile-photo-preview>button svg{width:14px}.ta-profile-photo-preview>input{display:none}.ta-teacher-profile-form .ta-primary:disabled{opacity:.65;cursor:wait}
 
+/* Keep the desktop teacher shell anchored while wide activity cards render. */
+@media(min-width:1101px){.teacher-app{overflow-x:hidden}.teacher-app>.ta-sidebar{display:flex!important;transform:none!important;width:250px}.teacher-app>main{min-width:0;margin-left:250px}.teacher-app .ta-content{max-width:1450px}}
+@media(min-width:721px) and (max-width:1100px){.teacher-app{overflow-x:hidden}.teacher-app>.ta-sidebar{display:flex!important;transform:none!important;width:82px}.teacher-app>main{min-width:0;margin-left:82px}.teacher-app .ta-content{max-width:100%}}
+
 @keyframes ta-pop{from{opacity:0;transform:translateY(-7px)}}@keyframes ta-modal{from{opacity:0;transform:scale(.94)}}@keyframes ta-float{50%{transform:translateY(-7px)}}
 
 @media(max-width:1100px){.teacher-app>main{margin-left:82px}.ta-sidebar{width:82px;padding-inline:8px}.ta-logo{justify-content:center;padding-inline:0}.ta-logo span,.ta-sidebar nav b,.ta-side-profile span,.ta-side-profile button{display:none}.ta-sidebar nav button{justify-content:center;padding:7px}.ta-sidebar nav button i{width:42px;height:42px}.ta-side-profile{justify-content:center}.ta-metrics{grid-template-columns:repeat(2,1fr)}.ta-students{grid-template-columns:repeat(2,1fr)}.ta-grid-att{grid-template-columns:1fr}.ta-lessons{grid-template-columns:1fr}.ta-health-stats{grid-template-columns:repeat(2,1fr)}}
