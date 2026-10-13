@@ -427,12 +427,12 @@ function Students({ notify }: { notify: Notify }) {
       setLoadError("");
       let { data, error } = await supabase
         .from("children_accounts")
-        .select("id, parent_id, child_name, first_name, last_name, date_of_birth, sex, grade_level, pin_code, is_active, last_active_at, avatar")
+        .select("id, parent_id, child_name, first_name, last_name, date_of_birth, grade_level, pin_code, is_active, last_active_at, avatar")
         .order("created_at", { ascending: false });
 
-      if (error && /last_active_at|avatar/i.test(error.message)) {
-        const fallback = await supabase.from("children_accounts").select("id, parent_id, child_name, first_name, last_name, date_of_birth, sex, grade_level, pin_code, is_active").order("created_at", { ascending: false });
-        data = fallback.data?.map(row => ({ ...row, last_active_at: null, avatar: null })) ?? null;
+      if (error && /last_active_at|date_of_birth|pin_code|column|schema cache|could not find/i.test(error.message)) {
+        const fallback = await supabase.from("children_accounts").select("id, parent_id, child_name, first_name, last_name, grade_level, is_active, avatar").order("created_at", { ascending: false });
+        data = fallback.data?.map(row => ({ ...row, date_of_birth: null, pin_code: null, last_active_at: null })) ?? null;
         error = fallback.error;
       }
 
@@ -480,7 +480,7 @@ function Students({ notify }: { notify: Notify }) {
             firstName: row.first_name?.trim() || "",
             lastName: row.last_name?.trim() || "",
             dateOfBirth: row.date_of_birth,
-            sex: row.sex,
+            sex: null,
             pinCode: row.pin_code,
             enrolled: row.is_active !== false,
             lastActiveAt: row.last_active_at,
