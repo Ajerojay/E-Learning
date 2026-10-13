@@ -47,14 +47,21 @@ export async function getAttendanceRecords(childIds: string[]) {
   return (data || []) as Array<{ child_id: string; attendance_date: string; status: AttendanceStatus }>;
 }
 
-export async function saveAttendanceRecords(records: Array<{ childId: string; date: string; status: AttendanceStatus }>) {
+export async function saveAttendanceRecords(records: Array<{ childId: string; date: string; status: AttendanceStatus; teacherId?: string; teacherName?: string }>) {
   records.forEach(record => cacheAttendance(record.childId, record.date, record.status));
   if (!navigator.onLine || !records.length) return;
-  const { error } = await supabase.from("child_attendance").upsert(records.map(record => ({
+  const rows = records.map(record => ({
     child_id: record.childId,
     attendance_date: record.date,
     status: record.status,
     source: "teacher",
-  })), { onConflict: "child_id,attendance_date" });
+    teacher_id: record.teacherId || null,
+    teacher_name: record.teacherName || null,
+  }));
+  let { error } = await supabase.from("child_attendance").upsert(rows, { onConflict: "child_id,attendance_date" });
+  if (error && /teacher_id|teacher_name|column|schema cache|could not find/i.test(error.message)) {
+    const retry = await supabase.from("child_attendance").upsert(rows.map(({ teacher_id: _teacherId, teacher_name: _teacherName, ...row }) => row), { onConflict: "child_id,attendance_date" });
+    error = retry.error;
+  }
   if (error) throw error;
 }
