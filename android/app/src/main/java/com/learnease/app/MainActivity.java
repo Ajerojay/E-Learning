@@ -44,6 +44,9 @@ public class MainActivity extends BridgeActivity {
     private FrameLayout videoFullscreenContainer;
     private int orientationBeforeVideoFullscreen = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
     private volatile String pendingDeepLinkPath = null;
+    private final Handler ttsHandler = new Handler(Looper.getMainLooper());
+    private Runnable pendingTtsSpeak = null;
+    private String pendingTtsUtteranceId = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -262,12 +265,28 @@ public class MainActivity extends BridgeActivity {
                 : utteranceId;
         runOnUiThread(() -> {
             if (!textToSpeechReady || textToSpeech == null) return;
-            textToSpeech.setSpeechRate(Math.max(0.55f, Math.min(rate, 1.6f)));
-            textToSpeech.setPitch(Math.max(0.7f, Math.min(pitch, 1.8f)));
-            textToSpeech.speak(text,
-                    interrupt ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD,
-                    null,
-                    id);
+            Runnable speakNow = () -> {
+                pendingTtsSpeak = null;
+                pendingTtsUtteranceId = null;
+                textToSpeech.setSpeechRate(Math.max(0.55f, Math.min(rate, 0.95f)));
+                textToSpeech.setPitch(Math.max(0.7f, Math.min(pitch, 1.5f)));
+                textToSpeech.speak(text,
+                        interrupt ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD,
+                        null,
+                        id);
+            };
+            if (interrupt) {
+                if (pendingTtsSpeak != null) {
+                    ttsHandler.removeCallbacks(pendingTtsSpeak);
+                    notifyTts(pendingTtsUtteranceId, "stop");
+                }
+                textToSpeech.stop();
+                pendingTtsSpeak = speakNow;
+                pendingTtsUtteranceId = id;
+                ttsHandler.postDelayed(speakNow, 85);
+            } else {
+                ttsHandler.post(speakNow);
+            }
         });
     }
 
@@ -283,7 +302,15 @@ public class MainActivity extends BridgeActivity {
         }
 
         @JavascriptInterface public void cancel() {
-            runOnUiThread(() -> { if (textToSpeech != null) textToSpeech.stop(); });
+            runOnUiThread(() -> {
+                if (pendingTtsSpeak != null) {
+                    ttsHandler.removeCallbacks(pendingTtsSpeak);
+                    notifyTts(pendingTtsUtteranceId, "stop");
+                    pendingTtsSpeak = null;
+                    pendingTtsUtteranceId = null;
+                }
+                if (textToSpeech != null) textToSpeech.stop();
+            });
         }
 
         @JavascriptInterface public boolean isReady() { return textToSpeechReady; }

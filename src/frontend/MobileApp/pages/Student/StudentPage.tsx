@@ -31,8 +31,12 @@ export default function StudentPage() {
     }
     return getRememberedChildFirstName(childId) || "Child";
   });
-  const [allowedGames, setAllowedGames] = useState<string[]>([]);
+  const [allowedGames, setAllowedGames] = useState<string[]>(() => {
+    const childId = localStorage.getItem("activeChildId");
+    return childId ? getStudentGameAccess(childId) : [];
+  });
   const [activityRevision, setActivityRevision] = useState(0);
+  const [quitConfirmationOpen, setQuitConfirmationOpen] = useState(false);
   const [avatarSrc, setAvatarSrc] = useState<string | null>(() => {
     const saved = childAvatarById(getStoredChildAvatar(localStorage.getItem("activeChildId")));
     return saved?.src ?? null;
@@ -85,6 +89,12 @@ export default function StudentPage() {
 
   useEffect(() => {
     const loadChildName = async () => {
+      const cachedChildId = localStorage.getItem("activeChildId");
+      if (cachedChildId) {
+        // Restore the menu immediately when returning quickly from a game.
+        // The online child lookup below can still reconcile the active account.
+        setAllowedGames(getStudentGameAccess(cachedChildId));
+      }
       const childId = await getOrCreateActiveChildId();
       if (!childId) return;
       void restoreQuestLevelResults(childId).then(() => {
@@ -181,15 +191,20 @@ export default function StudentPage() {
     });
   };
 
+  const confirmQuit = () => {
+    setQuitConfirmationOpen(false);
+    cancelNativeSpeech();
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    navigate("/student-access", { state: { fromStudent: true } });
+  };
+
   return (
     <div className="student-page">
 
       {/* BACK BUTTON */}
       <button
         className="student-back-btn"
-        onClick={() =>
-          navigate("/student-access", { state: { fromStudent: true } })
-        }
+        onClick={() => setQuitConfirmationOpen(true)}
       >
         <span className="student-back-arrow" aria-hidden="true">&#8592;</span>
         <span className="student-back-label">Back</span>
@@ -231,6 +246,20 @@ export default function StudentPage() {
           </button>
         ))}
       </div>
+
+      {quitConfirmationOpen && (
+        <div className="student-quit-overlay" role="presentation" onMouseDown={() => setQuitConfirmationOpen(false)}>
+          <section className="student-quit-dialog" role="alertdialog" aria-modal="true" aria-labelledby="student-quit-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="student-quit-bear" aria-hidden="true">🐻</div>
+            <h2 id="student-quit-title">Are you sure you want to quit?</h2>
+            <p>You’ll return to the <b>Enter Kid’s PIN</b> screen.</p>
+            <div className="student-quit-actions">
+              <button type="button" className="student-quit-stay" onClick={() => setQuitConfirmationOpen(false)}>Keep Learning</button>
+              <button type="button" className="student-quit-confirm" onClick={confirmQuit}>Yes, Quit</button>
+            </div>
+          </section>
+        </div>
+      )}
 
     </div>
   );

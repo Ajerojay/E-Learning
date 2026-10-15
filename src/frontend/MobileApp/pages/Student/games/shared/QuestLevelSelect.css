@@ -201,6 +201,16 @@
   filter: grayscale(0.35) brightness(0.82);
 }
 
+.qlm-node.is-locked {
+  cursor: not-allowed;
+  touch-action: manipulation;
+}
+
+.qlm-node.is-locked.is-shaking {
+  animation: qlm-locked-shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+  transform-origin: center;
+}
+
 .qlm-label {
   position: absolute;
   left: 50%;
@@ -262,6 +272,16 @@
 
 @keyframes qlm-twinkle {
   50% { transform: scale(1.18) rotate(12deg); opacity: 0.75; }
+}
+
+@keyframes qlm-locked-shake {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  15% { transform: translateX(-10px) rotate(-2deg); }
+  30% { transform: translateX(9px) rotate(2deg); }
+  45% { transform: translateX(-7px) rotate(-1.5deg); }
+  60% { transform: translateX(6px) rotate(1.5deg); }
+  75% { transform: translateX(-3px) rotate(-0.75deg); }
+  90% { transform: translateX(2px) rotate(0.5deg); }
 }
 
 @media (orientation: landscape) and (max-height: 500px) {

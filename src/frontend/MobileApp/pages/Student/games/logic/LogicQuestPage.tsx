@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import "./LogicQuestPage.css";
+import GameExitGesture from "../shared/GameExitGesture";
 import { useNavigate } from "react-router-dom";
 import {
   DndContext,
@@ -302,13 +303,13 @@ export default function Level2Pattern() {
   const sayKid = (text: string) => {
     try {
       if (!soundEnabled) return;
-      if (speakNative(text, { interrupt: true, pitch: 1.3 })) return;
+      if (speakNative(text, { interrupt: true, rate: 0.9, pitch: 1.2 })) return;
       if (!("speechSynthesis" in window)) return;
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = "en-US";
-      utterance.rate = 1;
-      utterance.pitch = 1.25;
+      utterance.rate = 0.9;
+      utterance.pitch = 1.2;
       utterance.volume = 1;
       window.speechSynthesis.speak(utterance);
     } catch {
@@ -319,8 +320,9 @@ export default function Level2Pattern() {
   const speakFeedback = (text: string) => {
     try {
       if (!soundEnabled) return;
-      if (speakNative(text, { pitch: 1.3 })) return;
+      if (speakNative(text, { interrupt: true, rate: 0.9, pitch: 1.2 })) return;
       if (!("speechSynthesis" in window)) return;
+      window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       const voices = window.speechSynthesis.getVoices();
       const voice =
@@ -330,8 +332,8 @@ export default function Level2Pattern() {
 
       if (voice) utterance.voice = voice;
 
-      utterance.rate = 1;
-      utterance.pitch = 1.4;
+      utterance.rate = 0.9;
+      utterance.pitch = 1.2;
       utterance.volume = 1;
       window.speechSynthesis.speak(utterance);
     } catch {
@@ -561,9 +563,7 @@ export default function Level2Pattern() {
           onBack={handleBack}
         />
       )}
-      <button className="lq-back-btn" onClick={() => setMapOpen(true)}>
-        {"\u2190"} Map
-      </button>
+      <GameExitGesture className="lq-back-btn" onExit={() => setMapOpen(true)} />
 
       <KidGameTitle className="lq-main-title" fitHud tag="h2">
         What comes next?

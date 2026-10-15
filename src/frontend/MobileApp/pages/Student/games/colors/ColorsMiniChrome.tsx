@@ -7,6 +7,7 @@ import ChildMusicToggle from "../../ChildMusicToggle";
 import { LiveStarHud } from "../shared/LevelStars";
 import { KidGameTitle } from "../shared/KidGameTitle";
 import { LevelIntroOverlay, COUNTDOWN_READY_SUBTITLE, type LevelIntroContent } from "../shared/levelIntro";
+import GameExitGesture from "../shared/GameExitGesture";
 
 export function ColorsMiniChrome({
   mapTitle,
@@ -83,9 +84,7 @@ export function ColorsMiniChrome({
           <p>{rotateLabel} needs landscape mode before you can play.</p>
         </div>
       )}
-      <button type="button" className="cq-back-btn" onClick={() => setMapOpen(true)}>
-        {"\u2190"} Map
-      </button>
+      <GameExitGesture className="cq-back-btn" onExit={() => setMapOpen(true)} />
       <KidGameTitle className="cq-title" fitHud>
         {title}
       </KidGameTitle>

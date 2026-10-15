@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./NumbersQuestPage.css";
 import "../../../../WebView/AppNumbersQuestPage.css";
+import GameExitGesture from "../shared/GameExitGesture";
 import { getOrCreateActiveChildId } from "../../../../../../backend/childProgress";
 import {
   loadPrimaryGameCodeForCategory,
@@ -283,14 +284,12 @@ export default function NumbersQuestPage() {
   ) => {
     try {
       if (!soundEnabled) return;
-      if (speakNative(text, { interrupt: options?.interrupt, rate: 1.05, pitch: 1.35 })) return;
+      if (speakNative(text, { interrupt: options?.interrupt !== false, rate: 0.9, pitch: 1.2 })) return;
       if (!("speechSynthesis" in window)) return;
       if (!voicesReady) {
         void window.speechSynthesis.getVoices();
       }
-      if (options?.interrupt) {
-        window.speechSynthesis.cancel();
-      }
+      window.speechSynthesis.cancel();
       const now = Date.now();
       const last = lastSpokenRef.current;
       if (!options?.skipDedupe && last && last.text === text && now - last.at < 450)
@@ -300,8 +299,8 @@ export default function NumbersQuestPage() {
       const voice = getHappyVoice();
       if (!voice) return;
       u.voice = voice;
-      u.rate = 1.12;
-      u.pitch = 1.55;
+      u.rate = 0.9;
+      u.pitch = 1.2;
       u.volume = 1;
 
       // Pause music when voice starts speaking
@@ -327,9 +326,10 @@ export default function NumbersQuestPage() {
   const speakFeedback = (text: string) => {
     try {
       if (!soundEnabled) return;
-      if (speakNative(text, { rate: 1, pitch: 1.35 })) return;
+      if (speakNative(text, { interrupt: true, rate: 0.9, pitch: 1.2 })) return;
       if (!("speechSynthesis" in window)) return;
 
+      window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       const voices = window.speechSynthesis.getVoices();
       const voice =
@@ -341,8 +341,8 @@ export default function NumbersQuestPage() {
         utterance.voice = voice;
       }
 
-      utterance.rate = 1;
-      utterance.pitch = 1.4;
+      utterance.rate = 0.9;
+      utterance.pitch = 1.2;
       utterance.volume = 1;
       window.speechSynthesis.speak(utterance);
     } catch {
@@ -537,9 +537,7 @@ export default function NumbersQuestPage() {
       )}
       <header className="nq-header">
         <div className="nq-top-bar">
-          <button type="button" className="nq-back-btn" onClick={() => setMapOpen(true)}>
-            {"\u2190"} Back
-          </button>
+          <GameExitGesture className="nq-back-btn" onExit={() => setMapOpen(true)} />
         </div>
         <div className="nq-heading">
           <KidGameTitle className="nq-title nq-title--page" tag="h2">

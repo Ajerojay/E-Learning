@@ -44,8 +44,8 @@ export function speakTrackedNative(
   if (isSpeechMuted() && !options.force) return true;
   window.AndroidTts.speakTracked(
     text,
-    options.rate ?? 1,
-    options.pitch ?? 1.25,
+    Math.min(options.rate ?? 0.9, 0.95),
+    options.pitch ?? 1.2,
     options.interrupt ?? false,
     utteranceId
   );
@@ -74,7 +74,12 @@ export function speakNative(
 ) {
   if (!text || !window.AndroidTts) return false;
   if (isSpeechMuted() && !options.force) return true;
-  window.AndroidTts.speak(text, options.rate ?? 1, options.pitch ?? 1.25, options.interrupt ?? false);
+  window.AndroidTts.speak(
+    text,
+    Math.min(options.rate ?? 0.9, 0.95),
+    options.pitch ?? 1.2,
+    options.interrupt !== false
+  );
   return true;
 }
 
@@ -137,7 +142,7 @@ export function speakKidPrompt(text: string, options: KidPromptOptions = {}) {
     end();
     return;
   }
-  const rate = options.rate ?? 0.95;
+  const rate = Math.min(options.rate ?? 0.9, 0.95);
   const interrupt = options.interrupt !== false;
   if (interrupt) {
     cancelNativeSpeech();
@@ -145,7 +150,7 @@ export function speakKidPrompt(text: string, options: KidPromptOptions = {}) {
   }
 
   if (window.AndroidTts) {
-    const nativeOptions = { interrupt, rate, pitch: options.pitch ?? 1.3, force: options.force };
+    const nativeOptions = { interrupt, rate, pitch: options.pitch ?? 1.2, force: options.force };
     if (typeof window.AndroidTts.speakTracked === "function") {
       const utteranceId = `kid-${Date.now()}-${++trackedSpeechSeq}`;
       const fallback = window.setTimeout(() => finish(), estimateSpeechMs(text, rate) * 3 + 4000);
@@ -184,7 +189,7 @@ export function speakKidPrompt(text: string, options: KidPromptOptions = {}) {
     const voice = pickKidVoice();
     if (voice) utterance.voice = voice;
     utterance.rate = rate;
-    utterance.pitch = options.pitch ?? 1.25;
+    utterance.pitch = options.pitch ?? 1.2;
     utterance.onstart = start;
     utterance.onend = end;
     utterance.onerror = end;

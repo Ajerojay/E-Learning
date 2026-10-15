@@ -7,6 +7,7 @@ import { KidGameTitle } from "../shared/KidGameTitle";
 import { LevelIntroOverlay, COUNTDOWN_READY_SUBTITLE, type LevelIntroContent } from "../shared/levelIntro";
 import ChildMusicToggle from "../../ChildMusicToggle";
 import { LiveStarHud } from "../shared/LevelStars";
+import GameExitGesture from "../shared/GameExitGesture";
 
 export function PhonicsMiniChrome({
   mapTitle,
@@ -67,9 +68,7 @@ export function PhonicsMiniChrome({
           onBack={() => navigate("/quest/phonics")}
         />
       )}
-      <button type="button" className="ssm-map-btn" onClick={() => setMapOpen(true)}>
-        {"\u2190"} Map
-      </button>
+      <GameExitGesture className="ssm-map-btn" onExit={() => setMapOpen(true)} />
       <KidGameTitle className="ssm-title" fitHud>
         {title}
       </KidGameTitle>

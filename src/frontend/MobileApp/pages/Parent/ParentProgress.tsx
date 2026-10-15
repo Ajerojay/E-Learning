@@ -52,6 +52,7 @@ export default function ParentProgress() {
   const [children, setChildren] = useState<ChildProgressCard[]>([]);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const [parentDone, setParentDone] = useState<Record<string, number>>({});
+  const [parentActivityArmed, setParentActivityArmed] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -223,6 +224,7 @@ export default function ParentProgress() {
   const selectedChild = children.find((child) => child.id === selectedChildId) ?? children[0];
 
   useEffect(() => {
+    setParentActivityArmed({});
     if (!selectedChild?.id) {
       setParentDone({});
       return;
@@ -250,6 +252,19 @@ export default function ParentProgress() {
       localStorage.setItem(`parentTimeCardsDone:${selectedChild.id}:${key}`, String(nextMask));
       return { ...current, [key]: nextMask };
     });
+  };
+
+  const activityArmKey = (key: SubjectKey, activityIndex: number) => `${key}:${activityIndex}`;
+
+  const toggleParentActivityReady = (key: SubjectKey, activityIndex: number) => {
+    const armKey = activityArmKey(key, activityIndex);
+    setParentActivityArmed((current) => ({ ...current, [armKey]: !current[armKey] }));
+  };
+
+  const confirmParentActivity = (key: SubjectKey, activityIndex: number) => {
+    toggleParentActivity(key, activityIndex);
+    const armKey = activityArmKey(key, activityIndex);
+    setParentActivityArmed((current) => ({ ...current, [armKey]: false }));
   };
 
   const childName = selectedChild?.name || "Child";
@@ -692,22 +707,32 @@ export default function ParentProgress() {
                           { title: rec.offlineThird, description: rec.offlineThirdDesc },
                         ].filter((activity) => activity.title).map((activity, activityIndex) => {
                           const checked = ((parentDone[sub.key] ?? 0) & (1 << activityIndex)) !== 0;
+                          const armed = Boolean(parentActivityArmed[activityArmKey(sub.key, activityIndex)]);
                           return (
                             <article
                               key={`${sub.key}-${activityIndex}`}
                               className={`pp-parent-activity-card${checked ? " is-checked" : ""}`}
                               aria-label={`${activity.title}, ${checked ? "done" : "not done"}`}
                             >
-                              <div className="pp-parent-activity-status">
-                                <span className="pp-parent-activity-check" aria-hidden="true">{checked ? "✓" : ""}</span>
+                              <button
+                                type="button"
+                                className="pp-parent-activity-status"
+                                aria-label={checked ? `${activity.title} is done` : `${armed ? "Uncheck" : "Check"} ${activity.title} before marking it done`}
+                                aria-pressed={checked || armed}
+                                disabled={checked}
+                                onClick={() => toggleParentActivityReady(sub.key, activityIndex)}
+                              >
+                                <span className="pp-parent-activity-check" aria-hidden="true">{checked || armed ? "✓" : ""}</span>
                                 <span>{checked ? "DONE" : "NOT DONE"}</span>
-                              </div>
+                              </button>
                               <h4>{activity.title}</h4>
                               <p>{activity.description}</p>
                               <button
                                 type="button"
+                                className="pp-parent-activity-action"
                                 aria-pressed={checked}
-                                onClick={() => toggleParentActivity(sub.key, activityIndex)}
+                                disabled={!checked && !armed}
+                                onClick={() => confirmParentActivity(sub.key, activityIndex)}
                               >
                                 {checked ? "Mark as not done" : "Mark as done"}
                               </button>

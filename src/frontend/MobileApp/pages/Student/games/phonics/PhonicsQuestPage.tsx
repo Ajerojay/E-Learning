@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import "./PhonicsQuestPage.css";
 import "../../../../WebView/AppPhonicsQuestPage.css";
+import GameExitGesture from "../shared/GameExitGesture";
 import { useNavigate } from "react-router-dom";
 // ===== SUPABASE DATABASE CONNECTION: shared by web and AppPhonicsQuestPage =====
 import { recordGameProgressRpc, loadPrimaryGameCodeForCategory } from "../../../../../../backend/gameProgressDb";
@@ -208,13 +209,13 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
   const sayKid = (text: string) => {
     try {
       if (!soundEnabled) return;
-      if (speakNative(text, { interrupt: true, rate: 1, pitch: 1.35 })) return;
+      if (speakNative(text, { interrupt: true, rate: 0.9, pitch: 1.2 })) return;
       if (!("speechSynthesis" in window)) return;
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = "en-US";
-      utterance.rate = 1;
-      utterance.pitch = 1.25;
+      utterance.rate = 0.9;
+      utterance.pitch = 1.2;
       utterance.volume = 1;
       window.speechSynthesis.speak(utterance);
     } catch {
@@ -225,8 +226,9 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
   const speakFeedback = (text: string) => {
     try {
       if (!soundEnabled) return;
-      if (speakNative(text, { rate: 1.05, pitch: 1.35 })) return;
+      if (speakNative(text, { interrupt: true, rate: 0.9, pitch: 1.2 })) return;
       if (!("speechSynthesis" in window)) return;
+      window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       const voices = window.speechSynthesis.getVoices();
       const voice =
@@ -238,8 +240,8 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
         utterance.voice = voice;
       }
 
-      utterance.rate = 1;
-      utterance.pitch = 1.4;
+      utterance.rate = 0.9;
+      utterance.pitch = 1.2;
       utterance.volume = 1;
       window.speechSynthesis.speak(utterance);
     } catch {
@@ -536,9 +538,7 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
         <span className="pq-turn-arrow" aria-hidden="true">↻</span>
       </div>
 
-      <button className="pq-back-btn" onClick={() => setMapOpen(true)}>
-        {"\u2190"} Map
-      </button>
+      <GameExitGesture className="pq-back-btn" onExit={() => setMapOpen(true)} />
 
       <h2 className="pq-page-title">
   <KidGameTitle className="pq-main-title" tag="span">

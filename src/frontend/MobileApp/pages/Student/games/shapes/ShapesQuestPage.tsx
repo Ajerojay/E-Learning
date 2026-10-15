@@ -673,7 +673,7 @@ speakFeedback("Try again!");
   const sayKid = (text: string) => {
     try {
       if (!soundEnabled) return;
-      if (speakNative(text, { interrupt: true, pitch: 1.35 })) return;
+      if (speakNative(text, { interrupt: true, rate: 0.9, pitch: 1.2 })) return;
       if (!("speechSynthesis" in window)) return;
       if (!voicesReady) {
         // Prime voices list on first interaction.
@@ -689,8 +689,8 @@ speakFeedback("Try again!");
       lastSpokenRef.current = { text, at: now };
       u.voice = voice;
       // "Happy" kid-like cadence
-      u.rate = 1.12;
-      u.pitch = 1.55;
+      u.rate = 0.9;
+      u.pitch = 1.2;
       u.volume = 1;
       window.speechSynthesis.speak(u);
     } catch {
@@ -702,9 +702,10 @@ speakFeedback("Try again!");
   const speakFeedback = (text: string) => {
   try {
     if (!soundEnabled) return;
-    if (speakNative(text, { pitch: 1.35 })) return;
+    if (speakNative(text, { interrupt: true, rate: 0.9, pitch: 1.2 })) return;
     if (!("speechSynthesis" in window)) return;
 
+    window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
 
     const voices = window.speechSynthesis.getVoices();
@@ -718,8 +719,8 @@ speakFeedback("Try again!");
       u.voice = voice;
     }
 
-    u.rate = 1;
-    u.pitch = 1.4;
+    u.rate = 0.9;
+    u.pitch = 1.2;
     u.volume = 1;
 
     window.speechSynthesis.speak(u);

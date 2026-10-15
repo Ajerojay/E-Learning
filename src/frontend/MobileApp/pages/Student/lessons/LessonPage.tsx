@@ -113,7 +113,7 @@ export default function LessonPage() {
   }, []);
 
   useEffect(() => {
-    window.AndroidOrientation?.allowGameRotation?.();
+    window.AndroidOrientation?.lockPortrait();
   }, []);
 
   useEffect(() => {
@@ -121,15 +121,7 @@ export default function LessonPage() {
     const player = playerRef.current;
     if (!video) return;
 
-    const allowLandscapeIfUserRotates = () => {
-      window.AndroidOrientation?.allowGameRotation?.();
-      const orientation = screen.orientation as ScreenOrientation & { unlock?: () => void };
-      try {
-        orientation?.unlock?.();
-      } catch {
-        /* Some browsers only allow this during fullscreen. */
-      }
-    };
+    const enterVideoLandscape = () => window.AndroidOrientation?.lockLandscape?.();
 
     const syncFullscreenState = () => {
       const fullscreenElement =
@@ -140,22 +132,22 @@ export default function LessonPage() {
         fullscreenElement === player ||
         fullscreenElement === player?.parentElement;
       setIsVideoFullscreen(Boolean(active));
-      if (active) allowLandscapeIfUserRotates();
+      if (active) enterVideoLandscape();
+      else window.AndroidOrientation?.lockPortrait();
     };
 
-    video.addEventListener("webkitbeginfullscreen", allowLandscapeIfUserRotates);
+    video.addEventListener("webkitbeginfullscreen", enterVideoLandscape);
     document.addEventListener("fullscreenchange", syncFullscreenState);
     document.addEventListener("webkitfullscreenchange", syncFullscreenState);
 
     return () => {
-      video.removeEventListener("webkitbeginfullscreen", allowLandscapeIfUserRotates);
+      video.removeEventListener("webkitbeginfullscreen", enterVideoLandscape);
       document.removeEventListener("fullscreenchange", syncFullscreenState);
       document.removeEventListener("webkitfullscreenchange", syncFullscreenState);
     };
   }, [lessonVideoUrl]);
 
   const toggleVideoFullscreen = async () => {
-    window.AndroidOrientation?.allowGameRotation?.();
     const player = playerRef.current;
     const video = videoRef.current;
     const fullscreenElement =
@@ -170,9 +162,11 @@ export default function LessonPage() {
         /* Native Android overlay handles exit. */
       }
       setIsVideoFullscreen(false);
+      window.AndroidOrientation?.lockPortrait();
       return;
     }
 
+    window.AndroidOrientation?.lockLandscape?.();
     const target = player ?? video;
     const request =
       target?.requestFullscreen ||

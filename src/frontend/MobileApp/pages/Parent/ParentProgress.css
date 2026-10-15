@@ -868,15 +868,25 @@ body {
   background: #effbf1;
 }
 
-.pp-parent-activity-status {
+.pp-recommend-box .pp-parent-activity-card > .pp-parent-activity-status {
+  appearance: none;
   display: flex;
   align-items: center;
   gap: 7px;
   margin-bottom: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: #687386;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.pp-recommend-box .pp-parent-activity-card > .pp-parent-activity-status:disabled {
+  opacity: 1;
+  cursor: default;
 }
 
 .pp-parent-activity-card.is-checked .pp-parent-activity-status {
@@ -907,20 +917,30 @@ body {
   font-size: 14px;
 }
 
-.pp-parent-activity-card button {
+.pp-recommend-box .pp-parent-activity-card .pp-parent-activity-action {
   margin: auto 0 0;
   padding: 8px 12px;
-  border: 0;
+  border: 2px solid #e0e3e8;
   border-radius: 999px;
-  background: #e59a2b;
-  color: #fff;
+  background: #fff;
+  color: #9aa1ad;
   font-size: 13px;
   font-weight: 800;
+  cursor: not-allowed;
+}
+
+.pp-recommend-box .pp-parent-activity-card .pp-parent-activity-action:not(:disabled) {
+  border-color: #397eff;
+  background: #397eff;
+  color: #fff;
   cursor: pointer;
 }
 
-.pp-parent-activity-card.is-checked button {
+.pp-recommend-box .pp-parent-activity-card.is-checked .pp-parent-activity-action {
+  border-color: #328456;
   background: #328456;
+  color: #fff;
+  cursor: pointer;
 }
 
 .pp-recommend-box button {

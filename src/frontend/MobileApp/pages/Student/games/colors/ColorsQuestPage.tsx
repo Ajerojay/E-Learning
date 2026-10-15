@@ -1,4 +1,5 @@
 import "./ColorsQuestPage.css";
+import GameExitGesture from "../shared/GameExitGesture";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -138,8 +139,8 @@ const LEVELS: { name: string; colors: ColorKey[]; items: Item[]; time: number }[
       { id: "l3-pink", name: "Flamingo", color: "pink", emoji: "🦩" },
       { id: "l3-brown", name: "Teddy Bear", color: "brown", emoji: "🧸" },
       { id: "l3-black", name: "Top Hat", color: "black", emoji: "🎩" },
-      { id: "l3-white", name: "Snowman", color: "white", emoji: "⛄" },
-      { id: "l3-gray", name: "Koala", color: "gray", emoji: "🐨" },
+      { id: "l3-white", name: "White Dot", color: "white", emoji: "⚪" },
+      { id: "l3-black-dot", name: "Black Dot", color: "black", emoji: "⚫" },
       { id: "l3-orange-2", name: "Tiger", color: "orange", emoji: "🐯" },
       { id: "l3-green-2", name: "Broccoli", color: "green", emoji: "🥦" },
       { id: "l3-pink-2", name: "Tulip", color: "pink", emoji: "🌷" },
@@ -378,9 +379,9 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
   const sayKid = (text: string, options?: { interrupt?: boolean; skipDedupe?: boolean }) => {
     try {
       if (!soundEnabled) return;
-      if (speakNative(text, { interrupt: options?.interrupt, rate: 1.05, pitch: 1.35 })) return;
+      if (speakNative(text, { interrupt: options?.interrupt !== false, rate: 0.9, pitch: 1.2 })) return;
       if (!("speechSynthesis" in window)) return;
-      if (options?.interrupt) window.speechSynthesis.cancel();
+      window.speechSynthesis.cancel();
       const now = Date.now();
       const last = lastSpokenRef.current;
       if (!options?.skipDedupe && last && last.text === text && now - last.at < 450) return;
@@ -389,8 +390,8 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
       const voice = getHappyVoice();
       if (!voice) return;
       u.voice = voice;
-      u.rate = 1.12;
-      u.pitch = 1.55;
+      u.rate = 0.9;
+      u.pitch = 1.2;
       u.volume = 1;
 
       // Pause music when voice starts speaking
@@ -699,9 +700,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
           <span className="cq-turn-arrow" aria-hidden="true">↻</span>
         </div>
       )}
-      <button className="cq-back-btn" onClick={() => setMapOpen(true)}>
-        {"\u2190"} Map
-      </button>
+      <GameExitGesture className="cq-back-btn" onExit={() => setMapOpen(true)} />
 
       <KidGameTitle className="cq-title" fitHud>
         Sort the Colors!

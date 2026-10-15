@@ -108,8 +108,8 @@ export default function MobileOrientationController() {
       if (isLandscapeGamePath(pathname)) {
         window.AndroidOrientation?.lockLandscape?.();
       } else if (pathname.startsWith("/lesson/")) {
-        // Lesson videos can go fullscreen and follow the device if auto-rotate is on.
-        window.AndroidOrientation?.allowGameRotation();
+        // Lesson pages stay portrait; only the video's fullscreen mode may rotate.
+        window.AndroidOrientation?.lockPortrait();
       } else {
         window.AndroidOrientation?.lockPortrait();
       }

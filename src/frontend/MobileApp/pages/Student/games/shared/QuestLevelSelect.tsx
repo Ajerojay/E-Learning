@@ -56,10 +56,26 @@ export default function QuestLevelSelect({
   levelStars = [],
 }: QuestLevelSelectProps) {
   const stageRef = useRef<HTMLDivElement>(null);
+  const shakeTimersRef = useRef<Record<number, number>>({});
   const [pathD, setPathD] = useState("");
   const [spotlightIndex, setSpotlightIndex] = useState<number | null>(null);
   const [voiceEnabled] = useChildVoiceEnabled();
   const levels = mapLevels(levelCount);
+
+  useEffect(() => () => {
+    Object.values(shakeTimersRef.current).forEach((timerId) => window.clearTimeout(timerId));
+  }, []);
+
+  const shakeLockedLevel = (node: HTMLButtonElement, levelIndex: number) => {
+    window.clearTimeout(shakeTimersRef.current[levelIndex]);
+    node.classList.remove("is-shaking");
+    void node.offsetWidth;
+    node.classList.add("is-shaking");
+    shakeTimersRef.current[levelIndex] = window.setTimeout(() => {
+      node.classList.remove("is-shaking");
+      delete shakeTimersRef.current[levelIndex];
+    }, 520);
+  };
 
   useLayoutEffect(() => {
     const stage = stageRef.current;
@@ -188,11 +204,15 @@ export default function QuestLevelSelect({
               key={level.index}
               type="button"
               className={`qlm-node ${level.className}${locked ? " is-locked" : " is-open"}${spotlightIndex === level.index ? " is-spotlight" : ""}${spotlightIndex !== null && spotlightIndex !== level.index ? " is-dim" : ""}`}
-              onClick={() => {
-                if (!locked) onSelectLevel(level.index);
+              onClick={(event) => {
+                if (locked) {
+                  shakeLockedLevel(event.currentTarget, level.index);
+                  return;
+                }
+                onSelectLevel(level.index);
               }}
               aria-label={locked ? `${level.label} locked` : `Play ${level.label}`}
-              disabled={locked}
+              aria-disabled={locked}
             >
               <CloudShape />
               {locked ? (
