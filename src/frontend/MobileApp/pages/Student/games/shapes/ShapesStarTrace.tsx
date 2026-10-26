@@ -346,7 +346,7 @@ export default function ShapesStarTrace() {
             onPointerCancel={onPointerUp}
           >
             <path d={shapePath(currentKind)} className="sst-hit" />
-            <path d={shapePath(currentKind)} className="sst-ghost" />
+            <path d={shapePath(currentKind)} className="sst-ghost" data-idle-path="true" data-hint-progress={progress} />
             <path d={shapePath(currentKind)} className="sst-line" />
             <path
               ref={pathRef}
@@ -355,7 +355,7 @@ export default function ShapesStarTrace() {
               pathLength={100}
               strokeDasharray={`${Math.max(0.1, progress * 100)} 100`}
             />
-            <g transform={`translate(${star.x} ${star.y})`} className={onLine ? "is-hot" : ""}>
+            <g data-idle-answer="true" transform={`translate(${star.x} ${star.y})`} className={onLine ? "is-hot" : ""}>
               <polygon
                 className="sst-star"
                 points="0,-18 5,-6 18,-6 8,2 11,15 0,8 -11,15 -8,2 -18,-6 -5,-6"

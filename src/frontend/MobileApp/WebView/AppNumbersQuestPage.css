@@ -59,7 +59,7 @@
   }
   .nq-page-bg .nq-cloud-wrapper { transform: none; margin-bottom: 70px; }
   .nq-page-bg .nq-cloud-img { width: min(78vw, 340px); max-height: 26vh; }
-  .nq-page-bg .nq-cloud-number { top: 42%; left: 38%; font-size: clamp(44px, 12vw, 68px); }
+  .nq-page-bg .nq-cloud-number { top: 42%; left: 42%; font-size: clamp(44px, 12vw, 68px); }
   .nq-page-bg .nq-drops-area {
     position: absolute;
     left: 6%;
@@ -198,7 +198,7 @@
   .nq-page-bg .nq-cloud-number {
     top: 42%;
     right: auto;
-    left: 38%;
+    left: 42%;
     transform: translate(-50%, -50%);
     font-size: clamp(52px, 10vh, 88px);
     line-height: 1;

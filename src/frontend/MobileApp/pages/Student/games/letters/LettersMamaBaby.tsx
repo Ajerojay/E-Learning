@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import IdleAnswerHint from "../shared/IdleAnswerHint";
 import { useNavigate } from "react-router-dom";
 import {
   DndContext,
@@ -158,6 +159,7 @@ function DraggableBaby({ animal, disabled }: { animal: AnimalPair; disabled: boo
       type="button"
       ref={setNodeRef}
       className="lmm-animal lmm-animal--baby"
+      data-hint-source={animal.letter}
       style={style}
       aria-label={`Baby ${animal.name} ${animal.letter.toLowerCase()}`}
       {...listeners}
@@ -179,6 +181,7 @@ function MamaSlot({ animal, reunited }: { animal: AnimalPair; reunited: boolean 
       className={["lmm-drop", reunited ? "is-reunited" : "", isOver ? "is-over" : ""]
         .filter(Boolean)
         .join(" ")}
+      data-hint-target={animal.letter}
     >
       <AnimalCard animal={animal} role="Mama" />
       {reunited && (
@@ -351,6 +354,7 @@ export default function LettersMamaBaby() {
           ) : null
         }
       >
+        <IdleAnswerHint active={clock.playing && !paused && !mapOpen && !completeOpen && !gameOverOpen && !clock.timeUpOpen && babies.some(animal => !reunited[animal.letter])} questionKey={`${levelIndex}-${pageIndex}-${Object.keys(reunited).join('')}`} sourceSelector={`[data-hint-source="${babies.find(animal => !reunited[animal.letter])?.letter}"]`} destinationSelector={`[data-hint-target="${babies.find(animal => !reunited[animal.letter])?.letter}"]`} />
         <DndContext sensors={sensors} onDragEnd={onDragEnd}>
           <div className="lmm-play">
             <div className="lmm-row" aria-label="Mamas">

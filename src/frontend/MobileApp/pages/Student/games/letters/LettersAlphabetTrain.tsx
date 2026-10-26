@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import IdleAnswerHint from "../shared/IdleAnswerHint";
 import { useNavigate } from "react-router-dom";
 import {
   DndContext,
@@ -108,6 +109,7 @@ function LetterBlock({ letter, index, disabled }: { letter: string; index: numbe
       type="button"
       ref={setNodeRef}
       className="lat-block"
+      data-hint-source={letter}
       style={style}
       aria-label={`Letter ${letter}`}
       {...listeners}
@@ -133,6 +135,7 @@ function TrainCar({
         .filter(Boolean)
         .join(" ")}
       aria-label={`${letter} train car`}
+      data-hint-target={letter}
     >
       {filled ? <span className="lat-block lat-block--parked">{letter}</span> : null}
     </div>
@@ -316,6 +319,7 @@ export default function LettersAlphabetTrain() {
           ) : null
         }
       >
+        <IdleAnswerHint active={clock.playing && !paused && !mapOpen && !completeOpen && !gameOverOpen && !clock.timeUpOpen && motion === "parked" && remaining.length > 0} questionKey={`${levelIndex}-${pageIndex}-${remaining.join('')}`} sourceSelector={`[data-hint-source="${remaining[0]}"]`} destinationSelector={`[data-hint-target="${remaining[0]}"]`} />
         <DndContext sensors={sensors} onDragEnd={onDragEnd}>
           <div className="lat-blocks">
             {remaining.map((letter, index) => (

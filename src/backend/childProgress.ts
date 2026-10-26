@@ -314,6 +314,10 @@ export async function getOrCreateActiveChildId(): Promise<string | null> {
   const localUser = getLocalUser();
   const online = typeof navigator === "undefined" || navigator.onLine;
 
+  // A signed-in learner can open pages immediately from their existing session.
+  // Parent roster screens reconcile the account separately when they load.
+  if (cachedChildId) return cachedChildId;
+
   if (localUser?.id && localUser.role === "parent" && online) {
     try {
       const existingChildren = await getParentChildren(localUser.id);

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import IdleAnswerHint from "../shared/IdleAnswerHint";
 import { useNavigate } from "react-router-dom";
 import { getOrCreateActiveChildId } from "../../../../../../backend/childProgress";
 import { recordGameProgressRpc } from "../../../../../../backend/gameProgressDb";
@@ -519,6 +520,7 @@ export default function PhonicsSingingVowels() {
           ) : null
         }
       >
+        <IdleAnswerHint active={clock.playing && !paused && !mapOpen && !completeOpen && !gameOverOpen && !clock.timeUpOpen && demoDone && !demoPlaying} questionKey={`${levelIndex}-${round}-${target?.letter}`} />
         <div className="pvowel-stage">
           <div className="pvowel-branch" aria-label="Vowel birds">
             <img className="pvowel-twig-art" src={branchArt} alt="" draggable={false} />
@@ -526,6 +528,7 @@ export default function PhonicsSingingVowels() {
             {order.map((bird, index) => (
               <button
                 key={bird.letter}
+                data-idle-answer={bird.letter === target?.letter ? "true" : undefined}
                 type="button"
                 className={`pvowel-bird${singing === bird.letter ? " is-singing" : ""}${demoPlaying && singing === bird.letter ? " is-demo" : ""}${wrongBird === bird.letter ? " is-wrong" : ""}`}
                 style={{ animationDelay: `${index * 80}ms` }}

@@ -727,6 +727,15 @@ export default function ColorsPaintCanvas({ mobileApp = false }: { mobileApp?: b
     markProgress(nextFills, part.id);
   };
 
+  const paintHint = drawings.flatMap(drawing => {
+    if (drawing.kind === "svg") return drawing.parts.filter(part => !fills[part.id]).map(part => ({ drawingId: drawing.id, id: part.id, color: part.color, x: .5, y: .5 }));
+    const canvas = canvasRefs.current[drawing.id];
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context || !canvas.width || !canvas.height) return [];
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+    return drawing.zones.filter(zone => !zoneMatchesColor(pixels, zone, hexToRgb(PAINT[zone.color]))).map(zone => ({ drawingId: drawing.id, id: zone.id, color: zone.color, x: zone.fx ?? zone.x + zone.w / 2, y: zone.fy ?? zone.y + zone.h / 2 }));
+  })[0];
+
   return (
     <div className="colors-page cmini cmini--canvas">
       <ColorsMiniChrome
@@ -767,6 +776,7 @@ export default function ColorsPaintCanvas({ mobileApp = false }: { mobileApp?: b
                     {drawing.parts.map((part) => (
                       <path
                         key={part.id}
+                        data-idle-answer={paintHint?.id === part.id && brush === part.color ? "true" : undefined}
                         d={part.d}
                         fill={fills[part.id] || "#fff"}
                         stroke="#24324a"
@@ -798,6 +808,9 @@ export default function ColorsPaintCanvas({ mobileApp = false }: { mobileApp?: b
                   className={`cmini-drawing${drawing.id === "car" ? " cmini-drawing--car" : ""}`}
                   aria-label={drawing.id}
                   onPointerUp={(event) => onCanvasTap(drawing, event)}
+                  data-idle-answer={paintHint?.drawingId === drawing.id && brush === paintHint.color ? "true" : undefined}
+                  data-hint-x={paintHint?.x}
+                  data-hint-y={paintHint?.y}
                 />
               )
             )}
@@ -808,6 +821,7 @@ export default function ColorsPaintCanvas({ mobileApp = false }: { mobileApp?: b
                 key={color}
                 type="button"
                 className={`cmini-bucket${brush === color ? " is-on" : ""}`}
+                data-idle-answer={paintHint?.color === color && brush !== color ? "true" : undefined}
                 style={{ background: PAINT[color] }}
                 onClick={() => {
                   if (!clock.playing) return;

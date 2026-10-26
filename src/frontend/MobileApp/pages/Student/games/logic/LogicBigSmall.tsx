@@ -153,6 +153,8 @@ function DraggableItem({
       type="button"
       ref={setNodeRef}
       className={`lsize-item is-${item.size}${placed ? " is-placed" : ""}${picked ? " is-picked" : ""}`}
+      data-idle-source={!placed ? "true" : undefined}
+      data-idle-match={item.size}
       style={style}
       onClick={onPick}
       aria-label={`${item.size} ${item.name}`}
@@ -182,6 +184,7 @@ function SizeBox({
       type="button"
       ref={setNodeRef}
       className={`lsize-box lsize-box--${kind}${isOver || isTarget ? " is-over" : ""}`}
+      data-idle-target={kind}
       onClick={onDropTap}
       aria-label={`${kind} box`}
     >

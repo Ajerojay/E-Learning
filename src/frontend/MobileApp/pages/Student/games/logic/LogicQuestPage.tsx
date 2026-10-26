@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import "./LogicQuestPage.css";
+import IdleAnswerHint from "../shared/IdleAnswerHint";
 import GameExitGesture from "../shared/GameExitGesture";
 import { useNavigate } from "react-router-dom";
 import {
@@ -173,6 +174,7 @@ function DraggableChoice({
     <div
       ref={setNodeRef}
       className={`choice-btn2 ${isDragging ? "choice-btn2-dragging" : ""}`}
+      data-logic-choice={id}
       style={style}
       {...listeners}
       {...attributes}
@@ -200,6 +202,7 @@ function DropTarget({
     <span
       ref={setNodeRef}
       className={`drop-box ${isOver ? "drop-box-over" : ""}`}
+      data-idle-target="pattern"
     >
       {droppedEmoji ?? "❓"}
     </span>
@@ -610,6 +613,7 @@ export default function Level2Pattern() {
               <DropTarget dropped={dropped} choices={currentLevel.choices} />
             </div>
 
+            <IdleAnswerHint active={isStarted && !paused && !mapOpen && !levelIntroActive && countdown === null && time > 0 && !isFinished} questionKey={`${level}-${score}`} sourceSelector={`[data-logic-choice="${currentLevel.correctId}"]`} destinationSelector='[data-idle-target="pattern"]' />
             <div className="choices">
               {currentLevel.choices.map((c) => (
                 <DraggableChoice

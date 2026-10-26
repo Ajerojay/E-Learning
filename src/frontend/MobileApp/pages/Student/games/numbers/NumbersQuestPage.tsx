@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./NumbersQuestPage.css";
+import IdleAnswerHint from "../shared/IdleAnswerHint";
 import "../../../../WebView/AppNumbersQuestPage.css";
 import GameExitGesture from "../shared/GameExitGesture";
 import { getOrCreateActiveChildId } from "../../../../../../backend/childProgress";
@@ -99,15 +100,15 @@ const positionsByCount: Record<number, DropPos[]> = {
   ],
   10: [
     { top: "0%", left: "0%" },
-    { top: "2%", left: "22%" },
+    { top: "0%", left: "22%" },
     { top: "0%", left: "44%" },
-    { top: "4%", left: "66%" },
-    { top: "32%", left: "10%" },
-    { top: "36%", left: "32%" },
-    { top: "32%", left: "54%" },
-    { top: "64%", left: "18%" },
-    { top: "68%", left: "40%" },
-    { top: "62%", left: "62%" },
+    { top: "0%", left: "66%" },
+    { top: "0%", left: "88%" },
+    { top: "40%", left: "0%" },
+    { top: "40%", left: "22%" },
+    { top: "40%", left: "44%" },
+    { top: "40%", left: "66%" },
+    { top: "40%", left: "88%" },
   ],
 };
 
@@ -543,7 +544,6 @@ export default function NumbersQuestPage() {
           <KidGameTitle className="nq-title nq-title--page" tag="h2">
             Count the Raindrops!
           </KidGameTitle>
-          <p className="nq-subtitle nq-subtitle--page">Tap the raindrops that match the number</p>
         </div>
         <div className="nq-meta-row nq-meta-row--page">
           <div className="nq-level-badge">
@@ -574,24 +574,24 @@ export default function NumbersQuestPage() {
         </div>
       </header>
 
+      <IdleAnswerHint active={timerRunning && !paused && !mapOpen && !levelIntroActive && countdown === null && !locked && !isFinishedAllLevels && selected.length <= target} questionKey={`${levelIndex}-${target}-${selected.length}`} />
       <div className="nq-scene nq-scene--page">
         <div className="nq-cloud-wrapper nq-cloud-wrapper--page">
           <img src={cloudImg} className="nq-cloud-img" alt="" />
           <div className="nq-cloud-number">{target}</div>
           <div className="nq-drops-area" data-drop-count={level.dropCount}>
-            {positions.map((pos, index) =>
-              selected.includes(index) ? null : (
+            {positions.map((pos, index) => (
                 <img
                   key={index}
                   data-drop-index={index}
+                  data-idle-answer={!selected.includes(index) && selected.length < target ? "true" : undefined}
                   src={dropImg}
                   className="nq-drop"
-                  style={{ top: pos.top, left: pos.left }}
+                  style={{ top: pos.top, left: pos.left, visibility: selected.includes(index) ? "hidden" : "visible" }}
                   onClick={() => handleClick(index)}
                   alt="raindrop"
                 />
-              )
-            )}
+              ))}
           </div>
         </div>
       </div>
@@ -599,6 +599,7 @@ export default function NumbersQuestPage() {
       {!isFinishedAllLevels && <button
         type="button"
         className="nq-submit-btn nq-submit-btn--page"
+        data-idle-answer={selected.length === target ? "true" : undefined}
         onClick={checkAnswer}
         disabled={selected.length === 0 || locked || levelIntroActive || countdown !== null}
       >

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import IdleAnswerHint from "../shared/IdleAnswerHint";
 import { useNavigate } from "react-router-dom";
 import { getOrCreateActiveChildId } from "../../../../../../backend/childProgress";
 import { recordGameProgressRpc } from "../../../../../../backend/gameProgressDb";
@@ -371,10 +372,12 @@ export default function PhonicsBeginningSounds() {
                 <small>Again</small>
               </button>
             </div>
+            <IdleAnswerHint active={clock.playing && !paused && !mapOpen && !completeOpen && !gameOverOpen && !clock.timeUpOpen} questionKey={`${levelIndex}-${round}-${item.word}`} />
             <div className={`pbegin-letters${item.choices.length > 3 ? " pbegin-letters--many" : ""}`}>
               {item.choices.map((letter, index) => (
                 <button
                   key={`${item.word}-${letter}`}
+                  data-idle-answer={letter === item.letter ? "true" : undefined}
                   type="button"
                   className={`pbegin-letter${wrongChoice === letter ? " is-wrong" : ""}`}
                   style={{ background: LETTER_COLORS[index % LETTER_COLORS.length] }}

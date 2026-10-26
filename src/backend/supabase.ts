@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { networkFetch } from "./networkFetch";
 
 // ===== SUPABASE DATABASE CONNECTION =====
 // Both the web version and Android/Capacitor app use this same client.
@@ -24,4 +25,6 @@ function readEmailLink() {
 // or recovery link is removed from the URL once the session is created.
 export const pendingEmailLink = readEmailLink();
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  global: { fetch: networkFetch },
+});

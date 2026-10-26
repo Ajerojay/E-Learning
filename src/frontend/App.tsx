@@ -15,6 +15,7 @@ import { installMojibakeRepair } from "./MobileApp/repairMojibake";
 import BearLoading from "./MobileApp/BearLoading";
 import GameCertificateHost from "./MobileApp/pages/Student/GameCertificateHost";
 import CertificateDownloadNotice from "./MobileApp/pages/Student/CertificateDownloadNotice";
+import PageErrorBoundary from "./PageErrorBoundary";
 
 /* MOBILE APP */
 import MobileOrientationController from "./MobileApp/MobileOrientationController";
@@ -128,16 +129,17 @@ function App() {
       await pullSharedClassSettings();
     };
     const sync = () => {
-      if (!navigator.onLine) return;
-      void syncOfflineProgress();
+      if (!navigator.onLine || document.visibilityState === "hidden") return;
+      void syncOfflineProgress().catch(error => console.warn("Progress sync will retry online:", error));
       const childId = localStorage.getItem("activeChildId");
-      if (childId) void syncLocalQuestStars(childId);
-      void syncShared();
+      if (childId) void syncLocalQuestStars(childId).catch(error => console.warn("Star sync will retry online:", error));
+      void syncShared().catch(error => console.warn("Class settings remain cached:", error));
     };
     void initializeOfflineSqlite()
       .then(async () => {
         sync();
       })
+      .catch(error => console.warn("Opening app with device cache:", error))
       .finally(() => {
         const wait = Math.max(0, splashMs - (Date.now() - splashStarted));
         splashTimer = window.setTimeout(markReady, wait);
@@ -183,6 +185,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <PageErrorBoundary>
       <MobileOrientationController />
       {!appReady ? (
         <BearLoading />
@@ -193,7 +196,7 @@ function App() {
           <CertificateDownloadNotice />
           <AuthEmailRedirect />
           <AppDeepLinkListener />
-          <Suspense fallback={<BearLoading />}>
+          <PageErrorBoundary><Suspense fallback={<BearLoading />}>
       <Routes>
 
         {/* DEFAULT */}
@@ -253,9 +256,10 @@ function App() {
         {/* ⚠️ ALWAYS LAST */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-          </Suspense>
+          </Suspense></PageErrorBoundary>
         </>
       )}
+      </PageErrorBoundary>
     </BrowserRouter>
   );
 }

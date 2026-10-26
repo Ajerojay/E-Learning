@@ -337,6 +337,7 @@ export default function LogicOddOneOut() {
               {item.items.map((choice) => (
                 <button
                   key={choice.id}
+                  data-idle-answer={choice.id === item.oddId ? "true" : undefined}
                   type="button"
                   className={`lodd-card${wrongChoice === choice.id ? " is-wrong" : ""}${rightChoice === choice.id ? " is-right" : ""}`}
                   onClick={() => onPick(choice.id)}

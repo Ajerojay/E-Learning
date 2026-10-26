@@ -162,6 +162,8 @@ function DraggableShape({
       type="button"
       ref={setNodeRef}
       className={`sq-shape sq-shape--${shape.kind}`}
+      data-idle-source={!disabled ? "true" : undefined}
+      data-idle-match={shape.kind}
       style={style}
       {...listeners}
       {...attributes}
@@ -229,6 +231,7 @@ function DropSlot({
         .filter(Boolean)
         .join(" ")}
       aria-label={slot.label}
+      data-idle-target={!filledBy ? slot.accepts : undefined}
     >
       <svg className="sq-slot-svg" viewBox={SLOT_VIEWBOX[kind]} aria-hidden="true">
         <path

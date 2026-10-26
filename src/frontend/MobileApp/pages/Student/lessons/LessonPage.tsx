@@ -327,7 +327,11 @@ export default function LessonPage() {
       setLoading(false);
     };
 
-    void fetchLessonVideo();
+    void fetchLessonVideo().catch(error => {
+      console.warn("Lesson could not load:", error);
+      setOfflineMessage("This lesson is not available right now. Connect to the internet and save the video for offline viewing.");
+      setLoading(false);
+    });
   }, [category, dbCategory, formattedCategory]);
 
   const downloadForOffline = async () => {

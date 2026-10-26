@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import IdleAnswerHint from "../shared/IdleAnswerHint";
 import { useNavigate } from "react-router-dom";
 import { GameOverlay, GamePopup, Countdown } from "../shared/GamePopup";
 import QuestLevelSelect from "../shared/QuestLevelSelect";
@@ -62,6 +63,7 @@ export function ShapesMiniChrome({
 
   return (
     <>
+      <IdleAnswerHint active={!mapOpen && !introActive && countdown === null && timeLeft > 0} questionKey={`${levelIndex}-${title}`} />
       {mapOpen && (
         <QuestLevelSelect
           title={mapTitle}

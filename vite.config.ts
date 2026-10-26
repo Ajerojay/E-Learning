@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { offlineBuildPlugin } from './offlineBuildPlugin'
 const cp1252Bytes: Record<number, number> = {
   0x81: 0x81, 0x8d: 0x8d, 0x8f: 0x8f, 0x90: 0x90, 0x9d: 0x9d,
   0x152: 0x8c, 0x153: 0x9c, 0x160: 0x8a, 0x161: 0x9a, 0x178: 0x9f,
@@ -72,10 +73,10 @@ const repairMobileEncoding = {
 }
 
 // https://vite.dev/config/
-export default defineConfig(({ command }) => ({
-  // Relative URLs for the Capacitor Android WebView build. Absolute URLs in
-  // dev so the phone and laptop can share one LAN server with live reload.
-  base: command === 'build' ? './' : '/',
+export default defineConfig(() => ({
+  // Both Pages and Capacitor serve at the origin root. Root-relative assets
+  // also survive reloads on nested lesson and game URLs.
+  base: '/',
   server: {
     host: '0.0.0.0',
     port: 5174,
@@ -84,6 +85,7 @@ export default defineConfig(({ command }) => ({
   },
   plugins: [
     repairMobileEncoding,
+    offlineBuildPlugin(),
     react({
       babel: {
         plugins: [['babel-plugin-react-compiler']],

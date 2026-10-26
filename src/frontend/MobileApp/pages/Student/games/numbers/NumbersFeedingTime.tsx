@@ -113,6 +113,8 @@ function DraggableFood({ item, disabled }: { item: BasketItem; disabled: boolean
       type="button"
       ref={setNodeRef}
       className="nfeed-food-btn"
+      data-idle-source="true"
+      data-idle-match="plate"
       style={style}
       aria-label={FOOD_COPY[item.kind].label}
       {...listeners}
@@ -126,7 +128,7 @@ function DraggableFood({ item, disabled }: { item: BasketItem; disabled: boolean
 function PlateDrop({ items, target }: { items: FoodKind[]; target: number }) {
   const { setNodeRef, isOver } = useDroppable({ id: "plate" });
   return (
-    <div ref={setNodeRef} className={["nfeed-plate", isOver ? "is-over" : ""].filter(Boolean).join(" ")}>
+    <div ref={setNodeRef} data-idle-target="plate" className={["nfeed-plate", isOver ? "is-over" : ""].filter(Boolean).join(" ")}>
       <div className="nfeed-plate-foods">
         {items.map((kind, index) => (
           <span

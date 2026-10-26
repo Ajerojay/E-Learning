@@ -313,6 +313,10 @@ export function useQuestLevelGate(gameKey: QuestGameKey, levelCount = 3) {
   const refreshUnlocks = useCallback(async () => {
     const childId = await getOrCreateActiveChildId();
     if (!childId) return;
+    backfillQuestStarsFromUnlocks(childId, levelCount);
+    setUnlockedCount(getUnlockedQuestLevelCount(childId, gameKey));
+    setLevelStars(getQuestLevelStars(childId, gameKey, levelCount));
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
     if (typeof navigator === "undefined" || navigator.onLine) {
       await restoreQuestLevelResults(childId);
     }

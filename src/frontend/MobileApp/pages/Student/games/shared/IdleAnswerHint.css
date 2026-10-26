@@ -1,0 +1,50 @@
+.idle-answer-hint {
+  position: fixed;
+  z-index: 900;
+  width: clamp(44px, 5.5vw, 72px);
+  pointer-events: none;
+  user-select: none;
+  animation: idle-answer-appear .22s ease-out both;
+}
+.idle-answer-hint svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+  margin-left: -40%;
+  margin-top: -8%;
+  filter: drop-shadow(0 3px 3px rgba(0,0,0,.3));
+  transform-origin: 40% 10%;
+  animation: idle-answer-tap 1.4s ease-in-out infinite;
+}
+.idle-answer-hint__ripple {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 25px;
+  height: 25px;
+  border: 3px solid #fff5c4;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: idle-answer-ripple 1.4s ease-out infinite;
+}
+@keyframes idle-answer-tap {
+  0%, 100% { transform: translateY(7px) rotate(-12deg); }
+  40%, 55% { transform: translateY(0) rotate(-12deg) scale(.94); }
+}
+@keyframes idle-answer-ripple {
+  0%, 30% { opacity: 0; transform: translate(-50%, -50%) scale(.4); }
+  50% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(2); }
+}
+@keyframes idle-answer-appear { from { opacity: 0; } to { opacity: 1; } }
+.idle-answer-hint--drag { animation: idle-answer-drag 2.6s ease-in-out infinite; }
+.idle-answer-hint--drag svg { animation: none; transform: rotate(-12deg); }
+@keyframes idle-answer-drag {
+  0% { opacity: 0; transform: translate(0, 0); }
+  12%, 25% { opacity: 1; transform: translate(0, 0); }
+  75%, 88% { opacity: 1; transform: translate(var(--hint-dx), var(--hint-dy)); }
+  100% { opacity: 0; transform: translate(var(--hint-dx), var(--hint-dy)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .idle-answer-hint, .idle-answer-hint svg, .idle-answer-hint__ripple { animation: none; }
+}

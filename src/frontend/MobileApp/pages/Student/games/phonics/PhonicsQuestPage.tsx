@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from "react";
+import IdleAnswerHint from "../shared/IdleAnswerHint";
 import "./PhonicsQuestPage.css";
 import "../../../../WebView/AppPhonicsQuestPage.css";
 import GameExitGesture from "../shared/GameExitGesture";
@@ -591,10 +592,12 @@ export default function Level1Sound({ mobileApp = false }: PhonicsQuestPageProps
           </button>
         </div>
 
+        <IdleAnswerHint active={timerRunning && !paused && !mapOpen && !levelIntroActive && countdown === null && !showNext && !showNoPrompt && !isFinished && !timeUpOpen && !gameOverOpen && !choiceAnimating} questionKey={`${levelIndex}-${pageIndex}-${currentAnimal.name}`} />
         <div className="choices">
           {shuffledAnimals.map((a) => (
             <button
               key={a.name}
+              data-idle-answer={a.name === currentAnimal.name ? "true" : undefined}
               className={`choice-btn choice-btn-${a.name} ${
                 wrongChoice === a.name ? "choice-btn-wrong" : ""
               } ${choiceAnimating === a.name ? "pq-pulse-animate" : ""}`}

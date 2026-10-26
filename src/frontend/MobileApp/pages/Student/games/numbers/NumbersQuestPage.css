@@ -273,7 +273,7 @@ body {
 .nq-cloud-number {
   position: absolute;
   top: 42%;
-  left: 38%;
+  left: 42%;
   right: auto;
   transform: translate(-50%, -50%);
   font-size: clamp(56px, 11vh, 92px);

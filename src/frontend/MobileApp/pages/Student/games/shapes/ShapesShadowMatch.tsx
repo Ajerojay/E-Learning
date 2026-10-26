@@ -85,6 +85,8 @@ function DraggableToy({ toy, disabled, hidden }: { toy: Toy; disabled: boolean; 
       type="button"
       ref={setNodeRef}
       className={`ssm-piece ${hidden || isDragging ? "is-ghost" : ""}`}
+      data-idle-source={!hidden && !isDragging ? "true" : undefined}
+      data-idle-match={toy.kind}
       aria-label={toy.kind}
       {...listeners}
       {...attributes}
@@ -103,6 +105,7 @@ function ShadowSlot({ kind, filled }: { kind: ShadowKind; filled: boolean }) {
         .filter(Boolean)
         .join(" ")}
       aria-label={`${kind} shadow`}
+      data-idle-target={!filled ? kind : undefined}
     >
       <ShapeGlyph kind={kind} tone={filled ? "matched" : "shadow"} />
     </div>

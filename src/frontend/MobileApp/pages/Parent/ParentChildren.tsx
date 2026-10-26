@@ -75,7 +75,12 @@ export default function ParentChildren() {
     }
 
     try {
-      let childRow: ChildRow | null = null;
+      let childRow: ChildRow | null = {
+        id: childProfile.id, child_name: childProfile.childName ?? null, first_name: childProfile.firstName ?? null,
+        last_name: childProfile.lastName ?? null, date_of_birth: childProfile.dateOfBirth ?? null,
+        grade_level: childProfile.gradeLevel ?? null, pin_code: childProfile.pinCode ?? null,
+        nickname: childProfile.nickname ?? null, avatar: childProfile.avatar ?? null,
+      };
       let overall = 0;
       let categories: ChildCategoryProgressRow[] = [];
       let activity: Array<{ categoryCode: string; gameCode: string; gameTitle: string | null; score: number; finished: boolean; created_at: string }> = [];
@@ -109,7 +114,7 @@ export default function ParentChildren() {
         console.error("loadChild: using offline cache", offlineError);
         const cachedChild = (await getOfflineChildrenFromSqlite()).find(row => row.id === trimmedChildId);
         const cachedProgress = await getOfflineCategoryProgress(trimmedChildId);
-        childRow = cachedChild ? { id: cachedChild.id, child_name: cachedChild.child_name, first_name: cachedChild.first_name, last_name: cachedChild.last_name, date_of_birth: null, grade_level: null, pin_code: cachedChild.pin_code, nickname: null } : null;
+        if (!childRow && cachedChild) childRow = { id: cachedChild.id, child_name: cachedChild.child_name, first_name: cachedChild.first_name, last_name: cachedChild.last_name, date_of_birth: null, grade_level: null, pin_code: cachedChild.pin_code, nickname: null };
         categories = cachedProgress as ChildCategoryProgressRow[];
         overall = categories.length ? Math.round(categories.reduce((sum, row) => sum + row.category_score, 0) / categories.length) : 0;
       }

@@ -295,7 +295,7 @@ export default function NumbersConnectDots() {
               const done = dot.n <= connected;
               const current = dot.n === connected && connected < level.max;
               return (
-                <g key={dot.n} transform={`translate(${dot.x} ${dot.y})`}>
+                <g key={dot.n} data-idle-source={current ? "true" : undefined} data-idle-match={current ? "next-dot" : undefined} data-idle-target={dot.n === connected + 1 ? "next-dot" : undefined} transform={`translate(${dot.x} ${dot.y})`}>
                   {current && <circle className="ndots-glow" r="10.5" />}
                   <circle className={done ? "ndots-node is-on" : "ndots-node"} r="8" />
                   <text className="ndots-num" textAnchor="middle" dy="2.4">

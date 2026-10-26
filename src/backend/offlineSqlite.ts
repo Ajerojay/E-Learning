@@ -312,6 +312,7 @@ export async function getOfflineChildById(childId: string): Promise<CachedChild 
   const local = readLocalChildren().find(row => row.id === childId);
   if (local) return local;
   if (!Capacitor.isNativePlatform()) return null;
+  try {
   await initializeOfflineSqlite();
   const result = await CapacitorSQLite.query({
     database: DATABASE_NAME,
@@ -337,6 +338,10 @@ export async function getOfflineChildById(childId: string): Promise<CachedChild 
     pinCode: row.pin_code ?? null,
     isActive: row.is_active !== 0,
   };
+  } catch (error) {
+    console.warn("Child SQLite lookup unavailable:", error);
+    return null;
+  }
 }
 
 function mapCachedChildRow(row: CachedChild) {
@@ -361,10 +366,15 @@ export async function getOfflineChildrenFromSqlite(): Promise<Array<{
   is_active: number;
 }>> {
   if (!Capacitor.isNativePlatform()) return readLocalChildren().map(mapCachedChildRow);
+  try {
   await initializeOfflineSqlite();
   const result = await CapacitorSQLite.query({ database: DATABASE_NAME, statement: "SELECT id, parent_id, child_name, first_name, last_name, pin_code, is_active FROM children ORDER BY updated_at DESC", values: [] });
   const rows = (result.values ?? []) as Array<{ id: string; parent_id: string | null; child_name: string | null; first_name: string | null; last_name: string | null; pin_code: string | null; is_active: number }>;
   return rows.length ? rows : readLocalChildren().map(mapCachedChildRow);
+  } catch (error) {
+    console.warn("Using saved child roster:", error);
+    return readLocalChildren().map(mapCachedChildRow);
+  }
 }
 
 export async function cacheOfflineLessons(lessons: Array<{
@@ -402,10 +412,15 @@ export async function cacheOfflineLessons(lessons: Array<{
 
 export async function getOfflineLessonsFromSqlite(): Promise<Array<{ id: string; title: string; description: string | null; category: string; grade_level: string | null; video_path: string; is_published: number }>> {
   if (!Capacitor.isNativePlatform()) return readLocalLessons().filter(lesson => lesson.is_published !== 0);
+  try {
   await initializeOfflineSqlite();
   const result = await CapacitorSQLite.query({ database: DATABASE_NAME, statement: "SELECT id, title, description, category, grade_level, video_path, is_published FROM lessons WHERE is_published = 1 ORDER BY updated_at DESC", values: [] });
   const rows = (result.values ?? []) as CachedLesson[];
   return rows.length ? rows : readLocalLessons().filter(lesson => lesson.is_published !== 0);
+  } catch (error) {
+    console.warn("Using saved lesson list:", error);
+    return readLocalLessons().filter(lesson => lesson.is_published !== 0);
+  }
 }
 
 export async function cacheOfflineCategoryProgress(childId: string, rows: Array<{ categoryCode: string; categoryScore: number }>): Promise<void> {
@@ -425,10 +440,15 @@ export async function cacheOfflineCategoryProgress(childId: string, rows: Array<
 
 export async function getOfflineCategoryProgress(childId: string): Promise<Array<{ category_code: string; category_score: number }>> {
   if (!Capacitor.isNativePlatform()) return readLocalProgress()[childId] ?? [];
+  try {
   await initializeOfflineSqlite();
   const result = await CapacitorSQLite.query({ database: DATABASE_NAME, statement: "SELECT category_code, category_score FROM category_progress WHERE child_id = ?", values: [childId] });
   const rows = (result.values ?? []) as Array<{ category_code: string; category_score: number }>;
   return rows.length ? rows : (readLocalProgress()[childId] ?? []);
+  } catch (error) {
+    console.warn("Using saved learning progress:", error);
+    return readLocalProgress()[childId] ?? [];
+  }
 }
 
 export { DATABASE_NAME };

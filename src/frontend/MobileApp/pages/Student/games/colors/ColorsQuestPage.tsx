@@ -1,4 +1,5 @@
 import "./ColorsQuestPage.css";
+import IdleAnswerHint from "../shared/IdleAnswerHint";
 import GameExitGesture from "../shared/GameExitGesture";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -186,6 +187,8 @@ function DraggableItem({
       ref={setNodeRef}
       style={style}
       className={`cq-item cq-item-${item.color}`}
+      data-idle-source={!isPlaced ? "true" : undefined}
+      data-idle-match={item.color}
       {...listeners}
       {...attributes}
       type="button"
@@ -238,6 +241,7 @@ function Basket({
     <div
       ref={setNodeRef}
       className={`cq-basket cq-basket-${basketColor}${isOver ? " cq-basket-over" : ""}${isComplete ? " is-complete" : ""}`}
+      data-idle-target={basketColor}
     >
       <img className="cq-basket-art" src={basketSrcByColor[basketColor]} alt="" />
       <div className="cq-basket-dropzone" aria-hidden="true" />
@@ -738,6 +742,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
 
       <DndContext sensors={sensors} onDragMove={handleDragMove} onDragEnd={handleDragEnd}>
         <div className="cq-play">
+        <IdleAnswerHint active={timerRunning && !paused && !mapOpen && !levelIntroActive && countdown === null && !timeUpOpen && !gameOverOpen && !finalCompleteOpen && !levelCompleteOpen} questionKey={`${levelIndex}-${totalCorrect}`} />
         <div className="cq-items-area">
           {items.map((item) => (
             <DraggableItem

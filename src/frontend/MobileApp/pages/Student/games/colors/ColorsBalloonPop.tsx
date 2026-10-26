@@ -259,6 +259,7 @@ export default function ColorsBalloonPop({ mobileApp = false }: { mobileApp?: bo
           {balloons.map((balloon) => (
             <button
               key={balloon.id}
+              data-idle-answer={balloon.color === targetColor && !balloon.popping ? "true" : undefined}
               type="button"
               className={`cmini-balloon${balloon.popping ? " is-popping" : ""}`}
               style={{

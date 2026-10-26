@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { getOfflineChildrenFromSqlite } from "./offlineSqlite";
 import {
   SUBJECT_QUEST_GAMES,
   fetchQuestLevelResults,
@@ -68,7 +69,7 @@ function toChild(row: Record<string, unknown>): SupabaseChild {
     pinCode: row.pin_code as string | null,
     nickname: row.nickname as string | null,
     avatar: row.avatar as string | null,
-    isActive: row.is_active !== false,
+    isActive: row.is_active !== false && row.is_active !== 0,
     lastActiveAt: row.last_active_at as string | null,
   };
 }
@@ -79,15 +80,39 @@ export async function getSupabaseUserProfile(uid: string) {
 }
 
 export async function getParentChildren(parentId: string): Promise<SupabaseChild[]> {
-  const { data, error } = await supabase.from("children_accounts").select("*").eq("parent_id", parentId).order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data ?? []).map(toChild);
+  if (navigator.onLine) {
+    try {
+      const { data, error } = await supabase.from("children_accounts").select("*").eq("parent_id", parentId).order("created_at", { ascending: false });
+      if (error) throw error;
+      const children = (data ?? []).map(toChild);
+      try { localStorage.setItem(`learnease-child-roster:${parentId}`, JSON.stringify(children)); } catch { /* Full storage must not prevent page loading. */ }
+      return children;
+    } catch { /* Fall back to this parent's saved roster. */ }
+  }
+  try {
+    const saved = JSON.parse(localStorage.getItem(`learnease-child-roster:${parentId}`) || "null");
+    if (Array.isArray(saved)) return saved.filter(child => child && child.parentId === parentId && typeof child.id === "string");
+  } catch { /* Older or damaged cache: use SQLite instead. */ }
+  return (await getOfflineChildrenFromSqlite()).filter(child => child.parent_id === parentId).map(child => toChild(child));
 }
 
 export async function getActiveChild(childId: string): Promise<SupabaseChild | null> {
-  const { data, error } = await supabase.from("children_accounts").select("*").eq("id", childId).maybeSingle();
-  if (error) throw error;
-  return data ? toChild(data) : null;
+  if (navigator.onLine) {
+    try {
+      const { data, error } = await supabase.from("children_accounts").select("*").eq("id", childId).maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const child = toChild(data);
+      try { localStorage.setItem(`learnease-child-profile:${childId}`, JSON.stringify(child)); } catch { /* Optional cache. */ }
+      return child;
+    } catch { /* Existing accounts remain available offline. */ }
+  }
+  try {
+    const saved = JSON.parse(localStorage.getItem(`learnease-child-profile:${childId}`) || "null");
+    if (saved?.id === childId && typeof saved.parentId === "string") return saved;
+  } catch { /* Use the original device cache below. */ }
+  const cached = (await getOfflineChildrenFromSqlite()).find(child => child.id === childId);
+  return cached ? toChild(cached) : null;
 }
 
 function isUuid(value: string): boolean {

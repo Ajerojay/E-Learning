@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import IdleAnswerHint from "../shared/IdleAnswerHint";
 import { useNavigate } from "react-router-dom";
 import "./LetterQuestPage.css";
 import GameExitGesture from "../shared/GameExitGesture";
@@ -1074,6 +1075,7 @@ const handleDrop = (e: any) => {
             </GameOverlay>
           )}
 
+          <IdleAnswerHint active={timerRunning && !paused && !mapOpen && !levelIntroActive && countdown === null && !timeUpOpen && !gameOverOpen && !isFinished && !touchDragVisual && progress < totalItems} questionKey={`${levelIndex}-${progress}`} sourceSelector="[data-letter-hint-source]" destinationSelector={`[data-target="${usesLetterPool ? level3Remaining[0]?.letter : appleOrder.find(a => !placedIds.includes(a.id))?.letter}"]`} />
           {/* APPLES */}
           {usesLetterPool
             ? level3Remaining.map((a, appleIndex) => {
@@ -1083,6 +1085,7 @@ const handleDrop = (e: any) => {
                   key={`${levelIndex}-${poolPage}-${a.letter}`}
                   src={a.apple}
                   alt={`Apple with the letter ${a.letter}`}
+                  data-letter-hint-source="true"
                   draggable={!mobileApp && !levelIntroActive && countdown === null && !timeUpOpen}
                   onDragStart={(e) => handleDragStart(e, a.letter, slotIndex)}
                   onPointerDown={(e) => handleTouchDragStart(e, a.letter, slotIndex)}
@@ -1105,6 +1108,7 @@ const handleDrop = (e: any) => {
                   !placedIds.includes(a.id) && (
                     <img
                       key={a.id}
+                      data-letter-hint-source="true"
                       src={a.img}
                       draggable={!mobileApp && !levelIntroActive && countdown === null && !timeUpOpen}
                       onClick={() => setSelected(a.letter)}
