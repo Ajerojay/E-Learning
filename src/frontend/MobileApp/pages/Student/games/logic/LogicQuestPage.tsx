@@ -71,6 +71,12 @@ function dealPatternSymbols(
   });
 }
 
+const LOGIC_LEVEL_SECONDS = [60, 75, 90] as const;
+
+function logicLevelSeconds(levelIndex: number) {
+  return LOGIC_LEVEL_SECONDS[levelIndex] ?? LOGIC_LEVEL_SECONDS[LOGIC_LEVEL_SECONDS.length - 1];
+}
+
 function buildPattern(levelIndex: number, symbolsForLevel: string[]): LogicLevel {
   const symbols = shuffleDifferentFromLast(
     `logic-pattern-level-${levelIndex}`,
@@ -224,7 +230,7 @@ export default function Level2Pattern() {
   const [gameOverOpen, setGameOverOpen] = useState(false);
   const [score, setScore] = useState(0);
   const [dropped, setDropped] = useState<string | null>(null);
-  const [time, setTime] = useState(30);
+  const [time, setTime] = useState(logicLevelSeconds(0));
   const [level, setLevel] = useState(0);
   const [patternDeal, setPatternDeal] = useState(0);
   const [levelSymbols, setLevelSymbols] = useState(dealPatternSymbols);
@@ -286,7 +292,7 @@ export default function Level2Pattern() {
     setDropped(null);
     setWrong(0);
     setCountdown(null);
-    setTime(30);
+    setTime(logicLevelSeconds(level));
     warnedSecondsRef.current = new Set();
     if (!mapOpen) onLevelStart();
   }, [level, onLevelStart, mapOpen]);
@@ -513,7 +519,7 @@ export default function Level2Pattern() {
   const handleRestart = () => {
     // Play Again skips the instruction card and begins at 3, 2, 1.
     cancelIntro();
-    setTime(30);
+    setTime(logicLevelSeconds(level));
     setScore(0);
     setWrong(0);
     setGameOverOpen(false);
@@ -543,7 +549,7 @@ export default function Level2Pattern() {
     setPopup("");
     setDropped(null);
     setWrong(0);
-    setTime(30);
+    setTime(logicLevelSeconds(level));
     dealFreshPatterns();
     startCountdownOnly();
     warnedSecondsRef.current = new Set();

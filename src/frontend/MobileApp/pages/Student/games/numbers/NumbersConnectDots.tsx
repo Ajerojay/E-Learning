@@ -36,7 +36,7 @@ const LEVELS: Array<{ name: string; max: number; time: number; animal: AnimalKin
   {
     name: "Level 1",
     max: 3,
-    time: 40,
+    time: 75,
     animal: "fox",
     dots: [
       { n: 1, x: 28, y: 62 },
@@ -47,7 +47,7 @@ const LEVELS: Array<{ name: string; max: number; time: number; animal: AnimalKin
   {
     name: "Level 2",
     max: 5,
-    time: 50,
+    time: 90,
     animal: "bunny",
     dots: [
       { n: 1, x: 24, y: 48 },
@@ -60,7 +60,7 @@ const LEVELS: Array<{ name: string; max: number; time: number; animal: AnimalKin
   {
     name: "Level 3",
     max: 8,
-    time: 60,
+    time: 110,
     animal: "panda",
     dots: [
       { n: 1, x: 22, y: 42 },

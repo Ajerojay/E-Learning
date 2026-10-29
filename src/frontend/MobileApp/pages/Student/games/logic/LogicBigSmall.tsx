@@ -66,9 +66,9 @@ const PAIRS: Array<[SizeItem, SizeItem]> = [
 ];
 
 const LEVELS = [
-  { name: "Level 1", pairCount: 2, time: 50 },
-  { name: "Level 2", pairCount: 3, time: 60 },
-  { name: "Level 3", pairCount: 3, time: 70 },
+  { name: "Level 1", pairCount: 2, time: 80 },
+  { name: "Level 2", pairCount: 3, time: 100 },
+  { name: "Level 3", pairCount: 3, time: 110 },
 ];
 
 const PRAISE = [

@@ -34,9 +34,9 @@ const INTRO: LevelIntroContent = {
 };
 
 const LEVELS: Array<{ name: string; pageSize: number; minStart: number; maxEnd: number; time: number }> = [
-  { name: "Level 1", pageSize: 3, minStart: 0, maxEnd: 6, time: 45 },
-  { name: "Level 2", pageSize: 4, minStart: 6, maxEnd: 14, time: 50 },
-  { name: "Level 3", pageSize: 5, minStart: 14, maxEnd: ALPHABET.length, time: 55 },
+  { name: "Level 1", pageSize: 3, minStart: 0, maxEnd: 6, time: 80 },
+  { name: "Level 2", pageSize: 4, minStart: 6, maxEnd: 14, time: 95 },
+  { name: "Level 3", pageSize: 5, minStart: 14, maxEnd: ALPHABET.length, time: 110 },
 ];
 
 function pagesForLevel(index: number) {

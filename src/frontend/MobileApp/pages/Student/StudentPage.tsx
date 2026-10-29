@@ -37,6 +37,7 @@ export default function StudentPage() {
   });
   const [activityRevision, setActivityRevision] = useState(0);
   const [quitConfirmationOpen, setQuitConfirmationOpen] = useState(false);
+  const [quitHighlight, setQuitHighlight] = useState<"stay" | "quit" | null>(null);
   const [avatarSrc, setAvatarSrc] = useState<string | null>(() => {
     const saved = childAvatarById(getStoredChildAvatar(localStorage.getItem("activeChildId")));
     return saved?.src ?? null;
@@ -181,6 +182,52 @@ export default function StudentPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!quitConfirmationOpen) {
+      setQuitHighlight(null);
+      return;
+    }
+
+    let cancelled = false;
+    holdChildMusic();
+    const voice = { rate: 0.9, pitch: 1.15 };
+    const show = (choice: "stay" | "quit" | null) => {
+      if (!cancelled) setQuitHighlight(choice);
+    };
+
+    speakKidPrompt("Are you sure you want to quit?", {
+      interrupt: true,
+      ...voice,
+      onEnd: () => {
+        if (cancelled) return;
+        show("stay");
+        speakKidPrompt("Keep Learning.", {
+          interrupt: false,
+          ...voice,
+          onStart: () => show("stay"),
+          onEnd: () => {
+            if (cancelled) return;
+            show("quit");
+            speakKidPrompt("Yes, Quit.", {
+              interrupt: false,
+              ...voice,
+              onStart: () => show("quit"),
+              onEnd: () => show(null),
+            });
+          },
+        });
+      },
+    });
+
+    return () => {
+      cancelled = true;
+      cancelNativeSpeech();
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+      releaseChildMusic();
+      setQuitHighlight(null);
+    };
+  }, [quitConfirmationOpen]);
+
   const openAvatarPicker = () => {
     navigate("/student/pick-avatar", {
       state: {
@@ -250,12 +297,26 @@ export default function StudentPage() {
       {quitConfirmationOpen && (
         <div className="student-quit-overlay" role="presentation" onMouseDown={() => setQuitConfirmationOpen(false)}>
           <section className="student-quit-dialog" role="alertdialog" aria-modal="true" aria-labelledby="student-quit-title" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="student-quit-bear" aria-hidden="true">🐻</div>
+            <div className="student-quit-bear" aria-hidden="true">
+              <img src={logo} alt="" />
+            </div>
             <h2 id="student-quit-title">Are you sure you want to quit?</h2>
-            <p>You’ll return to the <b>Enter Kid’s PIN</b> screen.</p>
+            <p>Back to the PIN screen.</p>
             <div className="student-quit-actions">
-              <button type="button" className="student-quit-stay" onClick={() => setQuitConfirmationOpen(false)}>Keep Learning</button>
-              <button type="button" className="student-quit-confirm" onClick={confirmQuit}>Yes, Quit</button>
+              <button
+                type="button"
+                className={`student-quit-stay${quitHighlight === "stay" ? " is-lit" : ""}`}
+                onClick={() => setQuitConfirmationOpen(false)}
+              >
+                Keep Learning
+              </button>
+              <button
+                type="button"
+                className={`student-quit-confirm${quitHighlight === "quit" ? " is-lit" : ""}`}
+                onClick={confirmQuit}
+              >
+                Yes, Quit
+              </button>
             </div>
           </section>
         </div>

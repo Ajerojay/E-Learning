@@ -37,6 +37,12 @@ type LevelConfig = {
   dropCount: number;
 };
 
+const NUMBER_LEVEL_SECONDS = [90, 120, 150] as const;
+
+function numbersLevelSeconds(levelIndex: number) {
+  return NUMBER_LEVEL_SECONDS[levelIndex] ?? NUMBER_LEVEL_SECONDS[NUMBER_LEVEL_SECONDS.length - 1];
+}
+
 const levels: LevelConfig[] = [
   { name: "Easy", targetMin: 1, targetMax: 3, dropCount: 5 },
   { name: "Medium", targetMin: 4, targetMax: 6, dropCount: 7 },
@@ -136,7 +142,7 @@ export default function NumbersQuestPage() {
   const [message, setMessage] = useState<string>(
     "Tap the raindrops that match the number!"
   );
-  const [timeLeft, setTimeLeft] = useState(30);
+  const [timeLeft, setTimeLeft] = useState(numbersLevelSeconds(0));
   const [timerRunning, setTimerRunning] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [proceedPromptLevel, setProceedPromptLevel] = useState<number | null>(
@@ -219,7 +225,7 @@ export default function NumbersQuestPage() {
 
   useEffect(() => {
     // reset on level change
-    setTimeLeft(30);
+    setTimeLeft(numbersLevelSeconds(levelIndex));
     setTimerRunning(false);
     setCountdown(null);
     setSelected([]);
@@ -512,7 +518,7 @@ export default function NumbersQuestPage() {
     setLevelSummaryOpen(false);
     setTimeUpOpen(false);
     setLevelIndex(0);
-    setTimeLeft(30);
+    setTimeLeft(numbersLevelSeconds(levelIndex));
     setTimerRunning(false);
     setMessage("Tap the raindrops that match the number!");
     setTarget(pickTargetForLevel(0, targetHistory));
@@ -637,7 +643,7 @@ export default function NumbersQuestPage() {
           setSelected([]);
           setLocked(false);
           setCorrectRounds(0);
-          setTimeLeft(30);
+          setTimeLeft(numbersLevelSeconds(levelIndex));
           setTimerRunning(false);
           generateRound();
           startCountdownOnly();
@@ -666,7 +672,7 @@ export default function NumbersQuestPage() {
                           setTimeUpOpen(false);
                           setCorrectRounds(0);
                           generateRound();
-                          setTimeLeft(30);
+                          setTimeLeft(numbersLevelSeconds(levelIndex));
                           startCountdownOnly();
                         },
                         variant: "secondary",
@@ -683,7 +689,7 @@ export default function NumbersQuestPage() {
                           setTimeUpOpen(false);
                           setCorrectRounds(0);
                           generateRound();
-                          setTimeLeft(30);
+                          setTimeLeft(numbersLevelSeconds(levelIndex));
                           startCountdownOnly();
                         },
                         variant: "secondary",
@@ -704,7 +710,7 @@ export default function NumbersQuestPage() {
                         setTimeUpOpen(false);
                         setCorrectRounds(0);
                         generateRound();
-                        setTimeLeft(30);
+                        setTimeLeft(numbersLevelSeconds(levelIndex));
                         startCountdownOnly();
                       },
                     },

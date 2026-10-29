@@ -96,7 +96,7 @@ const LEVELS: { name: string; colors: ColorKey[]; items: Item[]; time: number }[
   {
     name: "Level 1",
     colors: ["red", "blue", "yellow"],
-    time: 25,
+    time: 75,
     items: [
       { id: "l1-red", name: "Apple", color: "red", emoji: "🍎" },
       { id: "l1-blue", name: "Blue Dot", color: "blue", emoji: "🔵" },
@@ -110,7 +110,7 @@ const LEVELS: { name: string; colors: ColorKey[]; items: Item[]; time: number }[
   {
     name: "Level 2",
     colors: ["red", "blue", "yellow", "green", "orange", "purple"],
-    time: 35,
+    time: 120,
     items: [
       { id: "l2-red", name: "Red Dot", color: "red", emoji: "🔴" },
       { id: "l2-blue", name: "Blue Heart", color: "blue", emoji: "💙" },
@@ -130,7 +130,7 @@ const LEVELS: { name: string; colors: ColorKey[]; items: Item[]; time: number }[
   {
     name: "Level 3",
     colors: ["red", "blue", "yellow", "green", "orange", "pink", "brown", "black", "white", "gray"],
-    time: 60,
+    time: 150,
     items: [
       { id: "l3-red", name: "Tomato", color: "red", emoji: "🍅" },
       { id: "l3-blue", name: "Whale", color: "blue", emoji: "🐳" },
@@ -810,7 +810,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
           setPlaced({});
           setWrongAttempts(0);
           startCountdownOnly();
-          setTimeLeft(LEVELS[levelIndex]?.time ?? 30);
+          setTimeLeft(LEVELS[levelIndex]?.time ?? LEVELS[0].time);
           setTimerRunning(false);
           warnedSecondsRef.current = new Set();
         }}
@@ -831,7 +831,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
                           setPlaced({});
                           setWrongAttempts(0);
                           setCountdown(null);
-                          setTimeLeft(LEVELS[levelIndex]?.time ?? 30);
+                          setTimeLeft(LEVELS[levelIndex]?.time ?? LEVELS[0].time);
                           setTimerRunning(false);
                           warnedSecondsRef.current = new Set();
                           setLevelIndex((p) => Math.min(p + 1, LEVELS.length - 1));
@@ -845,7 +845,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
                           setPlaced({});
                           setWrongAttempts(0);
                           startCountdownOnly();
-                          setTimeLeft(LEVELS[levelIndex]?.time ?? 30);
+                          setTimeLeft(LEVELS[levelIndex]?.time ?? LEVELS[0].time);
                           setTimerRunning(false);
                           warnedSecondsRef.current = new Set();
                         },
@@ -865,7 +865,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
                           setPlaced({});
                           setWrongAttempts(0);
                           startCountdownOnly();
-                          setTimeLeft(LEVELS[levelIndex]?.time ?? 30);
+                          setTimeLeft(LEVELS[levelIndex]?.time ?? LEVELS[0].time);
                           setTimerRunning(false);
                           warnedSecondsRef.current = new Set();
                         },
@@ -881,7 +881,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
                         setPlaced({});
                         setWrongAttempts(0);
                         startCountdownOnly();
-                        setTimeLeft(LEVELS[levelIndex]?.time ?? 30);
+                        setTimeLeft(LEVELS[levelIndex]?.time ?? LEVELS[0].time);
                         setTimerRunning(false);
                         warnedSecondsRef.current = new Set();
                       },
@@ -948,7 +948,7 @@ export default function ColorsQuestPage({ mobileApp = false }: ColorsQuestPagePr
                   setPlaced({});
                   setWrongAttempts(0);
                   startCountdownOnly();
-                  setTimeLeft(LEVELS[levelIndex]?.time ?? 30);
+                  setTimeLeft(LEVELS[levelIndex]?.time ?? LEVELS[0].time);
                   setTimerRunning(false);
                   warnedSecondsRef.current = new Set();
                 },

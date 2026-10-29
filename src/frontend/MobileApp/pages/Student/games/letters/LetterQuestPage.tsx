@@ -42,7 +42,7 @@ const levels = [
 ];
 
 const level3Pool = letterMatchAssets;
-const LEVEL_SECONDS_PER_ITEM = [10, 9, 8] as const;
+const LEVEL_SECONDS_PER_ITEM = [22, 16, 15] as const;
 type AdvancedLevelPack = {
   items: typeof level3Pool;
   pageSizes: number[];
@@ -69,7 +69,7 @@ export default function LetterQuestPage({ mobileApp = false }: { mobileApp?: boo
   );
   const [levelSummaryOpen, setLevelSummaryOpen] = useState(false);
   const [finalCongratsOpen, setFinalCongratsOpen] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(30);
+  const [timeLeft, setTimeLeft] = useState(66);
   const [timerRunning, setTimerRunning] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);

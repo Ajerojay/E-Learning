@@ -255,7 +255,7 @@ const LEVELS: Array<{
   {
     name: "Level 1",
     prompt: "Paint each picture one color!",
-    time: 50,
+    time: 90,
     buckets: ["red", "blue", "yellow"],
     pages: [
       [
@@ -272,7 +272,7 @@ const LEVELS: Array<{
   {
     name: "Level 2",
     prompt: "Paint both pictures with their colors!",
-    time: 80,
+    time: 120,
     buckets: ["red", "yellow", "pink", "orange", "blue", "green", "brown", "purple"],
     pages: [
       [
@@ -292,7 +292,7 @@ const LEVELS: Array<{
   {
     name: "Level 3",
     prompt: "Paint each picture with more colors!",
-    time: 120,
+    time: 160,
     buckets: ["red", "orange", "yellow", "brown", "pink", "green", "blue", "purple"],
     pages: [[
       {

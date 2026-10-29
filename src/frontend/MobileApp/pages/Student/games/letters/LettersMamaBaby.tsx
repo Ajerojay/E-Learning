@@ -56,9 +56,9 @@ const ANIMALS: AnimalPair[] = [
 ];
 
 const LEVELS: Array<{ name: string; time: number; pages: string[] }> = [
-  { name: "Level 1", time: 50, pages: ["ABC", "DEF"] },
-  { name: "Level 2", time: 55, pages: ["EFG", "HIJ"] },
-  { name: "Level 3", time: 60, pages: ["KLMN", "OPRS"] },
+  { name: "Level 1", time: 90, pages: ["ABC", "DEF"] },
+  { name: "Level 2", time: 100, pages: ["EFG", "HIJ"] },
+  { name: "Level 3", time: 120, pages: ["KLMN", "OPRS"] },
 ];
 
 function pairsForLetters(letters: string): AnimalPair[] {

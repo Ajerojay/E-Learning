@@ -87,9 +87,9 @@ const VOWEL_SOUNDS: Record<VowelLetter, string> = {
 };
 
 const LEVELS = [
-  { name: "Level 1", rounds: 2, time: 50, shuffle: false },
-  { name: "Level 2", rounds: 3, time: 60, shuffle: false },
-  { name: "Level 3", rounds: 5, time: 75, shuffle: true },
+  { name: "Level 1", rounds: 2, time: 80, shuffle: false },
+  { name: "Level 2", rounds: 3, time: 100, shuffle: false },
+  { name: "Level 3", rounds: 5, time: 130, shuffle: true },
 ];
 
 const INTRO: LevelIntroContent = {

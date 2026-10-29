@@ -66,9 +66,9 @@ const ITEMS: SoundItem[] = [
 ];
 
 const LEVELS = [
-  { name: "Level 1", rounds: 3, time: 45, choices: 3 },
-  { name: "Level 2", rounds: 4, time: 50, choices: 5 },
-  { name: "Level 3", rounds: 5, time: 55, choices: 6 },
+  { name: "Level 1", rounds: 3, time: 75, choices: 3 },
+  { name: "Level 2", rounds: 4, time: 90, choices: 5 },
+  { name: "Level 3", rounds: 5, time: 105, choices: 6 },
 ];
 
 const INTRO: LevelIntroContent = {

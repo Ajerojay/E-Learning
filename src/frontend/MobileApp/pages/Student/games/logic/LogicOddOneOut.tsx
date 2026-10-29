@@ -130,9 +130,9 @@ const SETS: OddSet[] = [
 ];
 
 const LEVELS = [
-  { name: "Level 1", rounds: 2, time: 45, choices: 4 },
-  { name: "Level 2", rounds: 3, time: 50, choices: 6 },
-  { name: "Level 3", rounds: 4, time: 55, choices: 8 },
+  { name: "Level 1", rounds: 2, time: 75, choices: 4 },
+  { name: "Level 2", rounds: 3, time: 90, choices: 6 },
+  { name: "Level 3", rounds: 4, time: 110, choices: 8 },
 ];
 
 const INTRO: LevelIntroContent = {

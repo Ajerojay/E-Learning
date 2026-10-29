@@ -1,7 +1,7 @@
 import "./LessonPage.css";
 import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, Play } from "lucide-react";
 // ===== SUPABASE DATABASE CONNECTION: lessons shared by web and Android app =====
 import { supabase } from "../../../../../backend/supabase";
 import { getOrCreateActiveChildId } from "../../../../../backend/childProgress";
@@ -45,6 +45,26 @@ type VideoLesson = {
   video_path: string;
   is_published: boolean;
 };
+
+const QUEST_PATH: Record<string, string> = {
+  phonics: "/quest/phonics",
+  colors: "/quest/colors",
+  logic: "/quest/logic",
+  numbers: "/quest/number",
+  letters: "/quest/letter",
+  shapes: "/quest/shapes",
+};
+
+function StartActivityButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" className="start-quest-btn" onClick={onClick}>
+      <span className="start-quest-btn-icon" aria-hidden="true">
+        <Play size={22} strokeWidth={2.6} fill="currentColor" />
+      </span>
+      <span className="start-quest-btn-label">Play!</span>
+    </button>
+  );
+}
 
 export default function LessonPage() {
   const navigate = useNavigate();
@@ -113,7 +133,7 @@ export default function LessonPage() {
   }, []);
 
   useEffect(() => {
-    window.AndroidOrientation?.lockPortrait();
+    window.AndroidOrientation?.lockLandscape?.();
   }, []);
 
   useEffect(() => {
@@ -133,7 +153,7 @@ export default function LessonPage() {
         fullscreenElement === player?.parentElement;
       setIsVideoFullscreen(Boolean(active));
       if (active) enterVideoLandscape();
-      else window.AndroidOrientation?.lockPortrait();
+      else window.AndroidOrientation?.lockLandscape?.();
     };
 
     video.addEventListener("webkitbeginfullscreen", enterVideoLandscape);
@@ -162,7 +182,7 @@ export default function LessonPage() {
         /* Native Android overlay handles exit. */
       }
       setIsVideoFullscreen(false);
-      window.AndroidOrientation?.lockPortrait();
+      window.AndroidOrientation?.lockLandscape?.();
       return;
     }
 
@@ -202,7 +222,7 @@ export default function LessonPage() {
           const saved = await getStudentLessonDownload(childId, dbCategory);
           if (!saved?.video) return false;
           const meta = await getStudentLessonMeta(childId, dbCategory);
-          setLessonTitle(saved.title || meta?.title || `${formattedCategory} Lesson`);
+          setLessonTitle(saved.title || meta?.title || dbCategory);
           setOnlineVideoUrl(saved.sourceUrl || meta?.sourceUrl || "");
           setPlaybackUrl(URL.createObjectURL(saved.video), true);
           setOfflineReady(true);
@@ -359,7 +379,7 @@ export default function LessonPage() {
         id: studentLessonDownloadId(childId, dbCategory),
         childId,
         category: dbCategory,
-        title: lessonTitle || `${formattedCategory} Lesson`,
+        title: lessonTitle || dbCategory,
         sourceUrl: onlineVideoUrl,
         videoType: video.type || "video/mp4",
         video,
@@ -379,6 +399,7 @@ export default function LessonPage() {
   return (
     <div
       className={`lesson-page${isVideoFullscreen ? " is-video-fullscreen" : ""}`}
+      data-lesson={category || "colors"}
       style={{
         backgroundImage: `url(${backgroundImage})`,
       }}
@@ -403,10 +424,12 @@ export default function LessonPage() {
         </button>
       )}
 
-      <h1 className="lesson-title">{formattedCategory} Lesson</h1>
+      <h1 className="lesson-title">{(!loading && lessonTitle) || dbCategory}</h1>
 
       <div className="tv-wrapper">
+        <div className="tv-stage">
         <div className="tv-container" ref={playerRef}>
+          <div className="tv-screen">
           {loading ? (
             <BearLoading compact dark />
           ) : lessonVideoUrl ? (
@@ -432,98 +455,21 @@ export default function LessonPage() {
           ) : (
             <p className="no-video">No videos yet</p>
           )}
+          </div>
+          <div className="tv-chin" aria-hidden="true">
+            <span className="tv-speaker" />
+            <span className="tv-led" />
+            <span className="tv-speaker" />
+          </div>
+        </div>
         </div>
 
-        {!loading && lessonTitle && lessonVideoUrl && (
-          <p className="video-title">{lessonTitle}</p>
-        )}
-
-        {offlineMessage && <p className="offline-video-message">{offlineMessage}</p>}
-
-        {category === "phonics" && (
-          <>
-            <p className="lesson-activity-meta">
-              pick a phonics game, then play its 3 levels!
-            </p>
-            <button
-              type="button"
-              className="start-quest-btn"
-              onClick={() => startQuest("/quest/phonics")}
-            >
-              Start Phonics Activity
-            </button>
-          </>
-        )}
-
-        {category === "colors" && (
-          <button
-            type="button"
-            className="start-quest-btn"
-            onClick={() => startQuest("/quest/colors")}
-          >
-            Start Colors Activity
-          </button>
-        )}
-
-        {category === "logic" && (
-          <>
-            <p className="lesson-activity-meta">
-              pick a logic game, then play its 3 levels!
-            </p>
-            <button
-              type="button"
-              className="start-quest-btn"
-              onClick={() => startQuest("/quest/logic")}
-            >
-              Start Logic Activity
-            </button>
-          </>
-        )}
-
-        {category === "numbers" && (
-          <>
-            <p className="lesson-activity-meta">
-              pick a numbers game, then play its 3 levels!
-            </p>
-            <button
-              type="button"
-              className="start-quest-btn"
-              onClick={() => startQuest("/quest/number")}
-            >
-              Start Numbers Activity
-            </button>
-          </>
-        )}
-
-        {category === "letters" && (
-          <>
-            <p className="lesson-activity-meta">
-              pick a letters game, then play its 3 levels!
-            </p>
-            <button
-              type="button"
-              className="start-quest-btn"
-              onClick={() => startQuest("/quest/letter")}
-            >
-              Start Letters Activity
-            </button>
-          </>
-        )}
-
-        {category === "shapes" && (
-          <>
-            <p className="lesson-activity-meta">
-              drag shapes into the right spots to build the house!
-            </p>
-            <button
-              type="button"
-              className="start-quest-btn"
-              onClick={() => startQuest("/quest/shapes")}
-            >
-              Start Shapes Activity
-            </button>
-          </>
-        )}
+        <div className="lesson-footer">
+          {offlineMessage && <p className="offline-video-message">{offlineMessage}</p>}
+          {category && QUEST_PATH[category] && (
+            <StartActivityButton onClick={() => startQuest(QUEST_PATH[category])} />
+          )}
+        </div>
       </div>
     </div>
   );

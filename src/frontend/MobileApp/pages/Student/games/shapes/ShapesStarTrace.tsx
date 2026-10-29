@@ -32,9 +32,9 @@ const INTRO: LevelIntroContent = {
 };
 
 const LEVELS: Array<{ name: string; kinds: TraceKind[]; time: number; accept: number; miss: number }> = [
-  { name: "Level 1", kinds: ["circle", "triangle"], time: 55, accept: 72, miss: 118 },
-  { name: "Level 2", kinds: ["oval", "square", "pentagon"], time: 75, accept: 64, miss: 108 },
-  { name: "Level 3", kinds: ["star", "hexagon", "diamond"], time: 90, accept: 58, miss: 100 },
+  { name: "Level 1", kinds: ["circle", "triangle"], time: 90, accept: 72, miss: 118 },
+  { name: "Level 2", kinds: ["oval", "square", "pentagon"], time: 120, accept: 64, miss: 108 },
+  { name: "Level 3", kinds: ["star", "hexagon", "diamond"], time: 150, accept: 58, miss: 100 },
 ];
 
 function shuffleKinds(kinds: TraceKind[]) {

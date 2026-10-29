@@ -105,11 +105,8 @@ export default function MobileOrientationController() {
     if (!isMobileApp()) return;
 
     const applyOrientation = () => {
-      if (isLandscapeGamePath(pathname)) {
+      if (isLandscapeGamePath(pathname) || pathname.startsWith("/lesson/")) {
         window.AndroidOrientation?.lockLandscape?.();
-      } else if (pathname.startsWith("/lesson/")) {
-        // Lesson pages stay portrait; only the video's fullscreen mode may rotate.
-        window.AndroidOrientation?.lockPortrait();
       } else {
         window.AndroidOrientation?.lockPortrait();
       }

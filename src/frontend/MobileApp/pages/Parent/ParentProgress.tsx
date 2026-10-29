@@ -52,7 +52,6 @@ export default function ParentProgress() {
   const [children, setChildren] = useState<ChildProgressCard[]>([]);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const [parentDone, setParentDone] = useState<Record<string, number>>({});
-  const [parentActivityArmed, setParentActivityArmed] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -224,7 +223,6 @@ export default function ParentProgress() {
   const selectedChild = children.find((child) => child.id === selectedChildId) ?? children[0];
 
   useEffect(() => {
-    setParentActivityArmed({});
     if (!selectedChild?.id) {
       setParentDone({});
       return;
@@ -254,18 +252,22 @@ export default function ParentProgress() {
     });
   };
 
-  const activityArmKey = (key: SubjectKey, activityIndex: number) => `${key}:${activityIndex}`;
-
-  const toggleParentActivityReady = (key: SubjectKey, activityIndex: number) => {
-    const armKey = activityArmKey(key, activityIndex);
-    setParentActivityArmed((current) => ({ ...current, [armKey]: !current[armKey] }));
-  };
-
-  const confirmParentActivity = (key: SubjectKey, activityIndex: number) => {
+  const markParentActivityDone = (key: SubjectKey, activityIndex: number, button: HTMLButtonElement) => {
     toggleParentActivity(key, activityIndex);
-    const armKey = activityArmKey(key, activityIndex);
-    setParentActivityArmed((current) => ({ ...current, [armKey]: false }));
+    const card = button.closest(".pp-parent-activity-card");
+    const track = card?.parentElement;
+    if (!(card instanceof HTMLElement) || !(track instanceof HTMLElement)) return;
+    let next = card.nextElementSibling;
+    while (next instanceof HTMLElement && next.classList.contains("is-checked")) {
+      next = next.nextElementSibling;
+    }
+    if (!(next instanceof HTMLElement)) return;
+    const left = track.scrollLeft
+      + (next.getBoundingClientRect().left - track.getBoundingClientRect().left)
+      - (track.clientWidth - next.clientWidth) / 2;
+    track.scrollTo({ left, behavior: "smooth" });
   };
+
 
   const childName = selectedChild?.name || "Child";
   const childFirstName = selectedChild?.firstName || "Child";
@@ -707,35 +709,34 @@ export default function ParentProgress() {
                           { title: rec.offlineThird, description: rec.offlineThirdDesc },
                         ].filter((activity) => activity.title).map((activity, activityIndex) => {
                           const checked = ((parentDone[sub.key] ?? 0) & (1 << activityIndex)) !== 0;
-                          const armed = Boolean(parentActivityArmed[activityArmKey(sub.key, activityIndex)]);
                           return (
                             <article
                               key={`${sub.key}-${activityIndex}`}
                               className={`pp-parent-activity-card${checked ? " is-checked" : ""}`}
                               aria-label={`${activity.title}, ${checked ? "done" : "not done"}`}
                             >
-                              <button
-                                type="button"
-                                className="pp-parent-activity-status"
-                                aria-label={checked ? `${activity.title} is done` : `${armed ? "Uncheck" : "Check"} ${activity.title} before marking it done`}
-                                aria-pressed={checked || armed}
-                                disabled={checked}
-                                onClick={() => toggleParentActivityReady(sub.key, activityIndex)}
-                              >
-                                <span className="pp-parent-activity-check" aria-hidden="true">{checked || armed ? "✓" : ""}</span>
-                                <span>{checked ? "DONE" : "NOT DONE"}</span>
-                              </button>
                               <h4>{activity.title}</h4>
                               <p>{activity.description}</p>
-                              <button
-                                type="button"
-                                className="pp-parent-activity-action"
-                                aria-pressed={checked}
-                                disabled={!checked && !armed}
-                                onClick={() => confirmParentActivity(sub.key, activityIndex)}
-                              >
-                                {checked ? "Mark as not done" : "Mark as done"}
-                              </button>
+                              {checked ? (
+                                <div className="pp-parent-activity-done">
+                                  <span className="pp-parent-activity-done-icon" aria-hidden="true">✓</span>
+                                  <button
+                                    type="button"
+                                    className="pp-parent-activity-undo"
+                                    onClick={() => toggleParentActivity(sub.key, activityIndex)}
+                                  >
+                                    Undo
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="pp-parent-activity-action"
+                                  onClick={(event) => markParentActivityDone(sub.key, activityIndex, event.currentTarget)}
+                                >
+                                  Mark as done
+                                </button>
+                              )}
                             </article>
                           );
                         })}

@@ -36,9 +36,9 @@ const LEVELS: Array<{
   time: number;
   palette: BalloonColor[];
 }> = [
-  { name: "Level 1", goal: 5, time: 40, palette: ["red", "blue", "yellow"] },
-  { name: "Level 2", goal: 7, time: 45, palette: ["red", "blue", "yellow", "green", "orange"] },
-  { name: "Level 3", goal: 8, time: 50, palette: ["red", "blue", "yellow", "green", "orange"] },
+  { name: "Level 1", goal: 5, time: 75, palette: ["red", "blue", "yellow"] },
+  { name: "Level 2", goal: 7, time: 85, palette: ["red", "blue", "yellow", "green", "orange"] },
+  { name: "Level 3", goal: 8, time: 95, palette: ["red", "blue", "yellow", "green", "orange"] },
 ];
 
 const FILL: Record<BalloonColor, string> = {

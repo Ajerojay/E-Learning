@@ -301,7 +301,7 @@ export default function ShapesQuestPage() {
     isLandscape: true,
     paused,
     blocked: finalCongratsOpen || completeOpen || gameOverOpen,
-    timeLimit: 35 + levelIndex * 15,
+    timeLimit: 70 + levelIndex * 20,
     levelIndex,
     soundEnabled,
   });

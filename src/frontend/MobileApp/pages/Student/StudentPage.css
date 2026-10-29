@@ -30,12 +30,20 @@
 
 .student-access-note{max-width:520px;margin:10px auto 0!important;padding:10px 14px;border-radius:14px;background:#fff1d6;color:#855b13;font-weight:800}
 .student-quit-overlay{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:rgba(48,42,70,.48);-webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px)}
-.student-quit-dialog{width:min(430px,100%);padding:28px 24px 22px;border:3px solid rgba(255,255,255,.92);border-radius:28px;background:linear-gradient(180deg,#fffdf4,#fff 72%);box-shadow:0 24px 65px rgba(44,37,70,.3);text-align:center;animation:student-quit-pop .18s ease-out}
-.student-quit-bear{width:78px;height:78px;margin:0 auto 12px;display:grid;place-items:center;border-radius:25px;background:linear-gradient(145deg,#ffe7a8,#ffeef4);font-size:46px;box-shadow:0 8px 18px rgba(101,76,45,.13)}
-.student-quit-dialog h2{margin:0;color:#443a6b;font-size:clamp(23px,5vw,29px);line-height:1.2}.student-quit-dialog p{margin:9px 0 20px;color:#6e6681;font-size:14px}.student-quit-dialog p b{color:#534477}
-.student-quit-actions{display:grid;grid-template-columns:1.15fr 1fr;gap:10px}.student-quit-actions button{min-height:49px;padding:10px 13px;border-radius:15px;font-family:inherit;font-weight:900;cursor:pointer}.student-quit-stay{border:2px solid #b8dc88;background:#edf9dc;color:#416422}.student-quit-confirm{border:2px solid #f1a2aa;background:#fff0f1;color:#b44250}.student-quit-actions button:active{transform:scale(.97)}
+.student-quit-dialog{width:min(340px,100%);padding:22px 18px 16px;border:4px solid #fff;border-radius:32px;background:linear-gradient(180deg,#fff8e6 0%,#fff 42%);box-shadow:0 22px 50px rgba(44,37,70,.32);text-align:center;animation:student-quit-pop .18s ease-out}
+.student-quit-bear{width:84px;height:84px;margin:0 auto 12px;padding:6px;display:grid;place-items:center;border-radius:28px;background:linear-gradient(145deg,#ffe7a8,#fff4d2);box-shadow:0 8px 0 #f3d48a}
+.student-quit-bear img{width:100%;height:100%;object-fit:cover;border-radius:22px}
+.student-quit-dialog h2{margin:0;color:#443a6b;font-size:clamp(24px,5.4vw,30px);line-height:1.15}
+.student-quit-dialog p{margin:8px 0 16px;color:#7a708c;font-size:15px;font-weight:800}
+.student-quit-actions{display:flex;flex-direction:column;gap:10px}
+.student-quit-actions button{min-height:56px;padding:12px 16px;border-radius:18px;font-family:inherit;font-size:18px;font-weight:900;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease}
+.student-quit-stay{border:0;background:linear-gradient(180deg,#8ed85f,#46b334);color:#fff;box-shadow:0 5px 0 #2f8a22}
+.student-quit-confirm{border:3px solid #f3b7be;background:#fff7f8;color:#c44754;box-shadow:0 4px 0 #f0c5cb}
+.student-quit-stay.is-lit{transform:scale(1.06);background:linear-gradient(180deg,#b6f08a,#5dcc49);box-shadow:0 5px 0 #2f8a22,0 0 0 8px rgba(70,179,52,.7);animation:student-quit-lit .7s ease-in-out infinite}
+.student-quit-confirm.is-lit{transform:scale(1.06);background:#ffe1e4;box-shadow:0 4px 0 #e7a8b0,0 0 0 8px rgba(196,71,84,.62);animation:student-quit-lit .7s ease-in-out infinite}
+.student-quit-actions button:active{transform:translateY(3px) scale(.98);box-shadow:none}
 @keyframes student-quit-pop{from{opacity:0;transform:translateY(12px) scale(.96)}to{opacity:1;transform:none}}
-@media(max-width:420px){.student-quit-dialog{padding:24px 17px 18px}.student-quit-actions{grid-template-columns:1fr}.student-quit-stay{order:1}.student-quit-confirm{order:2}}
+@keyframes student-quit-lit{50%{transform:scale(1.08)}}
 .student-reward-row{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
 .student-star-chip,.student-rewards-btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 14px;border-radius:999px;border:2px solid rgba(191,168,221,.4);background:rgba(255,255,255,.94);font-family:inherit;font-weight:800;color:#5a3d12;box-shadow:0 5px 12px rgba(66,58,91,.12)}
 .student-rewards-btn{cursor:pointer;background:#fff3c4}

@@ -35,9 +35,9 @@ const INTRO: LevelIntroContent = {
 };
 
 const LEVELS: Array<{ name: string; kinds: ShadowKind[]; time: number }> = [
-  { name: "Level 1", kinds: ["star", "square", "circle"], time: 45 },
-  { name: "Level 2", kinds: ["triangle", "diamond", "hexagon", "pentagon", "oval"], time: 55 },
-  { name: "Level 3", kinds: ["star", "square", "circle", "triangle", "diamond", "hexagon", "pentagon", "oval"], time: 70 },
+  { name: "Level 1", kinds: ["star", "square", "circle"], time: 75 },
+  { name: "Level 2", kinds: ["triangle", "diamond", "hexagon", "pentagon", "oval"], time: 95 },
+  { name: "Level 3", kinds: ["star", "square", "circle", "triangle", "diamond", "hexagon", "pentagon", "oval"], time: 120 },
 ];
 
 const PATHS: Record<ShadowKind, string> = {

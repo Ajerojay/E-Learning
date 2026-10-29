@@ -32,9 +32,9 @@ const FOOD_COPY: Record<FoodKind, { singular: string; plural: string; label: str
 };
 
 const LEVELS: Array<{ name: string; target: number; extras: number; time: number; foods: FoodKind[] }> = [
-  { name: "Level 1", target: 3, extras: 2, time: 45, foods: ["apple"] },
-  { name: "Level 2", target: 4, extras: 3, time: 50, foods: ["berry"] },
-  { name: "Level 3", target: 6, extras: 3, time: 55, foods: ["honey", "fish"] },
+  { name: "Level 1", target: 3, extras: 2, time: 75, foods: ["apple"] },
+  { name: "Level 2", target: 4, extras: 3, time: 90, foods: ["berry"] },
+  { name: "Level 3", target: 6, extras: 3, time: 105, foods: ["honey", "fish"] },
 ];
 
 function foodPhrase(foods: FoodKind[]) {

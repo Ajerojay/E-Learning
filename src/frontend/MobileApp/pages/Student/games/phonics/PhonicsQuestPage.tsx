@@ -74,9 +74,9 @@ const ANIMALS: SoundAnimal[] = [
 ];
 
 const LEVEL_CONFIG = [
-  { choices: 3, time: 40, animals: ["cat", "dog", "cow"] },
-  { choices: 4, time: 50, animals: ["chicken", "lion", "pig", "duck"] },
-  { choices: 5, time: 60, animals: ["sheep", "horse", "frog", "bird", "owl"] },
+  { choices: 3, time: 75, animals: ["cat", "dog", "cow"] },
+  { choices: 4, time: 90, animals: ["chicken", "lion", "pig", "duck"] },
+  { choices: 5, time: 110, animals: ["sheep", "horse", "frog", "bird", "owl"] },
 ] as const;
 
 function animalsByName(names: readonly string[]): SoundAnimal[] {

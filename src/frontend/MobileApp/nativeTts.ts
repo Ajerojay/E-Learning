@@ -84,6 +84,8 @@ export function speakNative(
 }
 
 export function cancelNativeSpeech() {
+  clearFollowUps();
+  flushReadyAt = 0;
   window.AndroidTts?.cancel();
 }
 
@@ -109,6 +111,18 @@ export function estimateSpeechMs(text: string, rate = 0.95) {
 let trackedSpeechSeq = 0;
 /** When untracked Android speech is expected to go quiet; queued lines start then. */
 let untrackedQueueFreeAt = 0;
+/**
+ * Android waits ~85ms after a stop before the next line, then flushes the queue.
+ * Lines queued in that window are wiped, so hold them until the flush has started.
+ */
+const FLUSH_SETTLE_MS = 180;
+let flushReadyAt = 0;
+const followUpTimers = new Set<number>();
+
+function clearFollowUps() {
+  followUpTimers.forEach((id) => window.clearTimeout(id));
+  followUpTimers.clear();
+}
 
 type KidPromptOptions = {
   interrupt?: boolean;
@@ -147,8 +161,21 @@ export function speakKidPrompt(text: string, options: KidPromptOptions = {}) {
   if (interrupt) {
     cancelNativeSpeech();
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    flushReadyAt = Date.now() + FLUSH_SETTLE_MS;
   }
 
+  const wait = interrupt ? 0 : Math.max(0, flushReadyAt - Date.now());
+  if (wait > 0) {
+    const timer = window.setTimeout(() => {
+      followUpTimers.delete(timer);
+      begin();
+    }, wait);
+    followUpTimers.add(timer);
+    return;
+  }
+  begin();
+
+  function begin() {
   if (window.AndroidTts) {
     const nativeOptions = { interrupt, rate, pitch: options.pitch ?? 1.2, force: options.force };
     if (typeof window.AndroidTts.speakTracked === "function") {
@@ -207,6 +234,7 @@ export function speakKidPrompt(text: string, options: KidPromptOptions = {}) {
   window.speechSynthesis.addEventListener("voiceschanged", onVoices);
   void window.speechSynthesis.getVoices();
   window.setTimeout(speak, 250);
+  }
 }
 
 /** Same as speakKidPrompt, but resolves when the speech has finished. */
