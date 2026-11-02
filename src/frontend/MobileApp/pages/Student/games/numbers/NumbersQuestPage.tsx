@@ -142,7 +142,7 @@ export default function NumbersQuestPage() {
   const [message, setMessage] = useState<string>(
     "Tap the raindrops that match the number!"
   );
-  const [timeLeft, setTimeLeft] = useState(numbersLevelSeconds(0));
+  const [timeLeft, setTimeLeft] = useState<number>(numbersLevelSeconds(0));
   const [timerRunning, setTimerRunning] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [proceedPromptLevel, setProceedPromptLevel] = useState<number | null>(

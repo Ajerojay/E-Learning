@@ -230,7 +230,7 @@ export default function Level2Pattern() {
   const [gameOverOpen, setGameOverOpen] = useState(false);
   const [score, setScore] = useState(0);
   const [dropped, setDropped] = useState<string | null>(null);
-  const [time, setTime] = useState(logicLevelSeconds(0));
+  const [time, setTime] = useState<number>(logicLevelSeconds(0));
   const [level, setLevel] = useState(0);
   const [patternDeal, setPatternDeal] = useState(0);
   const [levelSymbols, setLevelSymbols] = useState(dealPatternSymbols);
