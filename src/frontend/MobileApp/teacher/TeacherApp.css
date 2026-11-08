@@ -8,6 +8,7 @@
 .ta-print-teacher{margin:28px 0 4px;padding-top:14px;border-top:1px solid #d9d7df;display:flex;flex-direction:column;align-items:flex-start}.ta-print-teacher span,.ta-print-teacher small{color:#72798a;font-size:9px}.ta-print-teacher b{margin:3px 0 1px;font-size:14px}
 
 .ta-health-records>article{padding:13px 17px;border-bottom:1px solid #eeecf1;display:grid;grid-template-columns:1fr auto auto;gap:6px 12px;align-items:center}.ta-health-records>article>span{display:flex;flex-direction:column}.ta-health-records article small{color:#7d8497;font-size:8px}.ta-health-records article em{padding:5px 8px;border-radius:10px;background:#eaf9ef;color:#27834a;font-size:9px;font-style:normal}.ta-health-records article p{grid-column:1/-1;margin:3px 0 0;font-size:9px}@media(max-width:520px){.ta-health-records>article{grid-template-columns:1fr auto}.ta-health-records>article>small{grid-column:1/-1}}
+.ta-parent-allergy-cards{margin-top:10px;padding:10px;border:2px solid #e25566;border-radius:14px;background:#fff1f3;color:#9b1c2e;text-align:left}.ta-health-records article .ta-parent-allergy-cards,.ta-child-profile .ta-parent-allergy-cards{grid-column:1/-1}.ta-parent-allergy-cards>span{display:inline-flex;padding:3px 8px;border-radius:999px;background:#e23b4f;color:#fff;font-size:9px;font-weight:900;letter-spacing:.04em;text-transform:uppercase}.ta-parent-allergy-cards ul{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px}.ta-parent-allergy-cards li{padding:8px 10px;border-radius:10px;background:#fff;border:1px solid #f3c3cb;display:flex;flex-direction:column;gap:2px}.ta-parent-allergy-cards b{font-size:12px}.ta-parent-allergy-cards small{color:#7a4450;font-size:10px;font-weight:700}.ta-parent-allergy-empty{margin:8px 0 0;color:#a33b4c;font-size:10px;font-weight:800}.ta-parent-allergy-board{margin-bottom:16px}.ta-parent-allergy-board article{padding:12px 16px;border-bottom:1px solid #f6d5db}.ta-parent-allergy-board article>b{font-size:13px}
 .ta-health-records article .ta-allergy-record{padding:9px 10px;border-radius:11px;background:#f1f2f5;color:#687080;display:flex;align-items:center;justify-content:space-between;gap:10px}.ta-health-records article .ta-allergy-record.active{background:#fff0f2;color:#aa3f50;border:1px solid #efc4cb}.ta-health-records article .ta-allergy-record span{padding:4px 7px;border-radius:9px;background:#fff;font-size:8px;font-weight:900}.ta-allergy-status{margin-top:14px;padding:10px;border:1px solid #e2dfe8;border-radius:13px;display:grid;grid-template-columns:1fr 1fr;gap:8px}.ta-allergy-status legend{padding:0 5px;font-size:10px;font-weight:800}.ta-allergy-status>label{margin:0;padding:9px;border:1px solid #e4e2e9;border-radius:11px;display:flex;flex-direction:row;align-items:center;gap:8px;background:#fafafd}.ta-allergy-status>label.active{border-color:#efbcc5;background:#fff2f4;color:#a53d4d}.ta-allergy-status span{display:flex;flex-direction:column}.ta-allergy-status small{color:var(--muted);font-size:7px}@media(max-width:480px){.ta-allergy-status{grid-template-columns:1fr}}
 
 .ta-announcement-compose{max-width:760px;margin:auto}.ta-announcement-compose>div{padding:18px}.ta-announcement-compose label{display:flex;flex-direction:column;gap:6px;margin-bottom:13px;color:#50586d;font-size:10px;font-weight:800}.ta-announcement-compose input,.ta-announcement-compose textarea{padding:11px;border:1px solid #dddce5;border-radius:12px}.ta-announcement-compose textarea{min-height:140px;resize:vertical}.ta-announcement-compose label small{text-align:right;color:#7d8497}.ta-announcement-compose>div>button{width:100%}.ta-announcement-compose button:disabled{opacity:.6}
@@ -138,3 +139,49 @@
 
 /* Desktop activity cards: two roomy columns with normal-height progress bars. */
 @media(min-width:721px){.teacher-app .ta-quests{width:min(1120px,100%);margin-inline:auto;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:26px;row-gap:24px}.teacher-app .ta-quests>article{min-height:0;grid-template-rows:none;padding:22px}.teacher-app .ta-completion{align-self:auto;margin-top:15px}.teacher-app .ta-completion>i{height:10px!important}.teacher-app .ta-quest-data{margin-top:7px;gap:10px}.teacher-app .ta-quests footer{margin-top:9px}.teacher-app .ta-quest-name h3{font-size:18px}}
+
+.ta-heading-actions .ta-secondary{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:46px;padding:8px 12px}
+.ta-heading-actions .ta-secondary svg{width:16px}
+.ta-print-only{display:none}
+.ta-month-overlay{align-items:flex-start}
+.ta-month-report{width:min(1180px,100%);max-height:92dvh;text-align:left}
+.ta-student-month-report{width:min(680px,100%)}
+.ta-month-report>h2,.ta-month-report>p{text-align:center}
+.ta-month-scroll{overflow:auto;margin:12px 0;border:1px solid #e4e2e8;border-radius:12px}
+.ta-month-table{width:max-content;min-width:100%;border-collapse:collapse;background:#fff;font-size:11px}
+.ta-month-table th,.ta-month-table td{border:1px solid #d9d6e0;padding:4px 5px;text-align:center;white-space:nowrap}
+.ta-month-table th{background:#f6f4f8;font-size:10px}
+.ta-month-table .name{position:sticky;left:0;z-index:1;min-width:148px;text-align:left;background:#fff}
+.ta-month-table th.name{background:#f6f4f8}
+.ta-month-table .name b,.ta-month-table .name small{display:block}
+.ta-month-table .name small{color:#7d8497;font-size:9px;font-weight:700}
+.ta-month-table td.weekend{background:#f4f4f6}
+.ta-month-table td.present{background:#e8f9ee;color:#27834a;font-weight:900}
+.ta-month-table td.late{background:#fff6d8;color:#936b13;font-weight:900}
+.ta-month-table td.absent{background:#ffebee;color:#b43d4d;font-weight:900}
+.ta-month-table td.excused{background:#eaf4ff;color:#2d6cae;font-weight:900}
+.ta-month-table td button{padding:4px 8px;border:0;border-radius:8px;background:#edf5ff;color:#326fae;font-size:10px;font-weight:800;cursor:pointer}
+.ta-student-month-table{width:100%}
+.ta-student-month-table tr.weekend td{background:#f7f7f9}
+.ta-month-legend{margin:0;color:#72798a;font-size:11px;text-align:center}
+.ta-month-report .ta-report-actions{flex-wrap:wrap}
+.ta-month-report .ta-report-actions button{flex:1}
+@media(max-width:720px){.ta-month-report .ta-report-actions{display:grid;grid-template-columns:1fr}}
+@media print{
+  @page{size:A4 portrait;margin:10mm}
+  .teacher-app{background:#fff!important;min-height:0!important}
+  .teacher-app>aside,.teacher-app>nav,.teacher-app>.ta-toast,.teacher-app>main>header{display:none!important}
+  .teacher-app>main{margin:0!important;min-height:0!important}
+  .ta-content{padding:0!important}
+  .ta-content>*:not(.ta-month-overlay){display:none!important}
+  .ta-print-only{display:block!important}
+  .ta-class-screen-table{display:none!important}
+  .ta-print-overlay,.ta-print-overlay.ta-month-overlay{position:static!important;inset:auto!important;display:block!important;width:auto!important;height:auto!important;max-height:none!important;overflow:visible!important;padding:0!important;background:#fff!important}
+  .ta-month-report{width:100%!important;max-width:none!important;max-height:none!important;overflow:visible!important;border:0!important;box-shadow:none!important;padding:0!important}
+  .ta-month-scroll{overflow:visible!important;border:0}
+  .ta-print-slices{display:grid!important;gap:8mm}
+  .ta-print-slice,.ta-student-month-table{width:100%!important;table-layout:fixed;font-size:9px}
+  .ta-print-slice .name{width:24%}
+  .ta-month-table .name{position:static;min-width:0}
+  .ta-month-table th,.ta-month-table td{padding:2px 1px;white-space:normal;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
