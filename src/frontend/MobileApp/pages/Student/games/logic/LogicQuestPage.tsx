@@ -71,7 +71,7 @@ function dealPatternSymbols(
   });
 }
 
-const LOGIC_LEVEL_SECONDS = [60, 75, 90] as const;
+const LOGIC_LEVEL_SECONDS = [60, 75, 90];
 
 function logicLevelSeconds(levelIndex: number) {
   return LOGIC_LEVEL_SECONDS[levelIndex] ?? LOGIC_LEVEL_SECONDS[LOGIC_LEVEL_SECONDS.length - 1];

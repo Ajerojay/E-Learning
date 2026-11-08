@@ -28,6 +28,12 @@ import { childAvatarById } from "../Student/childAvatars";
 import { earnedGameCertificates, GAME_CERTIFICATES, PROGRAM_STAR_MAX, certificateKindForGame, starsEarnedLine, summarizeLevelStars, type GameCertificate } from "../../../../backend/gameCertificates";
 import { fetchQuestLevelResults, mergeQuestStars, readLocalQuestStars } from "../../../../backend/questLevelResults";
 import { downloadCertificatePng } from "../Student/downloadCertificate";
+import {
+  formatChildAllergies,
+  loadChildAllergies,
+  saveChildAllergies,
+  type ChildAllergy,
+} from "../../../../backend/childAllergies";
 
 type ChildRow = {
   id: string;
@@ -58,6 +64,11 @@ export default function ParentChildren() {
   const [gameCertificates, setGameCertificates] = useState<GameCertificate[]>([]);
   const [questStars, setQuestStars] = useState<Record<string, number[]>>({});
   const [achievementTab, setAchievementTab] = useState<"achievements" | "certificates">("achievements");
+  const [allergies, setAllergies] = useState<ChildAllergy[]>([]);
+  const [allergyName, setAllergyName] = useState("");
+  const [allergyDescription, setAllergyDescription] = useState("");
+  const [allergyError, setAllergyError] = useState("");
+  const [allergySaving, setAllergySaving] = useState(false);
 
   const loadChild = useCallback(async () => {
     console.log("loadChild: start");
@@ -173,6 +184,45 @@ export default function ParentChildren() {
       window.removeEventListener(CHILD_AVATAR_UPDATED_EVENT, onAvatarUpdated);
     };
   }, [loadChild]);
+
+  useEffect(() => {
+    if (!child?.id) {
+      setAllergies([]);
+      return;
+    }
+    let alive = true;
+    void loadChildAllergies(child.id).then((items) => {
+      if (alive) setAllergies(items);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [child?.id]);
+
+  const addAllergy = async () => {
+    if (!child?.id || allergySaving) return;
+    const name = allergyName.trim();
+    const description = allergyDescription.trim();
+    if (!name) {
+      setAllergyError("Enter the allergy name.");
+      return;
+    }
+    setAllergyError("");
+    setAllergySaving(true);
+    const next = [...allergies, { id: `${Date.now()}`, name, description }];
+    await saveChildAllergies(child.id, next);
+    setAllergies(next);
+    setAllergyName("");
+    setAllergyDescription("");
+    setAllergySaving(false);
+  };
+
+  const removeAllergy = async (allergyId: string) => {
+    if (!child?.id) return;
+    const next = allergies.filter((item) => item.id !== allergyId);
+    setAllergies(next);
+    await saveChildAllergies(child.id, next);
+  };
 
   const displayName = getChildDisplayName(child);
   const firstName = getChildDisplayFirstName(child);
@@ -305,6 +355,72 @@ export default function ParentChildren() {
           </div>
         </article>
       </div>
+
+      {child?.id ? (
+      <section className="pc-allergy-card" aria-label="Allergy card">
+        <div className="pc-allergy-heading">
+          <span className="pc-allergy-kicker">Allergy</span>
+          <h2>Allergy card</h2>
+          <p>List {firstName}&apos;s allergies and what the teacher should know. This appears on the health check under Allergy.</p>
+        </div>
+        <form
+          className="pc-allergy-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void addAllergy();
+          }}
+        >
+          <label>
+            Allergy
+            <input
+              value={allergyName}
+              maxLength={80}
+              placeholder="Example: Peanuts"
+              onChange={(event) => setAllergyName(event.target.value)}
+            />
+          </label>
+          <label>
+            Description
+            <textarea
+              value={allergyDescription}
+              maxLength={280}
+              placeholder="What happens, and what to avoid or do"
+              onChange={(event) => setAllergyDescription(event.target.value)}
+            />
+          </label>
+          {allergyError ? <p className="pc-allergy-error">{allergyError}</p> : null}
+          <button type="submit" disabled={allergySaving || !allergyName.trim()}>
+            {allergySaving ? "Saving…" : "Add allergy"}
+          </button>
+        </form>
+        {allergies.length ? (
+          <ul className="pc-allergy-list">
+            {allergies.map((item) => (
+              <li key={item.id}>
+                <span>
+                  <b>{item.name}</b>
+                  {item.description ? <small>{item.description}</small> : null}
+                </span>
+                <button type="button" onClick={() => void removeAllergy(item.id)}>
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="pc-allergy-empty">No allergies listed yet.</p>
+        )}
+        <div className="pc-health-check-preview" aria-label="Health check allergy">
+          <h3>Health check</h3>
+          <p className="pc-health-check-label">Allergy</p>
+          {allergies.length ? (
+            <p className="pc-health-check-value">{formatChildAllergies(allergies)}</p>
+          ) : (
+            <p className="pc-health-check-value is-empty">None listed — teachers will see this on Record Health Check.</p>
+          )}
+        </div>
+      </section>
+      ) : null}
 
       <section className="pc-main-card" aria-label="Child profile and settings">
         <div className="pc-section">

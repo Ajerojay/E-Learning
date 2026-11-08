@@ -482,6 +482,176 @@
   text-decoration: underline;
 }
 
+.pc-allergy-card {
+  margin-bottom: 16px;
+  padding: 18px 18px 16px;
+  border-radius: 18px;
+  border: 2px solid #e25566;
+  background: #fff1f3;
+  box-shadow: 0 4px 0 #c93b4e;
+  color: #8d2434;
+}
+
+.pc-allergy-heading h2 {
+  margin: 4px 0 6px;
+  font-size: 22px;
+  font-weight: 800;
+  color: #9b1c2e;
+}
+
+.pc-allergy-heading p,
+.pc-allergy-empty {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #a33b4c;
+}
+
+.pc-allergy-kicker {
+  display: inline-flex;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #e23b4f;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pc-allergy-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.pc-allergy-form label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #9b1c2e;
+}
+
+.pc-allergy-form input,
+.pc-allergy-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid #f0b7c0;
+  border-radius: 12px;
+  background: #fff;
+  color: #4a1d26;
+  font: inherit;
+  font-weight: 700;
+}
+
+.pc-allergy-form textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.pc-allergy-form button,
+.pc-allergy-list button {
+  justify-self: start;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: #e23b4f;
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pc-allergy-form button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.pc-allergy-error {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: #9b1c2e;
+}
+
+.pc-allergy-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.pc-allergy-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #fff;
+  border: 2px solid #f3c3cb;
+}
+
+.pc-allergy-list span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pc-allergy-list b {
+  color: #9b1c2e;
+  font-size: 15px;
+}
+
+.pc-allergy-list small {
+  color: #7a4450;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pc-allergy-empty {
+  margin-top: 12px;
+}
+
+.pc-health-check-preview {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 2px dashed #e25566;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.pc-health-check-preview h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #9b1c2e;
+}
+
+.pc-health-check-label {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #c93b4e;
+}
+
+.pc-health-check-value {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #5c1f2b;
+  line-height: 1.45;
+}
+
+.pc-health-check-value.is-empty {
+  color: #a33b4c;
+  font-weight: 700;
+}
+
 .pc-loading {
   text-align: center;
   padding: 40px;
@@ -913,6 +1083,15 @@
   background: #ecfdf3;
   color: #15803d;
   text-align: center;
+}
+
+.pd-mobile-parent .pc-allergy-card {
+  margin-bottom: 10px;
+  padding: 14px 12px;
+  border-radius: 20px;
+  background: #fff1f3;
+  border: 2px solid #e25566;
+  box-shadow: 0 8px 0 rgba(201, 59, 78, 0.16);
 }
 
 .pd-mobile-parent .pc-main-card {

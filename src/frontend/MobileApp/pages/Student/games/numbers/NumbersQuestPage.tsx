@@ -37,7 +37,7 @@ type LevelConfig = {
   dropCount: number;
 };
 
-const NUMBER_LEVEL_SECONDS = [90, 120, 150] as const;
+const NUMBER_LEVEL_SECONDS = [90, 120, 150];
 
 function numbersLevelSeconds(levelIndex: number) {
   return NUMBER_LEVEL_SECONDS[levelIndex] ?? NUMBER_LEVEL_SECONDS[NUMBER_LEVEL_SECONDS.length - 1];
