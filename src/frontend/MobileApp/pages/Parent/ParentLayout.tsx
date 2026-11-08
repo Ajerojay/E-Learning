@@ -1,6 +1,9 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../../../../../images/learnease logo-no bg.png";
+import { getLocalUser } from "../../../../backend/childProgress";
+import { NotificationBell } from "../../notifications/NotificationInbox";
+import { enablePushNotifications } from "../../../../backend/appNotifications";
 import "./ParentDashboard.css";
 
 export type ParentNavId = "home" | "child" | "progress";
@@ -30,6 +33,8 @@ type ParentLayoutProps = {
 export default function ParentLayout({ activeNav, children, hideHeader = false }: ParentLayoutProps) {
   const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(true);
+  const [alertsOpen, setAlertsOpen] = React.useState(false);
+  const parentId = String(getLocalUser()?.id || "");
 
   React.useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 768px)");
@@ -44,6 +49,10 @@ export default function ParentLayout({ activeNav, children, hideHeader = false }
     mediaQuery.addEventListener("change", syncMobileNav);
 
     return () => mediaQuery.removeEventListener("change", syncMobileNav);
+  }, []);
+
+  React.useEffect(() => {
+    void enablePushNotifications();
   }, []);
 
   const navClass = (id: ParentNavId) =>
@@ -144,9 +153,16 @@ export default function ParentLayout({ activeNav, children, hideHeader = false }
               <img src={logo} alt="LearnEase logo" className="pd-logo" />
               <span className="pd-brand-text">LearnEase</span>
             </div>
-            <button type="button" className="pd-bell-icon" aria-label="Notifications">
-              &#128276;
-            </button>
+            <div className="pd-note-wrap">
+              <NotificationBell
+                recipientRole="parent"
+                recipientId={parentId}
+                open={alertsOpen}
+                onToggle={() => setAlertsOpen(open => !open)}
+                className="pd-bell-icon"
+                icon={<>&#128276;</>}
+              />
+            </div>
           </header>
         )}
 

@@ -185,3 +185,10 @@
   .ta-month-table .name{position:static;min-width:0}
   .ta-month-table th,.ta-month-table td{padding:2px 1px;white-space:normal;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
+
+.ta-top-actions .le-note-wrap{position:relative}
+.ta-parent-note label{display:flex;flex-direction:column;gap:6px;margin:12px 0 0;color:#50586d;font-size:10px;font-weight:800}
+.ta-parent-note input,.ta-parent-note textarea{padding:11px;border:1px solid #dddce5;border-radius:12px;background:#fff}
+.ta-parent-note input:read-only{background:#f5f6f8;color:#656d7c}
+.ta-parent-note textarea{min-height:160px;resize:vertical}
+.ta-parent-note label small{text-align:right;color:#7d8497}

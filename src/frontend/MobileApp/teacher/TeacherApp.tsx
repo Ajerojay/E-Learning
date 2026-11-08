@@ -19,6 +19,8 @@ import { cacheOfflineCategoryProgress, cacheOfflineLessons, cacheOfflineChild, g
 import { getAttendanceRecords, localDateKey } from "../../../backend/attendance";
 import { StudentMonthReport } from "./AttendanceReports";
 import TeacherAttendance from "./TeacherAttendance";
+import { NotificationBell } from "../notifications/NotificationInbox";
+import { enablePushNotifications } from "../../../backend/appNotifications";
 import { getChildCategoryProgress, getRecentChildAttempts, getRecentClassActivity, sendParentAnnouncement } from "../../../backend/supabaseData";
 import { CHILD_AVATAR_UPDATED_EVENT, getStoredChildAvatar, normalizeChildAvatar } from "../../../backend/childAvatar";
 import { childAvatarById } from "../pages/Student/childAvatars";
@@ -262,7 +264,7 @@ function Heading({ eyebrow, title, detail, children }: { eyebrow: string; title:
   return <div className="ta-heading"><div><span>{eyebrow}</span><h1>{title}</h1><p>{detail}</p></div><div className="ta-heading-actions">{children}</div></div>;
 }
 
-function Dashboard({ go, notify }: { go: (key: PageKey) => void; notify: Notify }) {
+function Dashboard({ go, notify, onOpenAlerts }: { go: (key: PageKey) => void; notify: Notify; onOpenAlerts: () => void }) {
   const classSummary = useClassSummary();
   const teacher = teacherIdentity();
   const date = new Intl.DateTimeFormat("en-PH", { weekday: "long", month: "long", day: "numeric" }).format(new Date());
@@ -277,7 +279,7 @@ function Dashboard({ go, notify }: { go: (key: PageKey) => void; notify: Notify 
     <section className="ta-reference-greeting">
       <img src={logo} alt="LearnEase" />
       <div><h1>Good Morning,<br />{teacher.firstName}!</h1><p>{date}</p></div>
-      <button aria-label="Open notifications" onClick={() => notify("No new notifications")}><Bell /></button>
+      <button aria-label="Open notifications" onClick={onOpenAlerts}><Bell /></button>
       <button aria-label="Open help" onClick={() => notify("Teacher help center opened")}><CircleAlert /></button>
     </section>
     <section className="ta-summary-card">
@@ -576,12 +578,16 @@ function Students({ notify }: { notify: Notify }) {
       return;
     }
     setHealthSending(true);
+    const teacher = teacherIdentity();
     const status = await deliverParentAnnouncement({
       title: healthTitle.trim() || `Health update for ${healthStudent.name}`,
       message: healthMessage.trim(),
       kind: "health",
       parentId: healthStudent.parentId,
       childId: healthStudent.id,
+      childName: healthStudent.name,
+      senderId: teacherProfileKey(teacher),
+      senderName: teacher.name,
     });
     setHealthSending(false);
     setHealthStudent(null);
@@ -886,6 +892,9 @@ type PendingAnnouncement = {
   kind: "classroom" | "health";
   parentId?: string | null;
   childId?: string | null;
+  childName?: string | null;
+  senderId?: string | null;
+  senderName?: string | null;
 };
 
 function readPendingAnnouncements(): PendingAnnouncement[] {
@@ -933,7 +942,14 @@ function Announcements({ notify }: { notify: Notify }) {
   const send = async () => {
     if (!title.trim() || !message.trim() || sending) return;
     setSending(true);
-    const status = await deliverParentAnnouncement({ title: title.trim(), message: message.trim(), kind: "classroom" });
+    const teacher = teacherIdentity();
+    const status = await deliverParentAnnouncement({
+      title: title.trim(),
+      message: message.trim(),
+      kind: "classroom",
+      senderId: teacherProfileKey(teacher),
+      senderName: teacher.name,
+    });
     setTitle(""); setMessage("");
     setSending(false);
     notify(status === "sent" ? "Announcement sent to all parent accounts" : "Saved on this browser. Parents will see it when you are back online.");
@@ -1024,7 +1040,8 @@ function Health({ notify }: { notify: Notify }) {
     setRecords(next); setRecord(false); setTemperature(""); setHeight(""); setWeight(""); setAllergies(""); setAllergyActive(false); setObservation("");
     if (allergyActive && recordedAllergies) {
       if (student.parentId) {
-        const delivery = await deliverParentAnnouncement({ title: `Active Allergy Alert — ${student.name}`, message: `${student.name} has an active allergy recorded: ${recordedAllergies}. Please contact the teacher for details and provide any needed medication or instructions.`, kind: "health", parentId: student.parentId, childId: student.id });
+        const teacher = teacherIdentity();
+        const delivery = await deliverParentAnnouncement({ title: `Active Allergy Alert — ${student.name}`, message: `${student.name} has an active allergy recorded: ${recordedAllergies}. Please contact the teacher for details and provide any needed medication or instructions.`, kind: "health", parentId: student.parentId, childId: student.id, childName: student.name, senderId: teacherProfileKey(teacher), senderName: teacher.name });
         notify(delivery === "sent" ? `Health record saved and ${student.name}'s parent was notified` : "Health record saved; the parent notification is queued until online.");
       } else notify("Health record saved, but this learner has no linked parent account.");
     } else notify(`Health check saved for ${student.name}`);
@@ -1274,7 +1291,7 @@ function ProfileSettings({ teacher, notify, logout, onProfileUpdated }: { teache
     if (error) { notify(`Profile was not saved: ${error.message}`); return; }
     mergeTeacherIntoLogin(next); onProfileUpdated(next); setEdit(false); notify("Teacher profile updated successfully.");
   };
-  return <><Heading eyebrow="YOUR ACCOUNT" title="Profile & Settings" detail="Update the signed-in teacher profile. Changes are saved to Supabase and appear on other devices."/><div className="ta-settings-grid"><section className="ta-card ta-profile"><div className="ta-teacher-photo">{teacherAvatarContent(teacher)}<button className="ta-teacher-photo-edit" type="button" aria-label="Change profile photo" onClick={openEditor}><Camera /></button></div><h2>{teacher.name}</h2><p>{teacher.role}</p><span><i /> Signed-in faculty account</span><dl><dt>Handled Section</dt><dd>{teacher.section || "Not provided"}</dd><dt>Teacher ID</dt><dd>{teacher.id || "Not provided"}</dd></dl><button className="ta-primary ta-full" onClick={openEditor}><Pencil /> Edit Profile</button></section><section className="ta-card ta-settings"><header><span className="purple"><Settings /></span><div><h2>Account Details</h2><p>Synced with the teacher profile database</p></div></header><div className="ta-setting"><UserRound/><span><b>Full Name</b><small>{teacher.name}</small></span></div><div className="ta-setting"><Mail/><span><b>Email Address</b><small>{teacher.email || "Not provided"}</small></span></div><h3>Notification Preferences</h3>{[["Push notifications","Student activity and alerts"],["Email notifications","Account email updates"],["Weekly class summary","Summary notifications"]].map(([a,b],i) => <div className="ta-setting" key={a}><Bell/><span><b>{a}</b><small>{b}</small></span><button className={`ta-toggle ${toggles[i] ? "on" : ""}`} onClick={() => setToggles(toggles.map((x,j) => i===j?!x:x))}><i/></button></div>)}<button className="ta-danger" onClick={logout}><LogOut /> Logout of Teacher Account</button></section></div>{edit && <div className="ta-overlay" onMouseDown={() => setEdit(false)}><form className="ta-modal ta-form ta-teacher-profile-form" onMouseDown={event => event.stopPropagation()} onSubmit={saveProfile}><button type="button" className="ta-close" onClick={() => setEdit(false)}><X /></button><h2>Edit Teacher Profile</h2><p>Your changes will appear anywhere this teacher account is used.</p><div className="ta-profile-photo-preview">{draft.avatar ? <img src={draft.avatar} alt="Selected teacher profile" /> : <>👩🏻‍🏫</>}<button type="button" onClick={() => photoInput.current?.click()}><Camera /> Change photo</button><input ref={photoInput} type="file" accept="image/*" onChange={choosePhoto}/></div><label>Full Name<input required value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} placeholder="Enter full name" /></label><label>Email Address<input type="email" value={draft.email} onChange={event => setDraft({ ...draft, email: event.target.value })} placeholder="Enter email address" /></label><label>Handled Section<input value={draft.section} onChange={event => setDraft({ ...draft, section: event.target.value })} placeholder="Example: Nursery A" /></label><button className="ta-primary ta-full" disabled={saving}>{saving ? "Saving Profile..." : "Save Profile"}</button></form></div>}</>;
+  return <><Heading eyebrow="YOUR ACCOUNT" title="Profile & Settings" detail="Update the signed-in teacher profile. Changes are saved to Supabase and appear on other devices."/><div className="ta-settings-grid"><section className="ta-card ta-profile"><div className="ta-teacher-photo">{teacherAvatarContent(teacher)}<button className="ta-teacher-photo-edit" type="button" aria-label="Change profile photo" onClick={openEditor}><Camera /></button></div><h2>{teacher.name}</h2><p>{teacher.role}</p><span><i /> Signed-in faculty account</span><dl><dt>Handled Section</dt><dd>{teacher.section || "Not provided"}</dd><dt>Teacher ID</dt><dd>{teacher.id || "Not provided"}</dd></dl><button className="ta-primary ta-full" onClick={openEditor}><Pencil /> Edit Profile</button></section><section className="ta-card ta-settings"><header><span className="purple"><Settings /></span><div><h2>Account Details</h2><p>Synced with the teacher profile database</p></div></header><div className="ta-setting"><UserRound/><span><b>Full Name</b><small>{teacher.name}</small></span></div><div className="ta-setting"><Mail/><span><b>Email Address</b><small>{teacher.email || "Not provided"}</small></span></div><h3>Notification Preferences</h3>{[["Push notifications","Student activity and alerts"],["Email notifications","Account email updates"],["Weekly class summary","Summary notifications"]].map(([a,b],i) => <div className="ta-setting" key={a}><Bell/><span><b>{a}</b><small>{b}</small></span><button className={`ta-toggle ${toggles[i] ? "on" : ""}`} onClick={() => { const next = !toggles[i]; setToggles(toggles.map((x,j) => i===j?!x:x)); if (i === 0 && next) void enablePushNotifications(); }}><i/></button></div>)}<button className="ta-danger" onClick={logout}><LogOut /> Logout of Teacher Account</button></section></div>{edit && <div className="ta-overlay" onMouseDown={() => setEdit(false)}><form className="ta-modal ta-form ta-teacher-profile-form" onMouseDown={event => event.stopPropagation()} onSubmit={saveProfile}><button type="button" className="ta-close" onClick={() => setEdit(false)}><X /></button><h2>Edit Teacher Profile</h2><p>Your changes will appear anywhere this teacher account is used.</p><div className="ta-profile-photo-preview">{draft.avatar ? <img src={draft.avatar} alt="Selected teacher profile" /> : <>👩🏻‍🏫</>}<button type="button" onClick={() => photoInput.current?.click()}><Camera /> Change photo</button><input ref={photoInput} type="file" accept="image/*" onChange={choosePhoto}/></div><label>Full Name<input required value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} placeholder="Enter full name" /></label><label>Email Address<input type="email" value={draft.email} onChange={event => setDraft({ ...draft, email: event.target.value })} placeholder="Enter email address" /></label><label>Handled Section<input value={draft.section} onChange={event => setDraft({ ...draft, section: event.target.value })} placeholder="Example: Nursery A" /></label><button className="ta-primary ta-full" disabled={saving}>{saving ? "Saving Profile..." : "Save Profile"}</button></form></div>}</>;
 }
 
 function SimpleForm({ title, fields, close, submit }: { title: string; fields: string[]; close: () => void; submit: () => void }) {
@@ -1296,8 +1313,9 @@ export default function TeacherApp() {
   useEffect(() => {
     const base = teacherIdentity();
     void loadTeacherProfile(base).then(next => { mergeTeacherIntoLogin(next); setTeacher(next); }).catch(error => console.warn("Teacher profile could not be loaded:", error));
+    void enablePushNotifications();
   }, []);
   const go = (key: PageKey) => { setPage(key); setMenu(false); setProfile(false); setAlerts(false); window.scrollTo({ top: 0, behavior: "smooth" }); };
-  const logout = () => { localStorage.removeItem("user"); navigate("/"); };
-  return <div className="teacher-app"><aside className={`ta-sidebar ${menu ? "open" : ""}`}><div className="ta-logo"><img src={logo}/><span><b>LearnEase</b><small>Teacher Portal</small></span><button onClick={() => setMenu(false)}><X/></button></div><nav>{navItems.map(({key,label,icon:Icon}) => <button className={page===key?"active":""} onClick={() => go(key)} key={key}><i><Icon/></i><b>{label}</b></button>)}</nav><div className="ta-side-profile"><i>{teacherAvatarContent(teacher)}</i><span><b>{teacher.name}</b><small>{teacher.role}</small></span><button onClick={logout}><LogOut/></button></div></aside>{menu && <button className="ta-backdrop" onClick={() => setMenu(false)}/>}<main><header className="ta-top"><button className="ta-menu" onClick={() => setMenu(true)}><Menu/></button><div className="ta-mobile-logo"><img src={logo}/><b>LearnEase</b></div><span className="ta-current"><CurrentIcon/><b>{current.label}</b></span><div className="ta-top-actions"><div><button className="ta-bell" onClick={() => {setAlerts(!alerts);setProfile(false)}}><Bell/></button>{alerts && <section className="ta-pop ta-alert-pop"><h3>Notifications</h3><div className="ta-feed-empty"><Bell/><b>No notifications yet</b><small>Recorded alerts will appear here.</small></div></section>}</div><div><button className="ta-top-profile" onClick={() => {setProfile(!profile);setAlerts(false)}}><i>{teacherAvatarContent(teacher)}</i><span><b>{teacher.name}</b><small>{teacher.section || teacher.role}</small></span><ChevronDown/></button>{profile && <section className="ta-pop ta-profile-pop"><button onClick={() => go("settings")}><UserRound/> My Profile</button><button onClick={() => go("settings")}><Settings/> Settings</button><button onClick={logout}><LogOut/> Logout</button></section>}</div></div></header><div className="ta-content">{page === "dashboard" && <Dashboard go={go} notify={notify}/>} {page === "students" && <Students notify={notify}/>} {page === "lessons" && <Lessons notify={notify}/>} {page === "activities" && <Activities notify={notify}/>} {page === "attendance" && <TeacherAttendance notify={notify} teacher={teacher}/>} {page === "announcements" && <Announcements notify={notify}/>} {page === "health" && <Health notify={notify}/>} {page === "rewards" && <Rewards />} {page === "settings" && <ProfileSettings teacher={teacher} notify={notify} logout={logout} onProfileUpdated={setTeacher}/>}</div></main><nav className="ta-bottom">{navItems.slice(0,5).map(({key,label,icon:Icon}) => <button className={page===key?"active":""} onClick={() => go(key)} key={key}><Icon/><span>{label.split(" ")[0]}</span></button>)}<button onClick={() => setMenu(true)}><MoreHorizontal/><span>More</span></button></nav>{toast && <div className="ta-toast"><Check/>{toast}</div>}</div>;
+  const logout = () => { localStorage.removeItem("user"); navigate("/teacher-login"); };
+  return <div className="teacher-app"><aside className={`ta-sidebar ${menu ? "open" : ""}`}><div className="ta-logo"><img src={logo}/><span><b>LearnEase</b><small>Teacher Portal</small></span><button onClick={() => setMenu(false)}><X/></button></div><nav>{navItems.map(({key,label,icon:Icon}) => <button className={page===key?"active":""} onClick={() => go(key)} key={key}><i><Icon/></i><b>{label}</b></button>)}</nav><div className="ta-side-profile"><i>{teacherAvatarContent(teacher)}</i><span><b>{teacher.name}</b><small>{teacher.role}</small></span><button onClick={logout}><LogOut/></button></div></aside>{menu && <button className="ta-backdrop" onClick={() => setMenu(false)}/>}<main><header className="ta-top"><button className="ta-menu" onClick={() => setMenu(true)}><Menu/></button><div className="ta-mobile-logo"><img src={logo}/><b>LearnEase</b></div><span className="ta-current"><CurrentIcon/><b>{current.label}</b></span><div className="ta-top-actions"><div><NotificationBell recipientRole="teacher" recipientId={teacherProfileKey(teacher)} open={alerts} onToggle={() => { setAlerts(!alerts); setProfile(false); }} className="ta-bell" /></div><div><button className="ta-top-profile" onClick={() => {setProfile(!profile);setAlerts(false)}}><i>{teacherAvatarContent(teacher)}</i><span><b>{teacher.name}</b><small>{teacher.section || teacher.role}</small></span><ChevronDown/></button>{profile && <section className="ta-pop ta-profile-pop"><button onClick={() => go("settings")}><UserRound/> My Profile</button><button onClick={() => go("settings")}><Settings/> Settings</button><button onClick={logout}><LogOut/> Logout</button></section>}</div></div></header><div className="ta-content">{page === "dashboard" && <Dashboard go={go} notify={notify} onOpenAlerts={() => { setAlerts(true); setProfile(false); }}/>} {page === "students" && <Students notify={notify}/>} {page === "lessons" && <Lessons notify={notify}/>} {page === "activities" && <Activities notify={notify}/>} {page === "attendance" && <TeacherAttendance notify={notify} teacher={teacher}/>} {page === "announcements" && <Announcements notify={notify}/>} {page === "health" && <Health notify={notify}/>} {page === "rewards" && <Rewards />} {page === "settings" && <ProfileSettings teacher={teacher} notify={notify} logout={logout} onProfileUpdated={setTeacher}/>}</div></main><nav className="ta-bottom">{navItems.slice(0,5).map(({key,label,icon:Icon}) => <button className={page===key?"active":""} onClick={() => go(key)} key={key}><Icon/><span>{label.split(" ")[0]}</span></button>)}<button onClick={() => setMenu(true)}><MoreHorizontal/><span>More</span></button></nav>{toast && <div className="ta-toast"><Check/>{toast}</div>}</div>;
 }

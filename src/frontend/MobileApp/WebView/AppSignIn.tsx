@@ -17,8 +17,13 @@ const TEACHER_PASSWORD = "teacher123";
 
 function teacherSiteUrl() {
   const configuredUrl = String(import.meta.env.VITE_TEACHER_PORTAL_URL || "https://e-learning-5sk.pages.dev/").trim();
+  const withTeacherLogin = (base: string) => {
+    const root = base.endsWith("/") ? base : `${base}/`;
+    if (/teacher-login\/?$/i.test(root.replace(/\/$/, ""))) return root.endsWith("/") ? root : `${root}/`;
+    return `${root}teacher-login`;
+  };
   if (/^https:\/\/[^\s]+$/i.test(configuredUrl)) {
-    return configuredUrl.endsWith("/") ? configuredUrl : `${configuredUrl}/`;
+    return withTeacherLogin(configuredUrl);
   }
   const { origin, protocol } = window.location;
   if (!/^https?:$/i.test(protocol)) return "";
@@ -28,7 +33,7 @@ function teacherSiteUrl() {
   } catch {
     return "";
   }
-  return `${origin}/`;
+  return withTeacherLogin(`${origin}/`);
 }
 
 function openTeacherSite() {
@@ -240,7 +245,7 @@ export default function AppSignIn() {
             <h2 id="leave-app-title">Leaving the app</h2>
             <p>You are leaving the LearnEase app. The teacher portal opens in your browser.</p>
             <p>{siteUrl
-              ? "Sign in again there with the same username and password. The app stays for parents and kids."
+              ? "Sign in on the teacher page with the same username and password. The app stays for parents and kids."
               : "Open this website in Chrome or Safari on your phone or computer. This installed app has no public teacher address."}</p>
             <button className="app-auth-main-btn" type="button" onClick={openTeacherSite} disabled={!siteUrl}>Open browser</button>
             <button className="app-auth-secondary-btn" type="button" onClick={() => setLeaveOpen(false)}>Stay in the app</button>

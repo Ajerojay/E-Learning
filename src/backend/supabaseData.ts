@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { getOfflineChildrenFromSqlite } from "./offlineSqlite";
+import { classroomParentIds, sendAppNotifications } from "./appNotifications";
 import {
   SUBJECT_QUEST_GAMES,
   fetchQuestLevelResults,
@@ -672,6 +673,9 @@ export async function sendParentAnnouncement(input: {
   kind: ParentAnnouncementKind;
   parentId?: string | null;
   childId?: string | null;
+  childName?: string | null;
+  senderId?: string | null;
+  senderName?: string | null;
 }): Promise<void> {
   const title = input.title.trim() || (input.kind === "health" ? "Health update" : "Announcement");
   const message = input.message.trim();
@@ -698,11 +702,41 @@ export async function sendParentAnnouncement(input: {
         ];
 
   let lastError: { message?: string } | null = null;
+  let saved = false;
   for (const payload of payloads) {
     const { error } = await supabase.from("parent_announcements").insert(payload);
-    if (!error) return;
+    if (!error) {
+      saved = true;
+      break;
+    }
     lastError = error;
     if (!isSchemaError(error)) throw error;
   }
-  throw lastError ?? new Error("Announcement was not sent.");
+  if (!saved) throw lastError ?? new Error("Announcement was not sent.");
+
+  const parentRecipients = classroom
+    ? (await classroomParentIds()).map(id => ({ role: "parent" as const, id }))
+    : input.parentId
+      ? [{ role: "parent" as const, id: input.parentId }]
+      : [];
+  const recipients = [
+    ...parentRecipients,
+    ...(input.senderId ? [{ role: "teacher" as const, id: input.senderId }] : []),
+  ];
+  if (!recipients.length) return;
+  try {
+    await sendAppNotifications({
+      recipients,
+      senderRole: "teacher",
+      senderId: input.senderId || undefined,
+      senderName: input.senderName || "Teacher",
+      childId: input.childId,
+      childName: input.childName,
+      kind: input.kind,
+      title,
+      body: message,
+    });
+  } catch (error) {
+    console.warn("In-app notification was not stored.", error);
+  }
 }

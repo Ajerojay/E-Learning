@@ -21,6 +21,7 @@ import PageErrorBoundary from "./PageErrorBoundary";
 import MobileOrientationController from "./MobileApp/MobileOrientationController";
 import ChildBackgroundMusic from "./MobileApp/pages/Student/ChildBackgroundMusic";
 import AppSignIn from "./MobileApp/WebView/AppSignIn";
+import TeacherLogin from "./MobileApp/WebView/TeacherLogin";
 import AppSignUp from "./MobileApp/WebView/AppSignUp";
 import AppResetPassword from "./MobileApp/WebView/AppResetPassword";
 import AppEmailVerified from "./MobileApp/WebView/AppEmailVerified";
@@ -200,7 +201,8 @@ function App() {
       <Routes>
 
         {/* DEFAULT */}
-        <Route path="/" element={<AppSignIn />} />
+        <Route path="/" element={isMobileApp() ? <AppSignIn /> : <TeacherLogin />} />
+        <Route path="/teacher-login" element={<TeacherLogin />} />
         <Route path="/signup" element={<AppSignUp />} />
         <Route path="/reset-password" element={<AppResetPassword />} />
         <Route path="/email-verified" element={<AppEmailVerified />} />
