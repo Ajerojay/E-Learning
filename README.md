@@ -14,7 +14,7 @@ Optional, only if you will run the Android app:
 
 - [Android Studio](https://developer.android.com/studio)
 - An Android phone or emulator (API 24 / Android 7.0 or newer)
-- JDK 17 (Android Studio usually installs this)
+- JDK 21 (Android Studio's embedded JBR is usually this; Capacitor 8 requires it)
 
 ## 1. Clone and install
 
@@ -84,9 +84,27 @@ npm run preview
 
 Do this after `npm install` and a working `.env`.
 
-### Offline APK (app uses the last web build)
+### USB live reload (default while coding)
 
-Use this for a packaged install that does **not** pick up file saves until you build again.
+Plug the phone in over USB. The installed app loads Vite through `adb reverse`, so saving a file in Cursor updates the phone **without building a new APK**.
+
+```powershell
+npm.cmd run android:usb
+```
+
+Leave that terminal open. Then in **Android Studio**, pick the phone and click **Run** once. After that:
+
+- Keep the USB cable connected
+- Keep `android:usb` running
+- Save files as usual — the WebView refreshes on its own
+
+`android:usb` starts Vite if needed, keeps `adb reverse tcp:5174 tcp:5174` alive when you replug the cable, and points the packaged app at `http://127.0.0.1:5174`. Wi‑Fi and mobile data are not required for this live path.
+
+If Android Studio has not installed the live URL yet, click **Run** one more time. You do not need `npm run android:offline` on every save.
+
+### Offline APK (no laptop, no live updates)
+
+Use this only for a demo install that must work without the USB cable or Vite.
 
 ```bash
 npm run android:offline
@@ -101,15 +119,20 @@ That runs `npm run build` and `npx cap sync android`. Then in **Android Studio**
 
 The installed app loads its web assets from the app package, not from the laptop, so games do not depend on a particular Wi-Fi network and can be played offline. Sign in and select the child while online before the first offline session so the device has the cached account and child profile. Game attempts and earned level stars are kept on that device while offline, then uploaded when connectivity returns and the app is opened or resumed. Sync uses the configured Supabase HTTPS endpoint over either Wi-Fi or mobile data. Each device keeps its own pending results until it can sync.
 
-Offline play does not provide live code updates: after changing the app, rebuild/sync and press **Run** in Android Studio to install the new package. The live-reload workflow below is development-only and requires the phone to reach the laptop's current address.
-
-If Android opens to a blank screen because it is still pointing at an old live-reload URL, switch back to bundled assets and reinstall the updated app:
-
-In PowerShell, run these from the project folder. They clear the variables for that terminal session; no output is expected if a variable was already unset.
+To build a sideloadable Android debug APK from PowerShell after syncing the offline assets:
 
 ```powershell
-Remove-Item Env:CAP_LIVE -ErrorAction SilentlyContinue
-Remove-Item Env:CAP_LIVE_HOST -ErrorAction SilentlyContinue
+npm.cmd run android:offline
+.\android\gradlew.bat -p android assembleDebug
+```
+
+The APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`. Copy it to an Android phone and open it to install (allow installs from that file source if prompted). This debug APK is for testing/sideloading, not a Play Store release. Packaged screens and cached games do not rely on a specific Wi-Fi network; sign-in, notifications, and cloud sync still need internet access. This Android project supports Android 7.0 (API 24) and newer.
+
+Offline play does not provide live code updates: after changing the app, rebuild/sync and press **Run** in Android Studio to install the new package. The live-reload workflow below is development-only and requires the phone to reach the laptop's current address.
+
+If Android opens to a blank screen because it is still pointing at an old live-reload URL, install a true offline package and Run again:
+
+```powershell
 npm.cmd run android:offline
 ```
 
@@ -321,7 +344,8 @@ android/                                          Capacitor Android project
 | Live Android app is blank while intentionally using live reload | Check that Vite is running and reachable at the URL saved in `android/app/src/main/assets/capacitor.config.json`; otherwise use the offline recovery above |
 | **Webpage not available** after changing Wi‑Fi or switching to mobile data | Same Wi‑Fi as the laptop (mobile data off), Vite still running, then `$env:CAP_LIVE="1"; npx.cmd cap sync android`, then **Run** in Android Studio. Full checklist: [Webpage not available](#webpage-not-available-after-wi-fi-or-mobile-data) |
 | `npm run build` fails | Run `npm install` again and fix any TypeScript errors shown in the terminal |
-| Android Studio Gradle errors | Use JDK 17, **File → Sync Project with Gradle Files** |
+| Android Studio Gradle errors / Inconsistent JVM-target | Use **JDK 21** (Android Studio → Settings → Build, Execution, Deployment → Build Tools → Gradle → Gradle JDK → jbr-21). Then **File → Sync Project with Gradle Files**. Do not pin JDK 17 in `android/gradle.properties` |
+| Phone does not show Cursor saves | Keep USB plugged in and `npm.cmd run android:usb` running, then click **Run** once in Android Studio |
 
 ## Git
 

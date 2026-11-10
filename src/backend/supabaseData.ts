@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 import { getOfflineChildrenFromSqlite } from "./offlineSqlite";
-import { classroomParentIds, sendAppNotifications } from "./appNotifications";
+import { classroomParentIds, sendAppNotifications, type NoticeAttachment } from "./appNotifications";
 import {
   SUBJECT_QUEST_GAMES,
   fetchQuestLevelResults,
@@ -78,6 +78,79 @@ function toChild(row: Record<string, unknown>): SupabaseChild {
 export async function getSupabaseUserProfile(uid: string) {
   const { data } = await supabase.from("parents_accounts").select("username").eq("id", uid).maybeSingle();
   return data ? { username: data.username, usernameNormalized: data.username.toLowerCase(), role: "parent" as const } : null;
+}
+
+function childDisplayName(row: { child_name?: string | null; first_name?: string | null; last_name?: string | null }) {
+  return String(row.child_name || "").trim() || `${row.first_name || ""} ${row.last_name || ""}`.trim();
+}
+
+export async function resolveChildParentId(childId: string, childName?: string | null): Promise<string | null> {
+  if (childId) {
+    const byId = await supabase.from("children_accounts").select("parent_id").eq("id", childId).maybeSingle();
+    if (byId.data?.parent_id) return String(byId.data.parent_id);
+  }
+  const wanted = String(childName || "").trim().toLowerCase();
+  if (wanted) {
+    const { data, error } = await supabase.from("children_accounts").select("parent_id, child_name, first_name, last_name").not("parent_id", "is", null);
+    if (!error) {
+      const match = (data ?? []).find(row => childDisplayName(row).toLowerCase() === wanted);
+      if (match?.parent_id) return String(match.parent_id);
+    }
+  }
+  const offline = (await getOfflineChildrenFromSqlite()).find(row => (
+    (childId && String(row.id) === childId) || (wanted && childDisplayName(row).toLowerCase() === wanted)
+  ));
+  return offline?.parent_id ? String(offline.parent_id) : null;
+}
+
+export async function getClassroomChildren(): Promise<Array<{ id: string; name: string; parentId: string | null }>> {
+  const withParentAndStatus = await supabase
+    .from("children_accounts")
+    .select("id, parent_id, child_name, first_name, last_name, is_active")
+    .order("created_at", { ascending: false });
+  if (!withParentAndStatus.error) {
+    return (withParentAndStatus.data ?? [])
+      .filter(row => row.is_active !== false && row.is_active !== 0)
+      .map(row => ({
+        id: String(row.id),
+        name: childDisplayName(row) || "Unnamed learner",
+        parentId: row.parent_id ? String(row.parent_id) : null,
+      }));
+  }
+
+  const withParent = await supabase
+    .from("children_accounts")
+    .select("id, parent_id, child_name, first_name, last_name")
+    .order("created_at", { ascending: false });
+  if (!withParent.error) {
+    return (withParent.data ?? []).map(row => ({
+      id: String(row.id),
+      name: childDisplayName(row) || "Unnamed learner",
+      parentId: row.parent_id ? String(row.parent_id) : null,
+    }));
+  }
+
+  const withoutParent = await supabase
+    .from("children_accounts")
+    .select("id, child_name, first_name, last_name, is_active")
+    .order("created_at", { ascending: false });
+  if (!withoutParent.error) {
+    return (withoutParent.data ?? [])
+      .filter(row => row.is_active !== false && row.is_active !== 0)
+      .map(row => ({
+        id: String(row.id),
+        name: childDisplayName(row) || "Unnamed learner",
+        parentId: null,
+      }));
+  }
+
+  return (await getOfflineChildrenFromSqlite())
+    .filter(row => row.is_active !== 0)
+    .map(row => ({
+      id: String(row.id),
+      name: childDisplayName(row) || "Unnamed learner",
+      parentId: row.parent_id ? String(row.parent_id) : null,
+    }));
 }
 
 export async function getParentChildren(parentId: string): Promise<SupabaseChild[]> {
@@ -583,7 +656,7 @@ export async function updateLesson(lessonId: string, updates: Partial<SupabaseLe
   if (error) throw error;
 }
 
-export type ParentAnnouncementKind = "classroom" | "health" | "attendance";
+export type ParentAnnouncementKind = "classroom" | "health" | "attendance" | "emergency";
 
 export type ParentAnnouncement = {
   id: string;
@@ -599,12 +672,21 @@ function isSchemaError(error: { message?: string } | null | undefined) {
 }
 
 function announcementKind(row: Record<string, unknown>): ParentAnnouncementKind {
+  const text = `${row.title || ""} ${row.message || row.body || ""}`.toLowerCase();
+  if (/\bemergency\b/.test(text)) return "emergency";
+  if (/\battendance\b/.test(text)) return "attendance";
+  if (/\ballergy\b|\bhealth\b/.test(text)) return "health";
   const kind = String(row.kind || row.type || "").toLowerCase();
-  if (kind === "attendance") return "attendance";
-  if (kind === "health") return "health";
-  if (row.is_pinned === true || row.pinned === true) return "health";
-  if (row.target_all === false) return "health";
+  if (kind === "attendance" || kind === "emergency" || kind === "health" || kind === "classroom") return kind as ParentAnnouncementKind;
+  if (row.target_all === false || row.parent_id) return "health";
   return "classroom";
+}
+
+function isClassWideAnnouncement(row: Record<string, unknown>) {
+  if (row.is_active === false) return false;
+  if (row.target_all === false) return false;
+  if (row.parent_id) return false;
+  return announcementKind(row) === "classroom";
 }
 
 function mapAnnouncementRows(rows: Array<Record<string, unknown>> | null): ParentAnnouncement[] {
@@ -616,7 +698,7 @@ function mapAnnouncementRows(rows: Array<Record<string, unknown>> | null): Paren
       body: String(row.body || row.message || row.content || ""),
       createdAt: typeof row.created_at === "string" ? row.created_at : null,
       kind,
-      pinned: kind === "health" || row.is_pinned === true || row.pinned === true,
+      pinned: row.is_pinned === true || row.pinned === true,
     };
   });
 }
@@ -630,7 +712,7 @@ function isForParent(row: Record<string, unknown>, parentId: string) {
   return row.target_all == null && !row.created_by;
 }
 
-export async function getParentAnnouncements(parentId?: string, _childId?: string): Promise<ParentAnnouncement[]> {
+export async function getParentAnnouncements(parentId?: string): Promise<ParentAnnouncement[]> {
   if (!parentId) return [];
 
   const lookups = [
@@ -660,7 +742,7 @@ export async function getParentAnnouncements(parentId?: string, _childId?: strin
     rows = (data ?? []) as Array<Record<string, unknown>>;
   }
 
-  const items = mapAnnouncementRows(rows.filter(row => isForParent(row, parentId)));
+  const items = mapAnnouncementRows(rows.filter(row => isClassWideAnnouncement(row) && isForParent(row, parentId)));
   return items.sort((a, b) => {
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
     return String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
@@ -676,8 +758,10 @@ export async function sendParentAnnouncement(input: {
   childName?: string | null;
   senderId?: string | null;
   senderName?: string | null;
+  attachment?: NoticeAttachment | null;
+  pinned?: boolean;
 }): Promise<void> {
-  const title = input.title.trim() || (input.kind === "health" ? "Health update" : "Announcement");
+  const title = input.title.trim() || (input.kind === "emergency" ? "Emergency" : input.kind === "health" ? "Health update" : "Announcement");
   const message = input.message.trim();
   if (!message) throw new Error("Message is required.");
   if (input.kind !== "classroom" && !input.parentId) {
@@ -685,58 +769,64 @@ export async function sendParentAnnouncement(input: {
   }
 
   const classroom = input.kind === "classroom";
+  const targeted = input.kind === "health" || input.kind === "emergency";
+  const pinned = classroom && input.pinned === true;
   const payloads: Array<Record<string, unknown>> = classroom
     ? [
+        { title, message, parent_id: null, child_id: input.childId ?? null, kind: "classroom", is_pinned: pinned, target_all: true, is_active: true },
+        { title, message, target_all: true, is_active: true, is_pinned: pinned },
         { title, message, target_all: true, is_active: true },
-        { title, message, parent_id: null, child_id: input.childId ?? null, kind: "classroom", is_pinned: false, target_all: true, is_active: true },
         { title, message },
       ]
-    : input.kind === "health"
+    : targeted
       ? [
           { title, message, target_all: false, is_active: true, created_by: input.parentId },
-          { title, message, parent_id: input.parentId, child_id: input.childId ?? null, kind: "health", is_pinned: true, target_all: false, is_active: true, created_by: input.parentId },
+          { title, message, parent_id: input.parentId, child_id: input.childId ?? null, kind: input.kind, is_pinned: true, target_all: false, is_active: true, created_by: input.parentId },
         ]
       : [
           { title, message, parent_id: input.parentId, child_id: input.childId ?? null, kind: "attendance", is_pinned: false, target_all: false, is_active: true, created_by: input.parentId },
           { title, message, target_all: false, is_active: true, created_by: input.parentId },
         ];
 
-  let lastError: { message?: string } | null = null;
-  let saved = false;
-  for (const payload of payloads) {
-    const { error } = await supabase.from("parent_announcements").insert(payload);
-    if (!error) {
-      saved = true;
-      break;
-    }
-    lastError = error;
-    if (!isSchemaError(error)) throw error;
-  }
-  if (!saved) throw lastError ?? new Error("Announcement was not sent.");
-
   const parentRecipients = classroom
     ? (await classroomParentIds()).map(id => ({ role: "parent" as const, id }))
     : input.parentId
       ? [{ role: "parent" as const, id: input.parentId }]
       : [];
-  const recipients = [
-    ...parentRecipients,
-    ...(input.senderId ? [{ role: "teacher" as const, id: input.senderId }] : []),
-  ];
-  if (!recipients.length) return;
-  try {
-    await sendAppNotifications({
-      recipients,
-      senderRole: "teacher",
-      senderId: input.senderId || undefined,
-      senderName: input.senderName || "Teacher",
-      childId: input.childId,
-      childName: input.childName,
-      kind: input.kind,
-      title,
-      body: message,
-    });
-  } catch (error) {
-    console.warn("In-app notification was not stored.", error);
+
+  const saveInbox = parentRecipients.length
+    ? sendAppNotifications({
+        recipients: parentRecipients,
+        senderRole: "teacher",
+        senderId: input.senderId || undefined,
+        senderName: input.senderName || "Teacher",
+        childId: input.childId,
+        childName: input.childName,
+        kind: input.kind,
+        title,
+        body: message,
+        attachment: input.attachment,
+      })
+    : Promise.resolve();
+
+  const saveAnnouncement = classroom
+    ? (async () => {
+        let lastError: { message?: string } | null = null;
+        for (const payload of payloads) {
+          const { error } = await supabase.from("parent_announcements").insert(payload);
+          if (!error) return;
+          lastError = error;
+          if (!isSchemaError(error)) throw error;
+        }
+        throw lastError ?? new Error("Announcement was not sent.");
+      })()
+    : Promise.resolve();
+
+  const results = await Promise.allSettled([saveInbox, saveAnnouncement]);
+  const inboxFailed = results[0].status === "rejected";
+  const announcementFailed = results[1].status === "rejected";
+  if (inboxFailed && (classroom ? announcementFailed : true)) {
+    const reason = results[0].status === "rejected" ? results[0].reason : results[1].status === "rejected" ? results[1].reason : null;
+    throw reason instanceof Error ? reason : new Error("Parent notice was not sent.");
   }
 }

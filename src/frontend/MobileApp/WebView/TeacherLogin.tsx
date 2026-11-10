@@ -7,6 +7,8 @@ import logo from "../../../../images/learnease logo-no bg.png";
 import { supabase } from "../../../backend/supabase";
 import { cacheVerifiedLogin } from "../../../backend/offlineAuth";
 import BearLoading from "../BearLoading";
+import { isMobileApp } from "../isMobileApp";
+import { openTeacherPortal } from "./teacherPortal";
 
 const TEACHER_USERNAME = "teacher";
 const TEACHER_PASSWORD = "teacher123";
@@ -20,6 +22,10 @@ export default function TeacherLogin() {
   const [loading, setLoading] = useState(false);
 
   const finishTeacherLogin = async (teacherUser: Record<string, unknown>, cleanUsername: string, cleanPassword: string) => {
+    if (isMobileApp()) {
+      openTeacherPortal();
+      return;
+    }
     localStorage.setItem("user", JSON.stringify(teacherUser));
     await cacheVerifiedLogin(cleanUsername, cleanPassword, teacherUser as { role: "teacher" });
     navigate("/teacher-dashboard");

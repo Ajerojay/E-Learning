@@ -430,6 +430,12 @@
   line-height: 1.4;
 }
 
+.app-auth-portal-url {
+  color: #526176;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 380px) {
   .app-auth-phone {
     padding: 16px 12px 22px;

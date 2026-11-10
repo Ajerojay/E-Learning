@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { flushSync } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, KeyRound, LogIn, Mail } from "lucide-react";
@@ -11,38 +11,10 @@ import { authenticateOfflineParent, cacheOfflineChild, cacheOfflineParentLogin }
 import { authenticateOffline, cacheVerifiedLogin } from "../../../backend/offlineAuth";
 import BearLoading from "../BearLoading";
 import { isMobileApp } from "../isMobileApp";
+import { openTeacherPortal } from "./teacherPortal";
 
 const TEACHER_USERNAME = "teacher";
 const TEACHER_PASSWORD = "teacher123";
-
-function teacherSiteUrl() {
-  const configuredUrl = String(import.meta.env.VITE_TEACHER_PORTAL_URL || "https://e-learning-5sk.pages.dev/").trim();
-  const withTeacherLogin = (base: string) => {
-    const root = base.endsWith("/") ? base : `${base}/`;
-    if (/teacher-login\/?$/i.test(root.replace(/\/$/, ""))) return root.endsWith("/") ? root : `${root}/`;
-    return `${root}teacher-login`;
-  };
-  if (/^https:\/\/[^\s]+$/i.test(configuredUrl)) {
-    return withTeacherLogin(configuredUrl);
-  }
-  const { origin, protocol } = window.location;
-  if (!/^https?:$/i.test(protocol)) return "";
-  try {
-    const host = new URL(origin).hostname;
-    if (host === "localhost" || host === "127.0.0.1") return "";
-  } catch {
-    return "";
-  }
-  return withTeacherLogin(`${origin}/`);
-}
-
-function openTeacherSite() {
-  const url = teacherSiteUrl();
-  if (!url) return;
-  const browser = (window as Window & { AndroidBrowser?: { open?: (url: string) => void } }).AndroidBrowser;
-  if (typeof browser?.open === "function") browser.open(url);
-  else window.open(url, "_blank", "noopener,noreferrer");
-}
 
 export default function AppSignIn() {
   const navigate = useNavigate();
@@ -50,10 +22,13 @@ export default function AppSignIn() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-  const [leaveOpen, setLeaveOpen] = useState(false);
   const [resetMessage, setResetMessage] = useState("");
   const [resetMode, setResetMode] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    void import("./AppParentDashboard");
+  }, []);
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -71,17 +46,21 @@ export default function AppSignIn() {
     const markSignedIn = () => {
       keepLoading = true;
     };
+    const finishTeacherLogin = async (teacherUser: Record<string, unknown>) => {
+      if (isMobileApp()) {
+        openTeacherPortal();
+        return;
+      }
+      localStorage.setItem("user", JSON.stringify(teacherUser));
+      await cacheVerifiedLogin(cleanUsername, cleanPassword, teacherUser as { role: "teacher" });
+      markSignedIn();
+      navigate("/teacher-dashboard");
+    };
     const finishCachedLogin = async () => {
       const cached = await authenticateOffline(cleanUsername, cleanPassword);
       if (!cached) return false;
       if (cached.role === "teacher") {
-        if (isMobileApp()) {
-          setLeaveOpen(true);
-          return true;
-        }
-        localStorage.setItem("user", JSON.stringify(cached));
-        markSignedIn();
-        navigate("/teacher-dashboard");
+        await finishTeacherLogin(cached);
         return true;
       }
       localStorage.setItem("user", JSON.stringify(cached));
@@ -94,15 +73,7 @@ export default function AppSignIn() {
       flushSync(() => setLoading(true));
 
       if (cleanUsername.toLowerCase() === TEACHER_USERNAME && cleanPassword === TEACHER_PASSWORD) {
-        if (isMobileApp()) {
-          setLeaveOpen(true);
-          return;
-        }
-        const teacherUser = { role: "teacher" as const, id: "temporary-teacher", username: cleanUsername, source: "app" };
-        localStorage.setItem("user", JSON.stringify(teacherUser));
-        await cacheVerifiedLogin(cleanUsername, cleanPassword, teacherUser);
-        markSignedIn();
-        navigate("/teacher-dashboard");
+        await finishTeacherLogin({ role: "teacher", id: "temporary-teacher", username: cleanUsername, source: "app" });
         return;
       }
 
@@ -118,23 +89,7 @@ export default function AppSignIn() {
         if (await finishCachedLogin()) return;
       }
 
-      if (isMobileApp() && navigator.onLine) {
-        try {
-          const { data: teacherRows } = await supabase.rpc(
-            "authenticate_teacher",
-            { p_username: cleanUsername, p_password: cleanPassword }
-          );
-          const teacher = Array.isArray(teacherRows) ? teacherRows[0] : teacherRows;
-          if (teacher) {
-            setLeaveOpen(true);
-            return;
-          }
-        } catch (teacherLookupError) {
-          console.warn("Teacher login skipped:", teacherLookupError);
-        }
-      }
-
-      if (!isMobileApp()) try {
+      try {
         const { data: teacherRows, error: teacherError } = await supabase.rpc(
           "authenticate_teacher",
           { p_username: cleanUsername, p_password: cleanPassword }
@@ -142,11 +97,7 @@ export default function AppSignIn() {
         if (teacherError) console.error("Teacher login error:", teacherError.message);
         const teacher = Array.isArray(teacherRows) ? teacherRows[0] : teacherRows;
         if (teacher) {
-          const teacherUser = { ...teacher, role: "teacher" as const, source: "app" };
-          localStorage.setItem("user", JSON.stringify(teacherUser));
-          await cacheVerifiedLogin(cleanUsername, cleanPassword, teacherUser);
-          markSignedIn();
-          navigate("/teacher-dashboard");
+          await finishTeacherLogin({ ...teacher, role: "teacher", source: "app" });
           return;
         }
       } catch (teacherLookupError) {
@@ -157,52 +108,66 @@ export default function AppSignIn() {
       try {
         parent = await signInParentAccount(cleanUsername, cleanPassword);
       } catch (loginError) {
+        if (isMobileApp() && navigator.onLine) {
+          try {
+            const { data: teacherRows, error: teacherError } = await supabase.rpc(
+              "authenticate_teacher",
+              { p_username: cleanUsername, p_password: cleanPassword }
+            );
+            if (teacherError) console.error("Teacher login error:", teacherError.message);
+            const teacher = Array.isArray(teacherRows) ? teacherRows[0] : teacherRows;
+            if (teacher) {
+              await finishTeacherLogin({ ...teacher, role: "teacher", source: "app" });
+              return;
+            }
+          } catch (teacherLookupError) {
+            console.warn("Teacher login skipped:", teacherLookupError);
+          }
+        }
         if (await finishCachedLogin()) return;
         setError(loginError instanceof Error ? loginError.message : "Something went wrong while logging in.");
         return;
       }
 
-      try {
-        localStorage.setItem(
-          "user",
-          JSON.stringify({ role: "parent", id: parent.id, username: parent.username })
-        );
-        const childId = await getOrCreateActiveChildId();
-        const { data: childRows } = await supabase
-          .from("children_accounts")
-          .select("id, parent_id, child_name, first_name, last_name, pin_code, is_active")
-          .eq("parent_id", parent.id)
-          .eq("is_active", true);
-        const rows = Array.isArray(childRows) ? childRows : childRows ? [childRows] : [];
-        const child = rows.find((row) => String(row.id) === childId) ?? rows.find((row) => {
-          const name = `${row.first_name || ""} ${row.last_name || ""}`.trim() || row.child_name || "";
-          return name && name !== "Child";
-        }) ?? rows[0];
-
-        if (child?.id) {
-          localStorage.setItem("activeChildId", String(child.id));
-          if (child.pin_code) localStorage.setItem("studentPin", child.pin_code);
-          await cacheOfflineChild({
-            id: String(child.id),
-            parentId: String(child.parent_id),
-            childName: child.child_name,
-            firstName: child.first_name,
-            lastName: child.last_name,
-            pinCode: child.pin_code,
-            isActive: child.is_active,
-          });
-        }
-
-        await cacheOfflineParentLogin(parent.id, parent.username, cleanPassword, child?.id ? String(child.id) : childId);
-      } catch (cacheError) {
-        console.warn("Parent session extras failed:", cacheError);
-        localStorage.setItem(
-          "user",
-          JSON.stringify({ role: "parent", id: parent.id, username: parent.username })
-        );
-      }
+      localStorage.setItem(
+        "user",
+        JSON.stringify({ role: "parent", id: parent.id, username: parent.username })
+      );
       markSignedIn();
-      navigate("/parent-dashboard");
+      navigate("/parent-dashboard", { replace: true });
+      void (async () => {
+        try {
+          const childId = await getOrCreateActiveChildId();
+          const { data: childRows } = await supabase
+            .from("children_accounts")
+            .select("id, parent_id, child_name, first_name, last_name, pin_code, is_active")
+            .eq("parent_id", parent.id)
+            .eq("is_active", true);
+          const rows = Array.isArray(childRows) ? childRows : childRows ? [childRows] : [];
+          const child = rows.find((row) => String(row.id) === childId) ?? rows.find((row) => {
+            const name = `${row.first_name || ""} ${row.last_name || ""}`.trim() || row.child_name || "";
+            return name && name !== "Child";
+          }) ?? rows[0];
+
+          if (child?.id) {
+            localStorage.setItem("activeChildId", String(child.id));
+            if (child.pin_code) localStorage.setItem("studentPin", child.pin_code);
+            await cacheOfflineChild({
+              id: String(child.id),
+              parentId: String(child.parent_id),
+              childName: child.child_name,
+              firstName: child.first_name,
+              lastName: child.last_name,
+              pinCode: child.pin_code,
+              isActive: child.is_active,
+            });
+          }
+
+          await cacheOfflineParentLogin(parent.id, parent.username, cleanPassword, child?.id ? String(child.id) : childId);
+        } catch (cacheError) {
+          console.warn("Parent session extras failed:", cacheError);
+        }
+      })();
     } catch (caughtError) {
       console.error(caughtError);
       if (await finishCachedLogin()) return;
@@ -234,24 +199,9 @@ export default function AppSignIn() {
     }
   };
 
-  const siteUrl = teacherSiteUrl();
-
   return (
     <main className="app-auth-shell">
       {loading && <BearLoading overlay />}
-      {leaveOpen && (
-        <div className="app-auth-leave" role="dialog" aria-modal="true" aria-labelledby="leave-app-title">
-          <div className="app-auth-leave-card">
-            <h2 id="leave-app-title">Leaving the app</h2>
-            <p>You are leaving the LearnEase app. The teacher portal opens in your browser.</p>
-            <p>{siteUrl
-              ? "Sign in on the teacher page with the same username and password. The app stays for parents and kids."
-              : "Open this website in Chrome or Safari on your phone or computer. This installed app has no public teacher address."}</p>
-            <button className="app-auth-main-btn" type="button" onClick={openTeacherSite} disabled={!siteUrl}>Open browser</button>
-            <button className="app-auth-secondary-btn" type="button" onClick={() => setLeaveOpen(false)}>Stay in the app</button>
-          </div>
-        </div>
-      )}
       <section className="app-auth-phone" aria-label="LearnEase mobile app sign in">
         <header className="app-auth-top">
           <img className="app-auth-logo" src={logo} alt="LearnEase" />
@@ -328,6 +278,9 @@ export default function AppSignIn() {
 
             {!resetMode && <p className="app-auth-link-line">
               New parent? <Link to="/app/signup">Create account</Link>
+            </p>}
+            {!resetMode && <p className="app-auth-link-line">
+              Teacher? <Link to="/teacher-login">Teacher sign in</Link>
             </p>}
           </form>
         </div>

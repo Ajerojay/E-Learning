@@ -60,7 +60,12 @@ export async function saveAttendanceRecords(records: Array<{ childId: string; da
   }));
   let { error } = await supabase.from("child_attendance").upsert(rows, { onConflict: "child_id,attendance_date" });
   if (error && /teacher_id|teacher_name|column|schema cache|could not find/i.test(error.message)) {
-    const retry = await supabase.from("child_attendance").upsert(rows.map(({ teacher_id: _teacherId, teacher_name: _teacherName, ...row }) => row), { onConflict: "child_id,attendance_date" });
+    const retry = await supabase.from("child_attendance").upsert(rows.map(row => ({
+      child_id: row.child_id,
+      attendance_date: row.attendance_date,
+      status: row.status,
+      source: row.source,
+    })), { onConflict: "child_id,attendance_date" });
     error = retry.error;
   }
   if (error) throw error;

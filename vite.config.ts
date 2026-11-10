@@ -82,6 +82,11 @@ export default defineConfig(() => ({
     port: 5174,
     strictPort: true,
     allowedHosts: true,
+    hmr: {
+      host: '127.0.0.1',
+      port: 5174,
+      clientPort: 5174,
+    },
   },
   plugins: [
     repairMobileEncoding,

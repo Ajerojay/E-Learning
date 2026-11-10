@@ -36,6 +36,7 @@
   inset: 0;
   z-index: 20000;
   min-height: 100dvh;
+  animation: bear-load-fade .2s ease;
   background:
     radial-gradient(circle at 18% 16%, rgba(255, 255, 255, 0.82), transparent 30%),
     radial-gradient(circle at 84% 20%, rgba(255, 214, 232, 0.42), transparent 28%),
@@ -220,6 +221,11 @@
     left: calc(100% - 24%);
     width: 22%;
   }
+}
+
+@keyframes bear-load-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {

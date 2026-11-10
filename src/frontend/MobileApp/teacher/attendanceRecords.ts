@@ -82,6 +82,16 @@ export function daysInMonth(point: MonthPoint) {
   return new Date(point.year, point.month + 1, 0).getDate();
 }
 
+export function dateKeysThrough(endKey: string, monthsBack = 4) {
+  const end = new Date(`${endKey}T00:00:00`);
+  const start = new Date(end.getFullYear(), end.getMonth() - monthsBack, 1);
+  const keys: string[] = [];
+  for (const date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+    keys.push(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`);
+  }
+  return keys.reverse();
+}
+
 export function dateKeyFor(point: MonthPoint, day: number) {
   return `${point.year}-${String(point.month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
@@ -142,6 +152,51 @@ export function monthCounts(days: StudentMonthDay[]) {
   };
 }
 
+export type AttendanceRecordDay = {
+  day: string;
+  weekday: string;
+  status: string;
+};
+
+export type AttendanceRecordView = {
+  title: string;
+  learner: string;
+  section: string;
+  preparedBy: string;
+  totals: string;
+  days: AttendanceRecordDay[];
+};
+
+export function parseStudentMonthAttachment(text: string): AttendanceRecordView {
+  const lines = String(text || "").replace(/\r\n/g, "\n").split("\n").map(line => line.trim()).filter(Boolean);
+  const heading = lines.find(line => /monthly attendance record/i.test(line)) || "Monthly attendance record";
+  const title = heading.replace(/^-+|\s*-+$/g, "").trim();
+  const who = lines.find(line => line.includes("·") && !/^\d{1,2}\s*·/.test(line) && !/^---/.test(line)) || "";
+  const [learner, section = ""] = who.split("·").map(part => part.trim());
+  const prepared = lines.find(line => /^prepared by /i.test(line))?.replace(/^prepared by /i, "") || "";
+  const totals = lines.find(line => /^totals:/i.test(line))?.replace(/^totals:\s*/i, "") || "";
+  const days = lines.flatMap(line => {
+    const match = line.match(/^(\d{1,2})\s*·\s*([A-Za-z]{3,9})\s*:\s*(.+)$/);
+    if (!match) return [];
+    return [{ day: match[1].padStart(2, "0"), weekday: match[2], status: match[3].trim() || "—" }];
+  });
+  return { title, learner, section, preparedBy: prepared, totals, days };
+}
+
+export function studentMonthAttachmentText(learner: LearnerRef, month: MonthPoint, teacherName: string) {
+  const days = buildStudentMonth(learner.id, month);
+  const counts = monthCounts(days);
+  const dayLines = days.map(day => `${String(day.day).padStart(2, "0")} · ${day.weekday.slice(0, 3)}: ${day.status || "—"}`);
+  return [
+    `--- Monthly attendance record (${monthTitle(month)}) ---`,
+    `${learner.name} · ${learner.section}`,
+    `Prepared by ${teacherName}`,
+    `Totals: ${counts.Present} Present, ${counts.Late} Late, ${counts.Absent} Absent, ${counts.Excused} Excused`,
+    "",
+    ...dayLines,
+  ].join("\n");
+}
+
 function csvCell(value: string | number) {
   const text = String(value ?? "");
   return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
@@ -160,8 +215,138 @@ export function downloadCsv(filename: string, rows: Array<Array<string | number>
   URL.revokeObjectURL(url);
 }
 
-function fileSlug(value: string) {
+export function fileSlug(value: string) {
   return value.trim().replace(/[^\w.-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "attendance";
+}
+
+export function attendancePdfFilename(learnerName: string, monthLabel: string) {
+  return `${fileSlug(learnerName)}-Attendance-${fileSlug(monthLabel)}.pdf`;
+}
+
+function pdfSafe(text: string) {
+  return Array.from(text).map(char => {
+    const code = char.charCodeAt(0);
+    if (char === "\\") return "\\\\";
+    if (char === "(") return "\\(";
+    if (char === ")") return "\\)";
+    if (code === 9) return "  ";
+    if (code >= 32 && code <= 126) return char;
+    if (code > 127 && code < 256) return `\\${code.toString(8).padStart(3, "0")}`;
+    return "?";
+  }).join("");
+}
+
+function wrapPdfLines(text: string, maxChars = 86) {
+  return text.replace(/\r\n/g, "\n").split("\n").flatMap(line => {
+    const value = line || " ";
+    if (value.length <= maxChars) return [value];
+    const parts: string[] = [];
+    let rest = value;
+    while (rest.length > maxChars) {
+      const slice = rest.slice(0, maxChars);
+      const breakAt = slice.lastIndexOf(" ");
+      const take = breakAt > 40 ? breakAt : maxChars;
+      parts.push(rest.slice(0, take).trimEnd());
+      rest = rest.slice(take).trimStart();
+    }
+    if (rest) parts.push(rest);
+    return parts;
+  });
+}
+
+export function textPdfBlob(text: string) {
+  const lines = wrapPdfLines(text.trim() || "Attendance record");
+  const pageWidth = 612;
+  const pageHeight = 792;
+  const margin = 48;
+  const leading = 14;
+  const perPage = Math.max(1, Math.floor((pageHeight - margin * 2) / leading));
+  const pages: string[][] = [];
+  for (let index = 0; index < lines.length; index += perPage) pages.push(lines.slice(index, index + perPage));
+  if (!pages.length) pages.push(["Attendance record"]);
+
+  const parts: string[] = [];
+  const pageObjectIds: number[] = [];
+  pages.forEach((pageLines, pageIndex) => {
+    const contentId = 4 + pageIndex * 2;
+    const pageId = contentId + 1;
+    pageObjectIds.push(pageId);
+    const stream = `${pageLines.map((line, lineIndex) => `BT /F1 11 Tf ${margin} ${pageHeight - margin - lineIndex * leading} Td (${pdfSafe(line)}) Tj ET`).join("\n")}\n`;
+    parts[contentId] = `${contentId} 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}endstream\nendobj\n`;
+    parts[pageId] = `${pageId} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentId} 0 R >>\nendobj\n`;
+  });
+  parts[1] = "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n";
+  parts[2] = `2 0 obj\n<< /Type /Pages /Kids [${pageObjectIds.map(id => `${id} 0 R`).join(" ")}] /Count ${pageObjectIds.length} >>\nendobj\n`;
+  parts[3] = "3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n";
+
+  let output = "%PDF-1.4\n";
+  const xref = [0];
+  const lastId = 3 + pages.length * 2;
+  for (let id = 1; id <= lastId; id += 1) {
+    xref[id] = output.length;
+    output += parts[id];
+  }
+  const startxref = output.length;
+  const xrefTable = [`xref\n0 ${lastId + 1}\n0000000000 65535 f \n`];
+  for (let id = 1; id <= lastId; id += 1) xrefTable.push(`${String(xref[id]).padStart(10, "0")} 00000 n \n`);
+  output += `${xrefTable.join("")}trailer\n<< /Size ${lastId + 1} /Root 1 0 R >>\nstartxref\n${startxref}\n%%EOF`;
+  return new Blob([output], { type: "application/pdf" });
+}
+
+export const ATTENDANCE_PDF_DOWNLOAD_EVENT = "learnease:attendance-pdf-download";
+export const ATTENDANCE_PDF_REDOWNLOAD_EVENT = "learnease:attendance-pdf-redownload";
+export const ATTENDANCE_PDF_DOWNLOAD_ERROR_EVENT = "learnease:attendance-pdf-download-error";
+const downloadedAttendancePdfsKey = "learnease:downloaded-attendance-pdfs";
+const activeAttendancePdfDownloads = new Set<string>();
+
+export type AttendancePdfDownloadInput = {
+  filename: string;
+  text: string;
+};
+
+function readDownloadedAttendancePdfs() {
+  const stored = localStorage.getItem(downloadedAttendancePdfsKey);
+  if (!stored) return new Set<string>();
+  const parsed: unknown = JSON.parse(stored);
+  if (!Array.isArray(parsed) || !parsed.every((filename) => typeof filename === "string")) {
+    throw new Error("Saved attendance PDF download history is invalid.");
+  }
+  return new Set(parsed);
+}
+
+export function downloadTextPdf(filename: string, text: string, allowRepeat = false) {
+  const safeFilename = filename.endsWith(".pdf") ? filename : `${filename}.pdf`;
+  if (activeAttendancePdfDownloads.has(safeFilename)) return;
+  activeAttendancePdfDownloads.add(safeFilename);
+  try {
+    const downloaded = readDownloadedAttendancePdfs();
+    if (downloaded.has(safeFilename) && !allowRepeat) {
+      window.dispatchEvent(new CustomEvent<AttendancePdfDownloadInput>(ATTENDANCE_PDF_REDOWNLOAD_EVENT, {
+        detail: { filename: safeFilename, text },
+      }));
+      return;
+    }
+
+    const blob = textPdfBlob(text);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = safeFilename;
+    downloaded.add(safeFilename);
+    localStorage.setItem(downloadedAttendancePdfsKey, JSON.stringify([...downloaded]));
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    window.dispatchEvent(new Event(ATTENDANCE_PDF_DOWNLOAD_EVENT));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Attendance PDF download failed.";
+    window.dispatchEvent(new CustomEvent<string>(ATTENDANCE_PDF_DOWNLOAD_ERROR_EVENT, { detail: message }));
+  } finally {
+    activeAttendancePdfDownloads.delete(safeFilename);
+  }
+}
+
+export function pdfObjectUrl(text: string) {
+  return URL.createObjectURL(textPdfBlob(text));
 }
 
 export function downloadClassMonth(learners: LearnerRef[], month: MonthPoint, teacherName: string) {

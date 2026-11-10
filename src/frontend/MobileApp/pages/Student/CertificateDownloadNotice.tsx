@@ -7,34 +7,57 @@ import {
   downloadCertificatePng,
   type CertificateDownloadInput,
 } from "./downloadCertificate";
+import {
+  ATTENDANCE_PDF_DOWNLOAD_ERROR_EVENT,
+  ATTENDANCE_PDF_DOWNLOAD_EVENT,
+  ATTENDANCE_PDF_REDOWNLOAD_EVENT,
+  downloadTextPdf,
+  type AttendancePdfDownloadInput,
+} from "../../teacher/attendanceRecords";
 import "./CertificateDownloadNotice.css";
 
 type Notice =
-  | { type: "success" }
-  | { type: "repeat"; input: CertificateDownloadInput }
-  | { type: "error"; message: string }
+  | { type: "success"; kind: "certificate" | "attendance" }
+  | { type: "repeat"; kind: "certificate"; input: CertificateDownloadInput }
+  | { type: "repeat"; kind: "attendance"; input: AttendancePdfDownloadInput }
+  | { type: "error"; kind: "certificate" | "attendance"; message: string }
   | null;
 
 export default function CertificateDownloadNotice() {
   const [notice, setNotice] = useState<Notice>(null);
 
   useEffect(() => {
-    const showSuccess = () => setNotice({ type: "success" });
-    const showRepeat = (event: Event) => {
+    const showCertificateSuccess = () => setNotice({ type: "success", kind: "certificate" });
+    const showCertificateRepeat = (event: Event) => {
       const input = (event as CustomEvent<CertificateDownloadInput>).detail;
-      setNotice({ type: "repeat", input });
+      setNotice({ type: "repeat", kind: "certificate", input });
     };
-    const showError = (event: Event) => {
+    const showCertificateError = (event: Event) => {
       const message = (event as CustomEvent<string>).detail;
-      setNotice({ type: "error", message });
+      setNotice({ type: "error", kind: "certificate", message });
     };
-    window.addEventListener(CERTIFICATE_DOWNLOAD_EVENT, showSuccess);
-    window.addEventListener(CERTIFICATE_REDOWNLOAD_EVENT, showRepeat);
-    window.addEventListener(CERTIFICATE_DOWNLOAD_ERROR_EVENT, showError);
+    const showAttendanceSuccess = () => setNotice({ type: "success", kind: "attendance" });
+    const showAttendanceRepeat = (event: Event) => {
+      const input = (event as CustomEvent<AttendancePdfDownloadInput>).detail;
+      setNotice({ type: "repeat", kind: "attendance", input });
+    };
+    const showAttendanceError = (event: Event) => {
+      const message = (event as CustomEvent<string>).detail;
+      setNotice({ type: "error", kind: "attendance", message });
+    };
+    window.addEventListener(CERTIFICATE_DOWNLOAD_EVENT, showCertificateSuccess);
+    window.addEventListener(CERTIFICATE_REDOWNLOAD_EVENT, showCertificateRepeat);
+    window.addEventListener(CERTIFICATE_DOWNLOAD_ERROR_EVENT, showCertificateError);
+    window.addEventListener(ATTENDANCE_PDF_DOWNLOAD_EVENT, showAttendanceSuccess);
+    window.addEventListener(ATTENDANCE_PDF_REDOWNLOAD_EVENT, showAttendanceRepeat);
+    window.addEventListener(ATTENDANCE_PDF_DOWNLOAD_ERROR_EVENT, showAttendanceError);
     return () => {
-      window.removeEventListener(CERTIFICATE_DOWNLOAD_EVENT, showSuccess);
-      window.removeEventListener(CERTIFICATE_REDOWNLOAD_EVENT, showRepeat);
-      window.removeEventListener(CERTIFICATE_DOWNLOAD_ERROR_EVENT, showError);
+      window.removeEventListener(CERTIFICATE_DOWNLOAD_EVENT, showCertificateSuccess);
+      window.removeEventListener(CERTIFICATE_REDOWNLOAD_EVENT, showCertificateRepeat);
+      window.removeEventListener(CERTIFICATE_DOWNLOAD_ERROR_EVENT, showCertificateError);
+      window.removeEventListener(ATTENDANCE_PDF_DOWNLOAD_EVENT, showAttendanceSuccess);
+      window.removeEventListener(ATTENDANCE_PDF_REDOWNLOAD_EVENT, showAttendanceRepeat);
+      window.removeEventListener(ATTENDANCE_PDF_DOWNLOAD_ERROR_EVENT, showAttendanceError);
     };
   }, []);
 
@@ -61,7 +84,9 @@ export default function CertificateDownloadNotice() {
         <span className="certificate-download-notice-icon is-repeat" aria-hidden="true">
           <Download size={19} />
         </span>
-        <p>This certificate was already downloaded on this device. Download another copy?</p>
+        <p>{notice.kind === "certificate"
+          ? "This certificate was already downloaded on this device. Download another copy?"
+          : "This attendance PDF was already downloaded on this device. Download another copy?"}</p>
         <div className="certificate-download-notice-actions">
           <button type="button" className="certificate-download-notice-cancel" onClick={() => setNotice(null)}>
             Cancel
@@ -70,9 +95,10 @@ export default function CertificateDownloadNotice() {
             type="button"
             className="certificate-download-notice-again"
             onClick={() => {
-              const { input } = notice;
+              const { input, kind } = notice;
               setNotice(null);
-              void downloadCertificatePng({ ...input, allowRepeat: true });
+              if (kind === "certificate") void downloadCertificatePng({ ...input, allowRepeat: true });
+              else downloadTextPdf(input.filename, input.text, true);
             }}
           >
             Download again
@@ -97,8 +123,10 @@ export default function CertificateDownloadNotice() {
       </span>
       <p>
         {notice.type === "success"
-          ? "Certificate downloaded to this device."
-          : `Certificate download failed: ${notice.message}`}
+          ? notice.kind === "certificate" ? "Certificate downloaded to this device." : "Attendance PDF downloaded to this device."
+          : notice.kind === "certificate"
+            ? `Certificate download failed: ${notice.message}`
+            : `Attendance PDF download failed: ${notice.message}`}
       </p>
       <button
         type="button"

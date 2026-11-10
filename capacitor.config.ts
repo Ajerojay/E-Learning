@@ -1,3 +1,4 @@
+/// <reference types="@capacitor/local-notifications" />
 import os from "node:os";
 import type { CapacitorConfig } from "@capacitor/cli";
 
@@ -25,11 +26,13 @@ function lanIPv4(): string {
 
   return candidates.find((row) => row.wifi)?.address
     ?? candidates[0]?.address
-    ?? "192.168.254.128";
+    ?? "127.0.0.1";
 }
 
-const liveReload = process.env.CAP_LIVE === "1";
-const liveUrl = `http://${lanIPv4()}:5174`;
+const packaged = process.env.CAP_PACKAGED === "1" || process.env.CAP_LIVE === "0";
+const liveReload = !packaged;
+const liveHost = process.env.CAP_LIVE_HOST?.trim() || (liveReload ? "127.0.0.1" : lanIPv4());
+const liveUrl = `http://${liveHost}:5174`;
 if (liveReload) {
   process.stderr.write(`[capacitor] live reload ${liveUrl}\n`);
 }
@@ -41,17 +44,20 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: true,
   },
-  server: {
-    androidScheme: "https",
+  plugins: {
+    LocalNotifications: {
+      smallIcon: "ic_stat_bear_bell",
+      iconColor: "#4B9FE8",
+    },
   },
-  ...(liveReload
+  server: liveReload
     ? {
-        server: {
-          url: liveUrl,
-          cleartext: true,
-        },
+        url: liveUrl,
+        cleartext: true,
       }
-    : {}),
+    : {
+        androidScheme: "https",
+      },
 };
 
 export default config;

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert,
-  Mail, Pencil, Printer, Send, Users, X,
+  Mail, Paperclip, Pencil, Printer, Send, Users, X,
 } from "lucide-react";
 import BearLoading from "../BearLoading";
 import { supabase } from "../../../backend/supabase";
@@ -12,15 +12,17 @@ import { getStoredChildAvatar, normalizeChildAvatar } from "../../../backend/chi
 import { childAvatarById } from "../pages/Student/childAvatars";
 import { ClassMonthReport, StudentMonthReport, type ReportTeacher } from "./AttendanceReports";
 import {
-  buildStudentMonth,
   dateKeyFor,
+  dateKeysThrough,
   longDate,
   mergeAttendanceRecords,
-  monthCounts,
   monthFromDateKey,
   monthTitle,
   readAttendanceHistory,
+  attendancePdfFilename,
+  studentMonthAttachmentText,
   writeAttendanceHistory,
+  type LearnerRef,
   type MonthPoint,
 } from "./attendanceRecords";
 
@@ -69,14 +71,17 @@ export default function TeacherAttendance({ notify, teacher }: { notify: Notify;
   const [loadError, setLoadError] = useState("");
   const [editing, setEditing] = useState(true);
   const [sending, setSending] = useState(false);
-  const [classCalendarOpen, setClassCalendarOpen] = useState(false);
-  const [classCalendarMonth, setClassCalendarMonth] = useState(() => startOfMonth());
-  const [classDateView, setClassDateView] = useState<string | null>(null);
   const [classReportMonth, setClassReportMonth] = useState<MonthPoint | null>(null);
   const [calendarStudent, setCalendarStudent] = useState<AttendanceRow | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth());
-  const [studentReport, setStudentReport] = useState<{ learner: AttendanceRow; month: MonthPoint } | null>(null);
-  const [parentNote, setParentNote] = useState<{ student: AttendanceRow; month: MonthPoint; title: string; message: string } | null>(null);
+  const [studentReport, setStudentReport] = useState<{ learner: LearnerRef; month: MonthPoint } | null>(null);
+  const [parentNote, setParentNote] = useState<{
+    student: AttendanceRow;
+    month: MonthPoint;
+    title: string;
+    message: string;
+    attachMonthlyRecord: boolean;
+  } | null>(null);
   const [historyTick, setHistoryTick] = useState(0);
 
   const refreshHistory = () => setHistoryTick(value => value + 1);
@@ -201,35 +206,46 @@ export default function TeacherAttendance({ notify, teacher }: { notify: Notify;
   };
 
   const openParentNote = (student: AttendanceRow, month: MonthPoint) => {
-    const counts = monthCounts(buildStudentMonth(student.id, month));
-    const summary = `${monthTitle(month)} attendance: ${counts.Present} Present, ${counts.Late} Late, ${counts.Absent} Absent, and ${counts.Excused} Excused.`;
     setParentNote({
       student,
       month,
       title: `${student.name} — ${monthTitle(month)} Attendance`,
-      message: `Good day,\n\n${summary}\n\n`,
+      message: "Good day,\n\n",
+      attachMonthlyRecord: true,
     });
   };
 
   const sendMonthToParent = async () => {
     if (!parentNote?.student.parentId || sending) return;
     const title = parentNote.title.trim();
-    const message = parentNote.message.trim();
-    if (!title || !message) {
+    const note = parentNote.message.trim();
+    if (!title || !note) {
       notify("Add a subject and message before sending.");
       return;
     }
+    const learner = {
+      id: parentNote.student.id,
+      name: parentNote.student.name,
+      section: parentNote.student.section,
+    };
+    const attachment = parentNote.attachMonthlyRecord
+      ? {
+          name: attendancePdfFilename(learner.name, monthTitle(parentNote.month)),
+          text: studentMonthAttachmentText(learner, parentNote.month, teacher.name),
+        }
+      : null;
     setSending(true);
     try {
       await sendParentAnnouncement({
         title,
-        message,
+        message: note,
         kind: "attendance",
         parentId: parentNote.student.parentId,
         childId: parentNote.student.id,
         childName: parentNote.student.name,
         senderId: teacherKey(teacher),
         senderName: teacher.name,
+        attachment,
       });
       setParentNote(null);
       notify(`Message sent to ${parentNote.student.name}'s parent`);
@@ -247,15 +263,45 @@ export default function TeacherAttendance({ notify, teacher }: { notify: Notify;
   };
 
   const history = useMemo(() => readAttendanceHistory(), [historyTick]);
+  const dateFilterOptions = useMemo(() => {
+    const keys = dateKeysThrough(today);
+    const groups: Array<{ label: string; days: Array<{ key: string; label: string }> }> = [];
+    keys.forEach(key => {
+      const point = monthFromDateKey(key);
+      const label = monthTitle(point);
+      const last = groups[groups.length - 1];
+      const option = { key, label: longDate(key) };
+      if (last?.label === label) last.days.push(option);
+      else groups.push({ label, days: [option] });
+    });
+    return groups;
+  }, [today]);
 
   return (
     <>
-      <Heading eyebrow="DAILY ATTENDANCE" title="Attendance" detail="Mark learners for a date, then print or download the whole month as a table.">
-        <button className="ta-class-date" onClick={() => { const date = new Date(`${selectedDate}T00:00:00`); setClassCalendarMonth(startOfMonth(date)); setClassCalendarOpen(true); }}>
+      <Heading eyebrow="DAILY ATTENDANCE" title="Attendance" detail="Filter a date to view and mark each learner’s attendance, including weekend PIN logins.">
+        <label className="ta-class-date ta-date-filter">
+          <select
+            className="ta-date-filter-input"
+            aria-label="Filter attendance by date"
+            value={selectedDate}
+            onChange={event => setSelectedDate(event.target.value)}
+          >
+            {dateFilterOptions.map(group => (
+              <optgroup key={group.label} label={group.label}>
+                {group.days.map(day => (
+                  <option key={day.key} value={day.key}>{day.label}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
           <CalendarDays />
-          <span><small>Select attendance date</small><b>{longDate(selectedDate)}</b></span>
+          <span>
+            <small>Filter attendance by date</small>
+            <b>{longDate(selectedDate)}</b>
+          </span>
           <ChevronDown />
-        </button>
+        </label>
         <button className="ta-secondary" disabled={!rows.length} onClick={() => setClassReportMonth(monthFromDateKey(selectedDate))}><Printer /> Monthly class record</button>
       </Heading>
 
@@ -274,7 +320,7 @@ export default function TeacherAttendance({ notify, teacher }: { notify: Notify;
           <section className="ta-card ta-roll ta-auto-roll">
             <header>
               <span><CalendarDays /></span>
-              <div><h2>Attendance List — {longDate(selectedDate)}</h2><p>PIN logins appear automatically. Open a learner for that month’s record.</p></div>
+              <div><h2>Attendance List — {longDate(selectedDate)}</h2><p>This list is filtered to the selected date, including weekends. PIN logins count as attendance. Open a learner for that month’s record.</p></div>
             </header>
             {rows.map(student => (
               <div className="ta-roll-row" key={student.id}>
@@ -297,64 +343,6 @@ export default function TeacherAttendance({ notify, teacher }: { notify: Notify;
             </div>
           </section>
         </>
-      )}
-
-      {classCalendarOpen && (
-        <div className="ta-overlay" onMouseDown={() => setClassCalendarOpen(false)}>
-          <section className="ta-modal ta-att-calendar ta-class-calendar" onMouseDown={event => event.stopPropagation()}>
-            <button className="ta-close" onClick={() => setClassCalendarOpen(false)}><X /></button>
-            <div className="ta-calendar-child"><i><Users /></i><span><h2>Class Attendance Calendar</h2><p>Choose today or a past date. Future dates are locked.</p></span></div>
-            <div className="ta-calendar-nav">
-              <button type="button" onClick={() => setClassCalendarMonth(new Date(classCalendarMonth.getFullYear(), classCalendarMonth.getMonth() - 1, 1))}><ChevronLeft /></button>
-              <b>{monthTitle({ year: classCalendarMonth.getFullYear(), month: classCalendarMonth.getMonth() })}</b>
-              <button type="button" disabled={classCalendarMonth >= currentMonthStart} onClick={() => setClassCalendarMonth(new Date(classCalendarMonth.getFullYear(), classCalendarMonth.getMonth() + 1, 1))}><ChevronRight /></button>
-            </div>
-            <div className="ta-calendar-week">{WEEKDAYS.map(day => <b key={day}>{day}</b>)}</div>
-            <div className="ta-calendar-grid ta-class-calendar-grid">
-              {monthCells(classCalendarMonth).map((day, index) => {
-                if (day === null) return <span key={`blank-${index}`} />;
-                const dateKey = dateKeyFor({ year: classCalendarMonth.getFullYear(), month: classCalendarMonth.getMonth() }, day);
-                const recorded = rows.some(row => history[row.id]?.[dateKey]);
-                return (
-                  <button type="button" disabled={dateKey > today} className={`${recorded ? "recorded" : ""} ${dateKey === selectedDate ? "selected" : ""}`} key={day} onClick={() => { setSelectedDate(dateKey); setClassCalendarOpen(false); setClassDateView(dateKey); }}>
-                    <b>{day}</b>
-                    <small>{dateKey > today ? "Locked" : recorded ? "Recorded" : "Open"}</small>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="ta-class-date-actions">
-              <button type="button" className="ta-secondary" onClick={() => { setClassReportMonth({ year: classCalendarMonth.getFullYear(), month: classCalendarMonth.getMonth() }); setClassCalendarOpen(false); }}><Printer /> Monthly class record</button>
-              <button type="button" className="ta-primary" onClick={() => setClassCalendarOpen(false)}>Close</button>
-            </div>
-          </section>
-        </div>
-      )}
-
-      {classDateView && (
-        <div className="ta-overlay" onMouseDown={() => setClassDateView(null)}>
-          <section className="ta-modal ta-class-date-view" onMouseDown={event => event.stopPropagation()}>
-            <button className="ta-close" onClick={() => setClassDateView(null)}><X /></button>
-            <div className="ta-calendar-child"><i><CalendarDays /></i><span><h2>Class Attendance</h2><p>{longDate(classDateView)}</p></span></div>
-            <div className="ta-class-date-list">
-              {rows.map(student => {
-                const status = history[student.id]?.[classDateView] || "Unmarked";
-                return (
-                  <button type="button" key={student.id} onClick={() => { openStudentCalendar(student, classDateView); setClassDateView(null); }}>
-                    <i>{student.avatar}</i>
-                    <span><b>{student.name}</b><small>{student.section} · Open monthly record</small></span>
-                    <em className={status.toLowerCase()}>{status}</em>
-                    <ChevronRight />
-                  </button>
-                );
-              })}
-            </div>
-            <div className="ta-class-date-actions">
-              <button type="button" className="ta-secondary" onClick={() => { setClassReportMonth(monthFromDateKey(classDateView)); setClassDateView(null); }}><Printer /> Monthly class record</button>
-              <button type="button" className="ta-primary" onClick={() => setClassDateView(null)}>Close</button>
-            </div>
-          </section>
-        </div>
       )}
 
       {calendarStudent && (
@@ -399,8 +387,38 @@ export default function TeacherAttendance({ notify, teacher }: { notify: Notify;
             <label>From<input value={teacher.name} readOnly /></label>
             <label>Subject<input value={parentNote.title} onChange={event => setParentNote({ ...parentNote, title: event.target.value })} placeholder="Subject" /></label>
             <label>Message<textarea maxLength={800} value={parentNote.message} onChange={event => setParentNote({ ...parentNote, message: event.target.value })} placeholder="Write your concern or note for the parent…" /><small>{parentNote.message.length}/800</small></label>
+            <div className="ta-parent-attach">
+              <label className="ta-parent-attach-toggle">
+                <input
+                  type="checkbox"
+                  checked={parentNote.attachMonthlyRecord}
+                  disabled={sending}
+                  onChange={event => setParentNote({ ...parentNote, attachMonthlyRecord: event.target.checked })}
+                />
+                <i aria-hidden="true"><Paperclip /></i>
+                <span>
+                  <b>Attach monthly record</b>
+                  <small>{monthTitle(parentNote.month)} · PDF attachment, not shown in the message</small>
+                </span>
+              </label>
+              <button
+                type="button"
+                className="ta-secondary"
+                disabled={sending}
+                onClick={() => setStudentReport({
+                  learner: {
+                    id: parentNote.student.id,
+                    name: parentNote.student.name,
+                    section: parentNote.student.section,
+                  },
+                  month: parentNote.month,
+                })}
+              >
+                <Printer /> Preview record
+              </button>
+            </div>
             <div className="ta-health-compose-actions ta-send-only">
-              <button type="button" className="ta-primary" disabled={sending || !parentNote.title.trim() || !parentNote.message.trim() || !parentNote.student.parentId} onClick={() => void sendMonthToParent()}><Send />{sending ? "Sending…" : "Send to parent"}</button>
+              <button type="button" className="ta-primary" disabled={sending || !parentNote.title.trim() || !parentNote.message.trim() || !parentNote.student.parentId} onClick={() => void sendMonthToParent()}><Send />{sending ? "Sending…" : parentNote.attachMonthlyRecord ? "Send with record" : "Send to parent"}</button>
             </div>
           </section>
         </div>

@@ -32,7 +32,9 @@ function upsertLocalChild(child: CachedChild): void {
   const existing = readLocalChildren().find(row => row.id === child.id) ?? { id: child.id };
   const merged: CachedChild = { ...existing, id: child.id };
   (Object.keys(child) as Array<keyof CachedChild>).forEach(key => {
-    if (child[key] !== undefined) merged[key] = child[key] as never;
+    if (child[key] === undefined) return;
+    if (key === "parentId" && !child.parentId && existing.parentId) return;
+    merged[key] = child[key] as never;
   });
   const children = readLocalChildren().filter(row => row.id !== merged.id);
   children.unshift(merged);

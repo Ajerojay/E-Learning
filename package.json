@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "node ./node_modules/vite/bin/vite.js",
     "dev:android": "node ./node_modules/vite/bin/vite.js --host 0.0.0.0 --port 5174 --strictPort",
-    "android:live": "npx cap run android --live-reload --host 192.168.254.128 --port 5174 --forwardPorts 5174:5174",
-    "android:offline": "npm run build && npx cap sync android",
+    "android:usb": "node ./scripts/android-usb-live.mjs",
+    "android:live": "node ./scripts/android-usb-live.mjs",
+    "android:offline": "node ./scripts/android-offline.mjs",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"

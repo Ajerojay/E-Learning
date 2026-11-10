@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { Download, Eye, Paperclip, X } from "lucide-react";
 import ParentLayout from "./ParentLayout";
 import "./ParentChildren.css";
 import BearLoading from "../../BearLoading";
@@ -10,6 +11,7 @@ import {
   getChildDeviceLabel,
   getChildDisplayFirstName,
   getChildDisplayName,
+  getLocalUser,
   getPlayfulNickname,
   formatChildBirthday,
   resolveActiveParentChild,
@@ -29,11 +31,29 @@ import { earnedGameCertificates, GAME_CERTIFICATES, PROGRAM_STAR_MAX, certificat
 import { fetchQuestLevelResults, mergeQuestStars, readLocalQuestStars } from "../../../../backend/questLevelResults";
 import { downloadCertificatePng } from "../Student/downloadCertificate";
 import {
-  formatChildAllergies,
   loadChildAllergies,
   saveChildAllergies,
   type ChildAllergy,
 } from "../../../../backend/childAllergies";
+import { getAttendanceRecords } from "../../../../backend/attendance";
+import {
+  clearParentAllergyAlert,
+  readParentAllergyAlert,
+  type ParentAllergyAlert,
+} from "../../../../backend/appNotifications";
+import { useAppNotifications } from "../../notifications/useAppNotifications";
+import {
+  buildStudentMonth,
+  currentMonth,
+  isAfterCurrentMonth,
+  downloadTextPdf,
+  mergeAttendanceRecords,
+  monthCounts,
+  monthTitle,
+  parseStudentMonthAttachment,
+  shiftMonth,
+  type MonthPoint,
+} from "../../teacher/attendanceRecords";
 
 type ChildRow = {
   id: string;
@@ -48,6 +68,11 @@ type ChildRow = {
 };
 
 export default function ParentChildren() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const allergyAlertRef = useRef<HTMLDivElement | null>(null);
+  const noticeRefs = useRef<Record<string, HTMLLIElement | null>>({});
+  const [recordPreview, setRecordPreview] = useState<{ name: string; text: string } | null>(null);
+  const [allergyAlert, setAllergyAlert] = useState<ParentAllergyAlert | null>(null);
   const [loading, setLoading] = useState(true);
   const [child, setChild] = useState<ChildRow | null>(null);
   const [overallProgress, setOverallProgress] = useState(0);
@@ -63,12 +88,16 @@ export default function ParentChildren() {
   const [pinSaving, setPinSaving] = useState(false);
   const [gameCertificates, setGameCertificates] = useState<GameCertificate[]>([]);
   const [questStars, setQuestStars] = useState<Record<string, number[]>>({});
-  const [achievementTab, setAchievementTab] = useState<"achievements" | "certificates">("achievements");
+  const [achievementTab, setAchievementTab] = useState<"achievements" | "certificates" | "attendance">("achievements");
+  const [attendanceMonth, setAttendanceMonth] = useState<MonthPoint>(() => currentMonth());
+  const [attendanceReady, setAttendanceReady] = useState(false);
   const [allergies, setAllergies] = useState<ChildAllergy[]>([]);
   const [allergyName, setAllergyName] = useState("");
   const [allergyDescription, setAllergyDescription] = useState("");
   const [allergyError, setAllergyError] = useState("");
   const [allergySaving, setAllergySaving] = useState(false);
+  const parentId = String(getLocalUser()?.id || "");
+  const { items: parentNotices } = useAppNotifications("parent", parentId);
 
   const loadChild = useCallback(async () => {
     console.log("loadChild: start");
@@ -188,16 +217,60 @@ export default function ParentChildren() {
   useEffect(() => {
     if (!child?.id) {
       setAllergies([]);
+      setAttendanceReady(false);
       return;
     }
     let alive = true;
     void loadChildAllergies(child.id).then((items) => {
       if (alive) setAllergies(items);
     });
+    void getAttendanceRecords([child.id]).then((rows) => {
+      if (!alive) return;
+      mergeAttendanceRecords(rows);
+      setAttendanceReady(true);
+    });
     return () => {
       alive = false;
     };
   }, [child?.id]);
+
+  useEffect(() => {
+    const focus = searchParams.get("focus");
+    if (focus === "allergy") {
+      const stored = readParentAllergyAlert();
+      setAllergyAlert(stored ?? { childId: child?.id ?? null, names: [], title: "", body: "", emergency: false });
+    }
+    if (focus === "attendance") setAchievementTab("attendance");
+  }, [searchParams, child?.id]);
+
+  useEffect(() => {
+    if (achievementTab !== "attendance") return;
+    const noticeId = searchParams.get("notice");
+    if (!noticeId) return;
+    const timer = window.setTimeout(() => {
+      noticeRefs.current[noticeId]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [achievementTab, searchParams, parentNotices]);
+
+  const previewRecord = recordPreview ? parseStudentMonthAttachment(recordPreview.text) : null;
+  const attendanceCount = (status: string) => Number(
+    previewRecord?.totals.match(new RegExp(`(\\d+)\\s+${status}`, "i"))?.[1] ?? 0,
+  );
+  useEffect(() => {
+    if (!allergyAlert) return;
+    allergyAlertRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [allergyAlert, allergies]);
+
+  const dismissAllergyAlert = () => {
+    clearParentAllergyAlert();
+    setAllergyAlert(null);
+    if (searchParams.get("focus") === "allergy") {
+      const next = new URLSearchParams(searchParams);
+      next.delete("focus");
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   const addAllergy = async () => {
     if (!child?.id || allergySaving) return;
@@ -210,8 +283,11 @@ export default function ParentChildren() {
     setAllergyError("");
     setAllergySaving(true);
     const next = [...allergies, { id: `${Date.now()}`, name, description }];
-    await saveChildAllergies(child.id, next);
+    const saved = await saveChildAllergies(child.id, next);
     setAllergies(next);
+    if (!saved.remote) {
+      setAllergyError("Saved on this device only. Teachers cannot see it until the allergy table is added in Supabase.");
+    }
     setAllergyName("");
     setAllergyDescription("");
     setAllergySaving(false);
@@ -236,6 +312,44 @@ export default function ParentChildren() {
     () => buildChildAchievements(activityRows, categoryRows),
     [activityRows, categoryRows]
   );
+  const attendanceDays = useMemo(
+    () => (child?.id ? buildStudentMonth(child.id, attendanceMonth) : []),
+    [child?.id, attendanceMonth, attendanceReady],
+  );
+  const attendanceSummary = useMemo(() => monthCounts(attendanceDays), [attendanceDays]);
+  const attendanceHasMarks = useMemo(
+    () => attendanceDays.some((day) => day.status),
+    [attendanceDays],
+  );
+  const focusedNoticeId = searchParams.get("notice");
+  const attendanceNotices = useMemo(() => {
+    const rows = parentNotices.filter((item) => (
+      item.kind === "attendance"
+      && (!item.childId || !child?.id || item.childId === child.id)
+    ));
+    const head = rows.slice(0, 8);
+    if (focusedNoticeId && !head.some((item) => item.id === focusedNoticeId)) {
+      const extra = rows.find((item) => item.id === focusedNoticeId);
+      if (extra) return [extra, ...head];
+    }
+    return head;
+  }, [parentNotices, child?.id, focusedNoticeId]);
+  const activeAllergyNames = useMemo(() => {
+    const fromAlert = new Set((allergyAlert?.names || []).map((name) => name.trim().toLowerCase()).filter(Boolean));
+    if (fromAlert.size) return fromAlert;
+    if (allergyAlert) return new Set(allergies.map((item) => item.name.trim().toLowerCase()));
+    return new Set<string>();
+  }, [allergyAlert, allergies]);
+  const highlightedAllergies = useMemo(() => {
+    if (!allergyAlert) return [];
+    if (allergyAlert.names.length) {
+      return allergyAlert.names.map((name) => {
+        const match = allergies.find((item) => item.name.trim().toLowerCase() === name.trim().toLowerCase());
+        return { id: match?.id || name, name: match?.name || name, description: match?.description || "" };
+      });
+    }
+    return allergies;
+  }, [allergyAlert, allergies]);
   const graduation = useMemo(() => {
     if (gameCertificates.length < GAME_CERTIFICATES.length) return null;
     const starTotal = GAME_CERTIFICATES.reduce(
@@ -356,12 +470,46 @@ export default function ParentChildren() {
         </article>
       </div>
 
+      {allergyAlert ? (
+        <div
+          ref={allergyAlertRef}
+          className={`pc-allergy-alert${allergyAlert.emergency ? " is-emergency" : ""}`}
+          role="status"
+          aria-label="Active allergy alert"
+        >
+          <div className="pc-allergy-heading">
+            <span className="pc-allergy-kicker">{allergyAlert.emergency ? "Emergency" : "Active now"}</span>
+            <p>
+              {allergyAlert.emergency
+                ? `The teacher sent an emergency notice. Watch ${firstName}'s listed allergies.`
+                : `The teacher marked an allergy reaction in class. This is what to expect for ${firstName}.`}
+            </p>
+          </div>
+          {highlightedAllergies.length ? (
+            <ul className="pc-allergy-list">
+              {highlightedAllergies.map((item) => (
+                <li key={item.id} className="is-active">
+                  <span>
+                    <b>{item.name}</b>
+                    {item.description ? <small>{item.description}</small> : <small>Keep this allergen away and contact the teacher if symptoms start.</small>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="pc-allergy-empty">No allergy list yet. Add the allergens below so you and the teacher know what to watch for.</p>
+          )}
+          <button type="button" className="pc-allergy-dismiss" onClick={dismissAllergyAlert}>
+            Got it
+          </button>
+        </div>
+      ) : null}
+
       {child?.id ? (
-      <section className="pc-allergy-card" aria-label="Allergy card">
+      <section className={`pc-allergy-card${allergyAlert ? " is-watching" : ""}`} aria-label="Allergy card">
         <div className="pc-allergy-heading">
           <span className="pc-allergy-kicker">Allergy</span>
-          <h2>Allergy card</h2>
-          <p>List {firstName}&apos;s allergies and what the teacher should know. This appears on the health check under Allergy.</p>
+          <p>List {firstName}&apos;s allergies.</p>
         </div>
         <form
           className="pc-allergy-form"
@@ -396,7 +544,7 @@ export default function ParentChildren() {
         {allergies.length ? (
           <ul className="pc-allergy-list">
             {allergies.map((item) => (
-              <li key={item.id}>
+              <li key={item.id} className={activeAllergyNames.has(item.name.trim().toLowerCase()) ? "is-active" : undefined}>
                 <span>
                   <b>{item.name}</b>
                   {item.description ? <small>{item.description}</small> : null}
@@ -410,15 +558,6 @@ export default function ParentChildren() {
         ) : (
           <p className="pc-allergy-empty">No allergies listed yet.</p>
         )}
-        <div className="pc-health-check-preview" aria-label="Health check allergy">
-          <h3>Health check</h3>
-          <p className="pc-health-check-label">Allergy</p>
-          {allergies.length ? (
-            <p className="pc-health-check-value">{formatChildAllergies(allergies)}</p>
-          ) : (
-            <p className="pc-health-check-value is-empty">None listed — teachers will see this on Record Health Check.</p>
-          )}
-        </div>
       </section>
       ) : null}
 
@@ -450,7 +589,7 @@ export default function ParentChildren() {
         <hr className="pc-section-divider" />
 
         <div className="pc-section">
-          <div className="pc-progress-tabs" role="tablist" aria-label="Child achievements and certificates">
+          <div className="pc-progress-tabs" role="tablist" aria-label="Child achievements, certificates, and attendance">
             <button
               type="button"
               id="pc-achievements-tab"
@@ -473,6 +612,17 @@ export default function ParentChildren() {
             >
               Certificates
             </button>
+            <button
+              type="button"
+              id="pc-attendance-tab"
+              role="tab"
+              aria-selected={achievementTab === "attendance"}
+              aria-controls="pc-attendance-panel"
+              className={`pc-section-heading${achievementTab === "attendance" ? " is-active" : ""}`}
+              onClick={() => setAchievementTab("attendance")}
+            >
+              Attendance
+            </button>
           </div>
           {achievementTab === "achievements" ? (
             <div id="pc-achievements-panel" role="tabpanel" aria-labelledby="pc-achievements-tab">
@@ -491,7 +641,7 @@ export default function ParentChildren() {
                 </p>
               )}
             </div>
-          ) : (
+          ) : achievementTab === "certificates" ? (
             <div id="pc-certificates-panel" role="tabpanel" aria-labelledby="pc-certificates-tab">
               {gameCertificates.length > 0 ? (
                 <ul className="pc-achievement-list pc-certificate-list">
@@ -558,6 +708,81 @@ export default function ParentChildren() {
               ) : (
                 <p className="pc-achievements-empty">
                   No certificates yet. Complete all levels of a game to earn one.
+                </p>
+              )}
+            </div>
+          ) : (
+            <div id="pc-attendance-panel" role="tabpanel" aria-labelledby="pc-attendance-tab">
+              {attendanceNotices.length > 0 && (
+                <ul className="pc-attendance-notices">
+                  {attendanceNotices.map((item) => (
+                    <li
+                      key={item.id}
+                      id={`pc-attendance-notice-${item.id}`}
+                      ref={(node) => { noticeRefs.current[item.id] = node; }}
+                      className={`pc-attendance-notice${focusedNoticeId === item.id ? " is-focused" : ""}`}
+                    >
+                      <small>Teacher notice</small>
+                      <b>{item.title}</b>
+                      {item.body ? <p>{item.body}</p> : null}
+                      {item.attachment?.text ? (
+                        <div className="pc-attendance-file">
+                          <Paperclip />
+                          <span>
+                            <b>{item.attachment.name}</b>
+                            <small>PDF attachment</small>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setRecordPreview({ name: item.attachment!.name, text: item.attachment!.text })}
+                          >
+                            <Eye /> View
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => downloadTextPdf(item.attachment!.name, item.attachment!.text)}
+                          >
+                            <Download /> Save
+                          </button>
+                        </div>
+                      ) : null}
+                      <em>{new Date(item.createdAt).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</em>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="pc-attendance-month">
+                <button
+                  type="button"
+                  aria-label="Previous month"
+                  onClick={() => setAttendanceMonth((current) => shiftMonth(current, -1))}
+                >
+                  ‹
+                </button>
+                <b>{monthTitle(attendanceMonth)}</b>
+                <button
+                  type="button"
+                  aria-label="Next month"
+                  disabled={isAfterCurrentMonth(shiftMonth(attendanceMonth, 1))}
+                  onClick={() => setAttendanceMonth((current) => shiftMonth(current, 1))}
+                >
+                  ›
+                </button>
+              </div>
+              {attendanceHasMarks ? (
+                <>
+                  <ul className="pc-attendance-summary">
+                    {(["Present", "Late", "Absent", "Excused"] as const).map((status) => (
+                      <li key={status} className={`pc-attendance-${status.toLowerCase()}`}>
+                        <b>{attendanceSummary[status]}</b>
+                        <small>{status}</small>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p className="pc-achievements-empty">
+                  No attendance recorded for {monthTitle(attendanceMonth)}.
                 </p>
               )}
             </div>
@@ -767,6 +992,69 @@ export default function ParentChildren() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {recordPreview && previewRecord && (
+        <div className="pc-pdf-overlay" onMouseDown={() => setRecordPreview(null)}>
+          <section className="pc-pdf-modal" onMouseDown={(event) => event.stopPropagation()}>
+            <header>
+              <span><small>ATTENDANCE RECORD</small><b>{recordPreview.name}</b></span>
+              <button type="button" aria-label="Close attachment" onClick={() => setRecordPreview(null)}>
+                <X />
+              </button>
+            </header>
+            <div className="pc-pdf-record">
+              <section className="pc-pdf-summary">
+                <div className="pc-pdf-summary-heading">
+                  <small>MONTHLY SUMMARY</small>
+                  <h3>{previewRecord.title.replace(/^Monthly attendance record\s*/i, "").replace(/^\(|\)$/g, "") || previewRecord.title}</h3>
+                  {previewRecord.learner && <p>{previewRecord.learner}{previewRecord.section ? ` · ${previewRecord.section}` : ""}</p>}
+                </div>
+                {previewRecord.preparedBy && <p className="pc-pdf-prepared">Prepared by <b>{previewRecord.preparedBy}</b></p>}
+                {previewRecord.totals && (
+                  <div className="pc-pdf-counts" aria-label="Attendance totals">
+                    {(["Present", "Late", "Absent", "Excused"] as const).map((status) => (
+                      <div className={`pc-pdf-count pc-pdf-count--${status.toLowerCase()}`} key={status}>
+                        <b>{attendanceCount(status)}</b>
+                        <span>{status}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+              {previewRecord.days.length ? (
+                <div className="pc-attendance-table-wrap">
+                  <table className="pc-attendance-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Day</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewRecord.days.map((day) => (
+                        <tr key={`${day.day}-${day.weekday}`}>
+                          <td className="pc-attendance-date">{day.day}</td>
+                          <td><span className="pc-attendance-weekday">{day.weekday}</span></td>
+                          <td><span className={`pc-attendance-status ${day.status !== "—" ? day.status.toLowerCase() : "unmarked"}`}>{day.status}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <pre>{recordPreview.text}</pre>
+              )}
+            </div>
+            <button
+              type="button"
+              className="pc-pdf-download"
+              onClick={() => downloadTextPdf(recordPreview.name, recordPreview.text)}
+            >
+              <Download /> Download PDF
+            </button>
+          </section>
         </div>
       )}
     </ParentLayout>

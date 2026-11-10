@@ -3,7 +3,9 @@ import { useNavigate } from "react-router-dom";
 import logo from "../../../../../images/learnease logo-no bg.png";
 import { getLocalUser } from "../../../../backend/childProgress";
 import { NotificationBell } from "../../notifications/NotificationInbox";
-import { enablePushNotifications } from "../../../../backend/appNotifications";
+import { enablePushNotifications, notificationDestination, rememberParentAllergyAlert } from "../../../../backend/appNotifications";
+import BearLoading from "../../BearLoading";
+import { usePageTransition } from "../../usePageTransition";
 import "./ParentDashboard.css";
 
 export type ParentNavId = "home" | "child" | "progress";
@@ -34,7 +36,20 @@ export default function ParentLayout({ activeNav, children, hideHeader = false }
   const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(true);
   const [alertsOpen, setAlertsOpen] = React.useState(false);
+  const { loading: pageLoading, transitionTo } = usePageTransition();
   const parentId = String(getLocalUser()?.id || "");
+
+  const goTo = (path: string, force = false) => {
+    const url = new URL(path, window.location.origin);
+    const next = `${url.pathname}${url.search}`;
+    const current = `${window.location.pathname}${window.location.search}`;
+    if (current === next && !force) return;
+    if (window.location.pathname === url.pathname) {
+      navigate(next);
+      return;
+    }
+    transitionTo(() => navigate(next), force);
+  };
 
   React.useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 768px)");
@@ -78,7 +93,7 @@ export default function ParentLayout({ activeNav, children, hideHeader = false }
             type="button"
             className={navClass("home")}
             title="Homepage"
-            onClick={() => navigate("/parent-dashboard")}
+            onClick={() => goTo("/parent-dashboard")}
           >
             <span className="pd-nav-icon" aria-hidden="true">
               {getSidebarIconSrc("home") ? (
@@ -94,7 +109,7 @@ export default function ParentLayout({ activeNav, children, hideHeader = false }
             type="button"
             className={navClass("child")}
             title="Your child"
-            onClick={() => navigate("/parent-children")}
+            onClick={() => goTo("/parent-children")}
           >
             <span className="pd-nav-icon" aria-hidden="true">
               {getSidebarIconSrc("child") ? (
@@ -110,7 +125,7 @@ export default function ParentLayout({ activeNav, children, hideHeader = false }
             type="button"
             className={navClass("progress")}
             title="Progress"
-            onClick={() => navigate("/parent-progress")}
+            onClick={() => goTo("/parent-progress")}
           >
             <span className="pd-nav-icon" aria-hidden="true">
               {getSidebarIconSrc("progress") ? (
@@ -159,6 +174,10 @@ export default function ParentLayout({ activeNav, children, hideHeader = false }
                 recipientId={parentId}
                 open={alertsOpen}
                 onToggle={() => setAlertsOpen(open => !open)}
+                onOpenNotification={item => {
+                  rememberParentAllergyAlert(item);
+                  goTo(notificationDestination(item, "parent").parentPath, true);
+                }}
                 className="pd-bell-icon"
                 icon={<>&#128276;</>}
               />
@@ -166,8 +185,9 @@ export default function ParentLayout({ activeNav, children, hideHeader = false }
           </header>
         )}
 
-        <main className="pd-content">{children}</main>
+        <main className={`pd-content${pageLoading ? " is-switching" : " is-ready"}`}>{children}</main>
       </div>
+      {pageLoading && <BearLoading overlay />}
     </div>
   );
 }

@@ -8,7 +8,7 @@ export async function networkFetch(input: RequestInfo | URL, init?: RequestInit)
   const abort = () => controller.abort(upstream?.reason);
   if (upstream?.aborted) abort();
   else upstream?.addEventListener("abort", abort, { once: true });
-  const timeout = setTimeout(() => controller.abort(new DOMException("Connection timed out", "TimeoutError")), 6000);
+  const timeout = setTimeout(() => controller.abort(new DOMException("Connection timed out", "TimeoutError")), 15000);
   try {
     return await fetch(input, { ...init, signal: controller.signal });
   } finally {

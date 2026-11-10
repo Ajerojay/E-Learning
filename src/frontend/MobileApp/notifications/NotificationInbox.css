@@ -26,7 +26,7 @@
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  z-index: 40;
+  z-index: 80;
   width: min(360px, 78vw);
   max-height: min(70vh, 460px);
   overflow: hidden;
@@ -67,12 +67,14 @@
 
 .le-note-item {
   width: 100%;
-  padding: 12px 14px;
+  padding: 11px 14px;
   border: 0;
   border-bottom: 1px solid #f4ece0;
   background: transparent;
   display: grid;
-  gap: 4px;
+  grid-template-columns: 36px 1fr;
+  align-items: center;
+  gap: 10px;
   text-align: left;
   cursor: pointer;
 }
@@ -81,23 +83,68 @@
   background: #fff6e5;
 }
 
+.le-note-kind {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+}
+
+.le-note-kind svg {
+  width: 18px;
+  height: 18px;
+}
+
+.le-note-kind.health {
+  background: #ffe4e8;
+  color: #c43d52;
+}
+
+.le-note-kind.emergency {
+  background: #ffd6d6;
+  color: #b42318;
+}
+
+.le-note-kind.attendance {
+  background: #e7f3ff;
+  color: #2d6cae;
+}
+
+.le-note-kind.classroom {
+  background: #efe7ff;
+  color: #6b4db5;
+}
+
+.le-note-kind.sent {
+  background: #e9f8ef;
+  color: #27834a;
+}
+
+.le-note-kind.message {
+  background: #fff3d8;
+  color: #936b13;
+}
+
+.le-note-item span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
 .le-note-item b {
-  font-size: 12px;
+  overflow: hidden;
   color: #25304d;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .le-note-item small {
   color: #8a7a5c;
   font-size: 10px;
   font-weight: 700;
-}
-
-.le-note-item p {
-  margin: 0;
-  color: #4e566b;
-  font-size: 12px;
-  font-weight: 600;
-  white-space: pre-wrap;
 }
 
 .le-note-empty {
@@ -112,10 +159,52 @@
   color: #25304d;
 }
 
+.le-note-detail {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.le-note-detail b {
+  color: #25304d;
+  font-size: 14px;
+}
+
+.le-note-detail small {
+  color: #8a7a5c;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.le-note-detail p {
+  margin: 4px 0 0;
+  color: #3d4558;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.le-note-open {
+  margin-top: 8px;
+  min-height: 38px;
+  border: 0;
+  border-radius: 11px;
+  background: #4b97e8;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .pd-note-wrap {
   position: absolute;
   right: 0;
   top: 50%;
+  z-index: 81;
   transform: translateY(-50%);
 }
 

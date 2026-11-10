@@ -115,7 +115,7 @@ function App() {
     const stopMojibakeRepair = installMojibakeRepair();
     let finished = false;
     const splashStarted = Date.now();
-    const splashMs = 900;
+    const splashMs = 220;
     let splashTimer = 0;
     const markReady = () => {
       if (finished) return;

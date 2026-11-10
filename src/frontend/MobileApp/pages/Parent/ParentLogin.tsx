@@ -50,10 +50,6 @@ export default function ParentLogin() {
     try {
       flushSync(() => setLoading(true));
 
-      const teacherLookup = isMobileApp() ? null : supabase.rpc(
-        "authenticate_teacher",
-        { p_username: user, p_password: pass }
-      );
       let data;
       let parentError: string | null = null;
       try {
@@ -62,34 +58,37 @@ export default function ParentLogin() {
         parentError = loginError instanceof Error ? loginError.message : "Something went wrong while logging in.";
       }
 
-      const teacherResult = teacherLookup ? await teacherLookup : { data: null, error: null };
-      const { data: teacherRows, error: teacherError } = teacherResult;
-      if (teacherError) console.error("Teacher login error:", teacherError.message);
-      const teacher = Array.isArray(teacherRows) ? teacherRows[0] : teacherRows;
-      if (teacher) {
+      if (data) {
         localStorage.setItem(
           "user",
-          JSON.stringify({ ...teacher, role: "teacher", source: "web" })
+          JSON.stringify({
+            role: "parent",
+            id: data.id,
+            username: data.username,
+          })
         );
-        navigate("/teacher-dashboard");
+        navigate("/parent-dashboard", { replace: true });
         return;
       }
 
-      if (!data) {
-        setError(parentError || "Something went wrong while logging in.");
-        return;
+      if (!isMobileApp()) {
+        const { data: teacherRows, error: teacherError } = await supabase.rpc(
+          "authenticate_teacher",
+          { p_username: user, p_password: pass }
+        );
+        if (teacherError) console.error("Teacher login error:", teacherError.message);
+        const teacher = Array.isArray(teacherRows) ? teacherRows[0] : teacherRows;
+        if (teacher) {
+          localStorage.setItem(
+            "user",
+            JSON.stringify({ ...teacher, role: "teacher", source: "web" })
+          );
+          navigate("/teacher-dashboard");
+          return;
+        }
       }
 
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          role: "parent",
-          id: data.id,
-          username: data.username,
-        })
-      );
-      console.debug("ParentLogin: logged-in parent", { id: data.id, username: data.username });
-      navigate("/parent-dashboard");
+      setError(parentError || "Something went wrong while logging in.");
     } catch (err) {
       console.error(err);
       setError("Something went wrong while logging in.");

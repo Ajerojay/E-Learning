@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { CLASSROOM_TEACHER_RECIPIENT, sendAppNotifications } from "./appNotifications";
 
 export type ChildAllergy = {
   id: string;
@@ -47,22 +48,79 @@ export function readLocalChildAllergies(childId: string): ChildAllergy[] {
   }
 }
 
-function missingColumn(error: { message?: string } | null | undefined) {
-  return Boolean(error?.message && /column|schema cache|could not find/i.test(error.message));
+function missingSchema(error: { message?: string } | null | undefined) {
+  return Boolean(error?.message && /column|schema cache|could not find|relation|does not exist/i.test(error.message));
+}
+
+async function teacherRecipients() {
+  const ids = new Set<string>([CLASSROOM_TEACHER_RECIPIENT]);
+  const { data, error } = await supabase.from("teacher_profiles").select("teacher_id,full_name");
+  if (!error) {
+    for (const row of data ?? []) {
+      const id = String(row.teacher_id || "").trim();
+      if (id) ids.add(id);
+      const name = String(row.full_name || "").trim().toLowerCase();
+      if (name) ids.add(`username:${name}`);
+    }
+  }
+  return [...ids].map((id) => ({ role: "teacher" as const, id }));
+}
+
+async function notifyTeachers(childId: string, items: ChildAllergy[]) {
+  if (!items.length) return;
+  try {
+    const profile = await supabase
+      .from("children_accounts")
+      .select("child_name,first_name,last_name")
+      .eq("id", childId)
+      .maybeSingle();
+    const childName = String(profile.data?.child_name || "").trim()
+      || `${profile.data?.first_name || ""} ${profile.data?.last_name || ""}`.trim()
+      || "a learner";
+    const body = formatChildAllergies(items);
+    await sendAppNotifications({
+      recipients: await teacherRecipients(),
+      senderRole: "parent",
+      senderName: "Parent",
+      childId,
+      childName,
+      kind: "health",
+      title: `Allergy card — ${childName}`,
+      body: `${childName}'s parent listed: ${body}`,
+    });
+  } catch (error) {
+    console.warn("Could not notify teachers about allergies:", error);
+  }
+}
+
+async function readRemote(childId: string): Promise<ChildAllergy[] | null> {
+  const table = await supabase.from("child_allergies").select("items").eq("child_id", childId).maybeSingle();
+  if (!table.error) return parseChildAllergies(table.data?.items);
+  const column = await supabase.from("children_accounts").select("parent_allergies").eq("id", childId).maybeSingle();
+  if (!column.error) return parseChildAllergies(column.data?.parent_allergies);
+  return null;
+}
+
+async function writeRemote(childId: string, items: ChildAllergy[]): Promise<boolean> {
+  const table = await supabase.from("child_allergies").upsert({
+    child_id: childId,
+    items,
+    updated_at: new Date().toISOString(),
+  });
+  if (!table.error) {
+    await supabase.from("children_accounts").update({ parent_allergies: items }).eq("id", childId);
+    return true;
+  }
+  const column = await supabase.from("children_accounts").update({ parent_allergies: items }).eq("id", childId);
+  return !column.error;
 }
 
 export async function loadChildAllergies(childId: string): Promise<ChildAllergy[]> {
   const local = readLocalChildAllergies(childId);
   if (!childId) return [];
   try {
-    const { data, error } = await supabase
-      .from("children_accounts")
-      .select("parent_allergies")
-      .eq("id", childId)
-      .maybeSingle();
-    if (error || !data) return local;
-    const remote = parseChildAllergies(data.parent_allergies);
-    if (remote.length) {
+    const remote = await readRemote(childId);
+    if (remote) {
       writeLocalChildAllergies(childId, remote, false);
       return remote;
     }
@@ -72,20 +130,18 @@ export async function loadChildAllergies(childId: string): Promise<ChildAllergy[
   return local;
 }
 
-export async function saveChildAllergies(childId: string, items: ChildAllergy[]): Promise<void> {
+export async function saveChildAllergies(childId: string, items: ChildAllergy[]): Promise<{ remote: boolean }> {
   const clean = parseChildAllergies(items);
   writeLocalChildAllergies(childId, clean, true);
+  let remote = false;
   try {
-    const { error } = await supabase
-      .from("children_accounts")
-      .update({ parent_allergies: clean })
-      .eq("id", childId);
-    if (error && !missingColumn(error)) {
-      console.warn("Could not save allergies:", error.message);
-    }
+    remote = await writeRemote(childId, clean);
+    if (!remote) console.warn("Allergy saved on this device only. Run the child_allergies migration so teachers can see it.");
+    else if (clean.length) await notifyTeachers(childId, clean);
   } catch (error) {
     console.warn("Could not save allergies:", error);
   }
+  return { remote };
 }
 
 export async function loadChildAllergyMap(childIds: string[]): Promise<Record<string, ChildAllergy[]>> {
@@ -93,12 +149,19 @@ export async function loadChildAllergyMap(childIds: string[]): Promise<Record<st
   for (const childId of childIds) map[childId] = readLocalChildAllergies(childId);
   if (!childIds.length) return map;
   try {
-    const { data, error } = await supabase
-      .from("children_accounts")
-      .select("id, parent_allergies")
-      .in("id", childIds);
-    if (error || !data) return map;
-    for (const row of data) {
+    const table = await supabase.from("child_allergies").select("child_id, items").in("child_id", childIds);
+    if (!table.error) {
+      for (const row of table.data ?? []) {
+        const childId = String(row.child_id);
+        const remote = parseChildAllergies(row.items);
+        writeLocalChildAllergies(childId, remote, false);
+        map[childId] = remote;
+      }
+      return map;
+    }
+    const column = await supabase.from("children_accounts").select("id, parent_allergies").in("id", childIds);
+    if (column.error || missingSchema(column.error)) return map;
+    for (const row of column.data ?? []) {
       const childId = String(row.id);
       const remote = parseChildAllergies(row.parent_allergies);
       if (!remote.length) continue;

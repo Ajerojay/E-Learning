@@ -1,16 +1,11 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Bell } from "lucide-react";
+import { type ReactNode } from "react";
+import { Bell, CalendarDays, HeartPulse, Mail, Megaphone, Send, Siren } from "lucide-react";
 import {
-  APP_NOTIFICATIONS_CHANGED,
-  enablePushNotifications,
-  loadAppNotifications,
   markAllAppNotificationsRead,
-  markAppNotificationRead,
-  showPushNotification,
-  subscribeAppNotifications,
   type AppNotification,
   type AppUserRole,
 } from "../../../backend/appNotifications";
+import { useAppNotifications } from "./useAppNotifications";
 import "./NotificationInbox.css";
 
 function relativeTime(value: string) {
@@ -23,45 +18,21 @@ function relativeTime(value: string) {
   return new Date(value).toLocaleDateString("en-PH", { month: "short", day: "numeric" });
 }
 
-function kindLabel(item: AppNotification, viewer: AppUserRole) {
-  if (viewer === "teacher" && item.senderRole === "teacher") return "Sent to parent";
-  if (item.kind === "attendance") return "Attendance";
-  if (item.kind === "health") return "Health";
-  if (item.kind === "classroom") return "Classroom";
-  return "Message";
+function kindMeta(item: AppNotification, viewer: AppUserRole) {
+  if (viewer === "teacher" && item.senderRole === "teacher") {
+    return { label: "Sent", Icon: Send, tone: "sent" };
+  }
+  if (item.kind === "attendance") return { label: "Attendance", Icon: CalendarDays, tone: "attendance" };
+  if (item.kind === "emergency") return { label: "Emergency", Icon: Siren, tone: "emergency" };
+  if (item.kind === "health") return { label: "Health", Icon: HeartPulse, tone: "health" };
+  if (item.kind === "classroom") return { label: "Classroom", Icon: Megaphone, tone: "classroom" };
+  return { label: "Message", Icon: Mail, tone: "message" };
 }
 
-export function useAppNotifications(role: AppUserRole, recipientId: string) {
-  const [items, setItems] = useState<AppNotification[]>([]);
-
-  useEffect(() => {
-    let active = true;
-    const refresh = async () => {
-      if (!recipientId) return;
-      const next = await loadAppNotifications(role, recipientId);
-      if (active) setItems(next);
-    };
-    void refresh();
-    void enablePushNotifications();
-    const onChange = () => { void refresh(); };
-    window.addEventListener(APP_NOTIFICATIONS_CHANGED, onChange);
-    window.addEventListener("focus", onChange);
-    const unsubscribe = subscribeAppNotifications(role, recipientId, item => {
-      setItems(current => [item, ...current.filter(row => row.id !== item.id)].slice(0, 40));
-      if (document.visibilityState !== "visible") {
-        void showPushNotification(item.title, item.body);
-      }
-    });
-    return () => {
-      active = false;
-      window.removeEventListener(APP_NOTIFICATIONS_CHANGED, onChange);
-      window.removeEventListener("focus", onChange);
-      unsubscribe();
-    };
-  }, [role, recipientId]);
-
-  const unread = useMemo(() => items.filter(item => !item.readAt).length, [items]);
-  return { items, unread };
+function headingFor(item: AppNotification) {
+  const title = item.title.trim();
+  if (title) return title;
+  return kindMeta(item, item.recipientRole).label;
 }
 
 type BellProps = {
@@ -69,17 +40,18 @@ type BellProps = {
   recipientId: string;
   open: boolean;
   onToggle: () => void;
+  onOpenNotification?: (item: AppNotification) => void;
   className?: string;
   icon?: ReactNode;
 };
 
-export function NotificationBell({ recipientRole, recipientId, open, onToggle, className, icon }: BellProps) {
-  const { items, unread } = useAppNotifications(recipientRole, recipientId);
-  const [selected, setSelected] = useState<string | null>(null);
+export function NotificationBell({ recipientRole, recipientId, open, onToggle, onOpenNotification, className, icon }: BellProps) {
+  const { items, unread, markRead } = useAppNotifications(recipientRole, recipientId);
 
   const openItem = async (item: AppNotification) => {
-    setSelected(current => current === item.id ? null : item.id);
-    if (!item.readAt) await markAppNotificationRead(item.id);
+    if (!item.readAt) await markRead(item.id);
+    onOpenNotification?.(item);
+    onToggle();
   };
 
   return (
@@ -93,7 +65,7 @@ export function NotificationBell({ recipientRole, recipientId, open, onToggle, c
           <header>
             <h3>Notifications</h3>
             {unread > 0 && (
-              <button type="button" onClick={() => void markAllAppNotificationsRead(recipientRole, recipientId)}>
+              <button type="button" onClick={() => void markAllAppNotificationsRead(recipientRole, recipientId, items.map(item => item.id))}>
                 Mark all read
               </button>
             )}
@@ -102,23 +74,28 @@ export function NotificationBell({ recipientRole, recipientId, open, onToggle, c
             <div className="le-note-empty">
               <Bell />
               <b>No notifications yet</b>
-              <small>Teacher messages will appear here.</small>
+              <small>{recipientRole === "teacher" ? "Parent allergy cards will appear here." : "Teacher messages will appear here."}</small>
             </div>
           ) : (
             <div className="le-note-list">
-              {items.map(item => (
-                <button
-                  type="button"
-                  key={item.id}
-                  className={`le-note-item${item.readAt ? "" : " unread"}`}
-                  onClick={() => void openItem(item)}
-                >
-                  <b>{item.title}</b>
-                  <small>{kindLabel(item, recipientRole)} · {item.senderName} · {relativeTime(item.createdAt)}</small>
-                  {selected === item.id && <p>{item.body}</p>}
-                  {selected !== item.id && <p>{item.body.length > 90 ? `${item.body.slice(0, 90)}…` : item.body}</p>}
-                </button>
-              ))}
+              {items.map(item => {
+                const meta = kindMeta(item, recipientRole);
+                const Icon = meta.Icon;
+                return (
+                  <button
+                    type="button"
+                    key={item.id}
+                    className={`le-note-item${item.readAt ? "" : " unread"}`}
+                    onClick={() => void openItem(item)}
+                  >
+                    <i className={`le-note-kind ${meta.tone}`} aria-hidden="true"><Icon /></i>
+                    <span>
+                      <b>{headingFor(item)}</b>
+                      <small>{meta.label} · {relativeTime(item.createdAt)}</small>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           )}
         </section>

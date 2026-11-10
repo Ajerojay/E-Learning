@@ -8,7 +8,6 @@ import {
 } from "../../../../backend/childProgress";
 import { getChildCategoryProgress, getLatestChildAttempt, getParentAnnouncements, getParentChildren, type ParentAnnouncement, type SupabaseChild } from "../../../../backend/supabaseData";
 import { getOfflineCategoryProgress, getOfflineChildrenFromSqlite, cacheOfflineCategoryProgress } from "../../../../backend/offlineSqlite";
-import BearLoading from "../../BearLoading";
 
 type ChildSummary = {
   id: string;
@@ -54,6 +53,28 @@ function rememberChildProgress(childId: string, progress: number) {
   localStorage.setItem(progressCacheKey(childId), String(progress));
 }
 
+function cachedChildSummaries(parentId: string): ChildSummary[] {
+  if (!parentId) return [];
+  try {
+    const saved = JSON.parse(localStorage.getItem(`learnease-child-roster:${parentId}`) || "[]");
+    if (!Array.isArray(saved)) return [];
+    return saved
+      .filter((child: { id?: unknown }) => child && typeof child.id === "string")
+      .map((child: { id: string; childName?: string; firstName?: string; lastName?: string }) => ({
+        id: child.id,
+        name: getChildDisplayName({
+          child_name: child.childName,
+          first_name: child.firstName,
+          last_name: child.lastName,
+        }),
+        progress: cachedChildProgress(child.id),
+        recent: "",
+      }));
+  } catch {
+    return [];
+  }
+}
+
 function recentLine(child: SupabaseChild, latest: { categoryCode: string; gameCode: string; finished: boolean } | null) {
   const categoryCode = latest?.categoryCode || latest?.gameCode.split(/[_-\s]/)[0] || "";
   if (!categoryCode) return "";
@@ -67,8 +88,8 @@ function recentLine(child: SupabaseChild, latest: { categoryCode: string; gameCo
 }
 
 export default function ParentDashboard() {
-  const [ready, setReady] = React.useState(false);
-  const [children, setChildren] = React.useState<ChildSummary[]>([]);
+  const parentId = String(getLocalUser()?.id || "");
+  const [children, setChildren] = React.useState<ChildSummary[]>(() => cachedChildSummaries(parentId));
   const [announcements, setAnnouncements] = React.useState<ParentAnnouncement[]>([]);
 
   React.useEffect(() => {
@@ -76,11 +97,11 @@ export default function ParentDashboard() {
 
     const loadDashboardData = async () => {
       try {
-        const parentId = String(getLocalUser()?.id || "");
+        const signedInParentId = String(getLocalUser()?.id || "");
         let roster: SupabaseChild[] = [];
-        if (parentId) {
+        if (signedInParentId) {
           try {
-            roster = linkedChildren(await getParentChildren(parentId));
+            roster = linkedChildren(await getParentChildren(signedInParentId));
           } catch {
             roster = [];
           }
@@ -98,7 +119,6 @@ export default function ParentDashboard() {
             progress: cachedChildProgress(child.id),
             recent: "",
           })));
-          setReady(true);
         }
 
         const summaries = await Promise.all(roster.map(async (child): Promise<ChildSummary> => {
@@ -137,13 +157,13 @@ export default function ParentDashboard() {
         setChildren(summaries);
 
         try {
-          const posts = await getParentAnnouncements(parentId, roster[0]?.id);
-          if (!cancelled) setAnnouncements(posts);
+          const posts = await getParentAnnouncements(signedInParentId);
+          if (!cancelled) setAnnouncements(posts.filter(item => item.kind === "classroom"));
         } catch {
           if (!cancelled) setAnnouncements([]);
         }
       } finally {
-        if (!cancelled) setReady(true);
+        /* Homepage stays visible while live scores finish loading. */
       }
     };
 
@@ -160,8 +180,6 @@ export default function ParentDashboard() {
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
-
-  if (!ready) return <BearLoading overlay />;
 
   return (
     <ParentLayout activeNav="home">
@@ -239,7 +257,7 @@ export default function ParentDashboard() {
             {announcements.map((item) => (
               <li key={item.id} className={`pd-announcement-item${item.pinned ? " pd-announcement-pinned" : ""}`}>
                 {item.pinned ? (
-                  <span className="pd-announcement-pin">📌 Pinned · Health</span>
+                  <span className="pd-announcement-pin">📌 Pinned</span>
                 ) : null}
                 <h3>{item.title}</h3>
                 {item.createdAt && (
@@ -260,4 +278,3 @@ export default function ParentDashboard() {
     </ParentLayout>
   );
 }
-
