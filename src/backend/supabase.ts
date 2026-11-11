@@ -17,6 +17,7 @@ function readEmailLink() {
     tokenHash: params.get("token_hash") || "",
     code: params.get("code") || "",
     accessToken: hash.get("access_token") || "",
+    errorCode: params.get("error_code") || hash.get("error_code") || "",
     error: hash.get("error_description") || params.get("error_description") || hash.get("error") || params.get("error") || "",
   };
 }

@@ -4,18 +4,18 @@ import { ArrowLeft } from "lucide-react";
 import "./AppAuth.css";
 import logo from "../../../../images/learnease logo-no bg.png";
 import { completePendingParentRegistration, openEmailLinkSession } from "../../../backend/supabaseAuth";
-import { supabase } from "../../../backend/supabase";
+import { pendingEmailLink, supabase } from "../../../backend/supabase";
 import BearLoading from "../BearLoading";
 import { isMobileApp } from "../isMobileApp";
 
-const SIGN_IN_PATH = "/app/signin";
+const PARENT_SIGN_IN_PATH = "/app/signin";
 
-function SignInLink() {
+function ParentSignInLink() {
   if (isMobileApp() || !/Android/i.test(navigator.userAgent)) {
-    return <Link to={SIGN_IN_PATH}>here</Link>;
+    return <Link to={PARENT_SIGN_IN_PATH}>here</Link>;
   }
-  const fallback = encodeURIComponent(`${window.location.origin}${SIGN_IN_PATH}`);
-  const openApp = `intent://open${SIGN_IN_PATH}#Intent;scheme=learnease;package=com.learnease.app;S.browser_fallback_url=${fallback};end`;
+  const fallback = encodeURIComponent(new URL("/?view=parent-signin", window.location.origin).href);
+  const openApp = `intent://open${PARENT_SIGN_IN_PATH}#Intent;scheme=learnease;package=com.learnease.app;S.browser_fallback_url=${fallback};end`;
   return <a href={openApp}>here</a>;
 }
 
@@ -46,7 +46,8 @@ export default function AppEmailVerified() {
         }
         if (active) setVerified(true);
         try {
-          await supabase.auth.signOut();
+          const { error: signOutError } = await supabase.auth.signOut({ scope: "local" });
+          if (signOutError) console.error(signOutError);
         } catch (signOutError) {
           console.error(signOutError);
         }
@@ -71,7 +72,7 @@ export default function AppEmailVerified() {
           className="app-auth-back-btn"
           type="button"
           aria-label="Back to sign in"
-          onClick={() => navigate("/app/signin")}
+          onClick={() => navigate(PARENT_SIGN_IN_PATH)}
         >
           <ArrowLeft size={22} strokeWidth={2.5} />
         </button>
@@ -84,16 +85,21 @@ export default function AppEmailVerified() {
         </header>
 
         <div className="app-auth-panel">
-          <h1 className="app-auth-title">Email verified</h1>
+          <h1 className="app-auth-title">
+            {checking ? "Verifying your email" : verified ? "Email verified" : "Confirm your email"}
+          </h1>
           {verified ? (
             <p className="app-auth-copy">
-              Your email is verified. Click <SignInLink /> to log in.
+              Your email is verified. Click <ParentSignInLink /> to sign in with your username or email.
             </p>
-          ) : (
+          ) : !checking && (
             <>
-              {error && <p className="app-auth-alert">{error}</p>}
+              {error && <p className="app-auth-alert" role="alert">{error}</p>}
+              {pendingEmailLink.errorCode === "otp_expired" && (
+                <p className="app-auth-copy">Open the latest confirmation email. If you already confirmed your email, you can sign in below.</p>
+              )}
               <p className="app-auth-copy">
-                Click <SignInLink /> to log in.
+                Click <ParentSignInLink /> to log in.
               </p>
             </>
           )}

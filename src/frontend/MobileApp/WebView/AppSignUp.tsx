@@ -65,6 +65,7 @@ export default function AppSignUp() {
   const [showConfirmPin, setShowConfirmPin] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [confirmationEmail, setConfirmationEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
   // Google's "Suggest strong password" popup covers the inputs while typing.
@@ -185,7 +186,7 @@ export default function AppSignUp() {
       });
 
       if (credential.needsEmailConfirmation) {
-        setSuccess("Check your email to confirm your account. After you click the link, sign in with your username or email.");
+        setConfirmationEmail(cleanEmail);
         return;
       }
 
@@ -230,6 +231,39 @@ export default function AppSignUp() {
         </header>
 
         <div className="app-auth-panel">
+          {confirmationEmail ? (
+            <div className="app-auth-form">
+              <h1 className="app-auth-title">Check your email</h1>
+              <p className="app-auth-copy">
+                We sent a confirmation link to <strong>{confirmationEmail}</strong>.
+                Tap “Confirm your mail” in the email, then sign in with your username or email.
+              </p>
+              {error && <p className="app-auth-alert" role="alert">{error}</p>}
+              {success && <p className="app-auth-success" role="status">{success}</p>}
+              <button
+                className="app-auth-link-button"
+                type="button"
+                disabled={loading}
+                onClick={async () => {
+                  setLoading(true);
+                  setError("");
+                  setSuccess("");
+                  try {
+                    await resendVerificationEmail(confirmationEmail);
+                    setSuccess("A new confirmation email was sent.");
+                  } catch (caughtError) {
+                    setError(caughtError instanceof Error ? caughtError.message : "Could not resend the confirmation email.");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+              >
+                Resend confirmation email
+              </button>
+              <Link className="app-auth-link-line" to="/app/signin">Back to sign in</Link>
+            </div>
+          ) : (
+          <>
           <h1 className="app-auth-title">Create account</h1>
           <p className="app-auth-copy">
             In creating this account, you are also enrolling your child to preschool.
@@ -515,28 +549,6 @@ export default function AppSignUp() {
 
             {error && <p className="app-auth-alert">{error}</p>}
             {success && <p className="app-auth-success">{success}</p>}
-            {success && (
-              <button
-                className="app-auth-link-button"
-                type="button"
-                disabled={loading}
-                onClick={async () => {
-                  try {
-                    setLoading(true);
-                    setError("");
-                    await resendVerificationEmail(email.trim());
-                    setSuccess("A new confirmation email was sent. Confirm it before signing in.");
-                  } catch (caughtError) {
-                    const message = caughtError instanceof Error ? caughtError.message : "Could not resend the confirmation email.";
-                    setError(message);
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-              >
-                Resend confirmation email
-              </button>
-            )}
 
             <p className="app-auth-required-note">
               <span className="app-auth-required">*</span> Required fields
@@ -556,6 +568,8 @@ export default function AppSignUp() {
               Already registered? <Link to="/app/signin">Sign in</Link>
             </p>
           </form>
+          </>
+          )}
         </div>
       </section>
     </main>

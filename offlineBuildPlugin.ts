@@ -34,6 +34,8 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
   if (request.mode === 'navigate') {
+    // Email links need the current hosted verification page and its auth callback.
+    if (/^\\/(?:app\\/)?(?:email-verified|reset-password)\\/?$/.test(url.pathname)) return;
     event.respondWith((async () => {
       const cache = await caches.open(CACHE);
       const shell = await cache.match(new URL('index.html', self.registration.scope));

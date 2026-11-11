@@ -6,7 +6,8 @@ export const RESET_PASSWORD_PATH = "/reset-password";
 export const EMAIL_VERIFIED_PATH = "/email-verified";
 
 function appRedirect(path: string): string {
-  return `${window.location.origin}${path}`;
+  // Email links open in a browser, possibly on a different device.
+  return new URL(path, "https://e-learning-5sk.pages.dev").href;
 }
 
 export type AuthUser = {
@@ -28,6 +29,7 @@ export type PendingChildSignup = {
 export type CreatedParentAccount = {
   user: AuthUser;
   needsEmailConfirmation: boolean;
+  setupPending?: boolean;
 };
 
 export type ParentSession = {
@@ -105,17 +107,26 @@ export async function createParentAccount(
 
   const confirmed = isAuthEmailConfirmed(authData.user) && Boolean(authData.session);
   if (!confirmed) {
-    await supabase.auth.signOut();
+    if (authData.session) {
+      try { await supabase.auth.signOut({ scope: "local" }); }
+      catch (error) { console.warn("Signup session cleanup failed:", error); }
+    }
     return {
       user: { uid: authData.user.id, email: authData.user.email ?? cleanEmail },
       needsEmailConfirmation: true,
     };
   }
 
-  const parentId = await completePendingParentRegistration(authData.user, password);
+  let parentId: string | null = null;
+  try {
+    parentId = await completePendingParentRegistration(authData.user);
+  } catch (error) {
+    console.warn("Parent profile setup will retry on sign-in:", error);
+  }
   return {
     user: { uid: parentId ?? authData.user.id, email: authData.user.email ?? cleanEmail },
     needsEmailConfirmation: false,
+    setupPending: !parentId,
   };
 }
 
@@ -157,50 +168,42 @@ async function findParentByEmail(email: string) {
   return selectParent("email", email.trim().toLowerCase());
 }
 
-export async function completePendingParentRegistration(user: User, password?: string): Promise<string | null> {
+const pendingParentSetups = new Map<string, Promise<string | null>>();
+
+export function completePendingParentRegistration(user: User): Promise<string | null> {
+  const pending = pendingParentSetups.get(user.id);
+  if (pending) return pending;
+  const setup = provisionParentProfile(user).finally(() => pendingParentSetups.delete(user.id));
+  pendingParentSetups.set(user.id, setup);
+  return setup;
+}
+
+async function provisionParentProfile(user: User): Promise<string | null> {
   if (!isAuthEmailConfirmed(user)) return null;
 
   const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
   const username = typeof meta.username === "string" ? normalizeUsername(meta.username) : "";
   const email = user.email?.trim().toLowerCase() || "";
 
-  let parentId = username ? (await findParentByUsername(username))?.id ?? null : null;
-  if (!parentId && email) {
-    parentId = (await findParentByEmail(email))?.id ?? null;
+  let parentId = email ? (await findParentByEmail(email))?.id ?? null : null;
+  if (!parentId && username) {
+    const existing = await findParentByUsername(username);
+    if (existing) {
+      if (existing.email?.trim().toLowerCase() !== email || !email) {
+        throw new Error("This username belongs to a different parent profile. Ask the LearnEase administrator for help.");
+      }
+      parentId = existing.id;
+    }
   }
   if (!username && !parentId) return null;
 
   if (!parentId) {
-    const payload: Record<string, unknown> = { username };
-    if (password) payload.password = password;
-    if (email) payload.email = email;
-
-    let { data: parent, error } = await supabase.from("parents_accounts").insert([payload]).select("id").single();
-    if (error && /column|schema cache/i.test(error.message) && "email" in payload) {
-      delete payload.email;
-      const retry = await supabase.from("parents_accounts").insert([payload]).select("id").single();
-      parent = retry.data;
-      error = retry.error;
-    }
-    if (error && /null value|password/i.test(error.message) && !password) {
-      return null;
-    }
+    if (!email) return null;
+    const { data: parent, error } = await supabase.from("parents_accounts")
+      .insert([{ username, email }]).select("id").single();
     if (error) throw error;
     if (!parent) throw new Error("Failed to create parent account.");
     parentId = String(parent.id);
-  } else {
-    const updates: Record<string, unknown> = {};
-    if (password) updates.password = password;
-    if (email) updates.email = email;
-    if (Object.keys(updates).length) {
-      const { error } = await supabase.from("parents_accounts").update(updates).eq("id", parentId);
-      if (error && email && /column|schema cache/i.test(error.message)) {
-        delete updates.email;
-        if (Object.keys(updates).length) {
-          await supabase.from("parents_accounts").update(updates).eq("id", parentId);
-        }
-      }
-    }
   }
 
   const children = await getParentChildren(parentId);
@@ -266,7 +269,7 @@ export async function signInParentAccount(login: string, password: string): Prom
           await supabase.auth.signOut();
           throw new Error("Please confirm your email before signing in. Check your inbox for the confirmation link.");
         }
-        const parentId = (await completePendingParentRegistration(data.user, cleanPassword)) ?? parent?.id ?? null;
+        const parentId = (await completePendingParentRegistration(data.user)) ?? parent?.id ?? null;
         if (parentId) {
           const meta = data.user.user_metadata as { username?: string };
           return {

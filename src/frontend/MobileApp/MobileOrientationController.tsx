@@ -63,7 +63,7 @@ function isLogicQuestPath(pathname: string) {
 }
 
 function isGameHubPath(pathname: string) {
-  return GAME_HUB_PATHS.has(pathname);
+  return GAME_HUB_PATHS.has(pathname.toLowerCase().replace(/\/+$/, ""));
 }
 
 function isLandscapeGamePath(pathname: string) {
@@ -71,7 +71,7 @@ function isLandscapeGamePath(pathname: string) {
   return GAME_PATHS.has(pathname) || isColorsQuestPath(pathname) || isShapesQuestPath(pathname) || isLettersQuestPath(pathname) || isNumbersQuestPath(pathname) || isPhonicsQuestPath(pathname) || isLogicQuestPath(pathname);
 }
 
-/** Android app only: games may rotate; every other app page stays portrait. */
+/** Android app only: game menus rotate with the device, and gameplay uses landscape. */
 export default function MobileOrientationController() {
   const { pathname } = useLocation();
 
@@ -105,7 +105,9 @@ export default function MobileOrientationController() {
     if (!isMobileApp()) return;
 
     const applyOrientation = () => {
-      if (isLandscapeGamePath(pathname) || pathname.startsWith("/lesson/")) {
+      if (isGameHubPath(pathname)) {
+        window.AndroidOrientation?.allowGameRotation();
+      } else if (isLandscapeGamePath(pathname) || pathname.startsWith("/lesson/")) {
         window.AndroidOrientation?.lockLandscape?.();
       } else {
         window.AndroidOrientation?.lockPortrait();

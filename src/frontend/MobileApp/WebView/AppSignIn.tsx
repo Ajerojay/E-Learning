@@ -16,7 +16,10 @@ const TEACHER_USERNAME = "teacher";
 const TEACHER_PASSWORD = "teacher123";
 
 function teacherSiteUrl() {
-  const configuredUrl = String(import.meta.env.VITE_TEACHER_PORTAL_URL || "https://e-learning-5sk.pages.dev/").trim();
+  const productionOrigin = "https://e-learning-5sk.pages.dev";
+  const configuredUrl = String(import.meta.env.VITE_TEACHER_PORTAL_URL || productionOrigin).trim();
+  // Android must open the production site, even in builds configured with a Pages preview.
+  if (isMobileApp()) return `${productionOrigin}/teacher-login`;
   const withTeacherLogin = (base: string) => {
     const root = base.endsWith("/") ? base : `${base}/`;
     if (/teacher-login\/?$/i.test(root.replace(/\/$/, ""))) return root.endsWith("/") ? root : `${root}/`;

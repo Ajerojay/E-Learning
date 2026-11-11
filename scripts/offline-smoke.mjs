@@ -96,6 +96,16 @@ await check('nested lesson/game reloads work without internet', async () => {
     assert.match(html, /src="\/assets\//);
   }
 });
+await check('email verification and password reset navigations bypass the offline shell', async () => {
+  for (const path of ['/email-verified', '/app/email-verified', '/reset-password', '/app/reset-password']) {
+    let intercepted = false;
+    handlers.fetch({
+      request: { method: 'GET', mode: 'navigate', url: origin + path },
+      respondWith: () => { intercepted = true; },
+    });
+    assert.equal(intercepted, false, path);
+  }
+});
 await check('lazy game files load offline; database requests are never cached', async () => {
   const file = files.find(file => file.includes('GameRouter') && file.endsWith('.js'));
   let response; handlers.fetch({ request: new Request(`${origin}/${file}`), respondWith: p => { response = p; } });
