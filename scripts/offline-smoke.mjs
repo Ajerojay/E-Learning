@@ -69,17 +69,18 @@ const files = JSON.parse(worker.match(/const FILES = (.*);/)[1]);
 const handlers = {};
 const cacheData = new Map();
 const deleted = [];
+let legacyWorkerReplaced = false;
 const origin = 'https://test.local';
 const makeCache = name => ({
   add: async req => {
-    const path = decodeURIComponent(new URL(req.url).pathname.slice(1));
+    const path = decodeURIComponent(new URL(req.url).pathname.slice(1)) || 'index.html';
     assert.ok(existsSync(`dist/${path}`), `missing ${path}`);
     cacheData.set(`${name}:${req.url}`, new Response(path === 'index.html' ? readFileSync('dist/index.html', 'utf8') : `cached:${path}`));
   },
   match: async req => cacheData.get(`${name}:${typeof req === 'string' ? req : req.url ?? req.href}`)?.clone(),
 });
 vm.runInNewContext(worker, {
-  self: { registration: { scope: `${origin}/` }, location: { origin }, clients: { claim: async () => {} }, addEventListener: (name, fn) => { handlers[name] = fn; } },
+  self: { registration: { scope: `${origin}/`, active: {} }, location: { origin }, clients: { claim: async () => {} }, skipWaiting: async () => { legacyWorkerReplaced = true; }, addEventListener: (name, fn) => { handlers[name] = fn; } },
   caches: { open: async name => makeCache(name), keys: async () => ['learnease-shell-old', 'offline-lesson-videos'], delete: async name => { deleted.push(name); } },
   URL, Request, Promise, fetch: async () => { throw new Error('offline'); },
 });
@@ -88,6 +89,8 @@ await check('browser install saves every emitted script, style, image and audio 
   assert.ok(files.some(file => file.endsWith('.mp3')));
   assert.ok(files.some(file => file.includes('GameRouter') && file.endsWith('.js')));
   assert.equal(cacheData.size, files.length);
+  assert.ok(files.includes('/') && !files.includes('index.html'));
+  assert.ok(legacyWorkerReplaced);
 });
 await check('nested lesson/game reloads work without internet', async () => {
   for (const path of ['/lesson/letters', '/quest/colors/sort', '/parent-children']) {
@@ -96,8 +99,8 @@ await check('nested lesson/game reloads work without internet', async () => {
     assert.match(html, /src="\/assets\//);
   }
 });
-await check('email verification and password reset navigations bypass the offline shell', async () => {
-  for (const path of ['/email-verified', '/app/email-verified', '/reset-password', '/app/reset-password']) {
+await check('auth and teacher portal navigations bypass the offline shell', async () => {
+  for (const path of ['/email-verified', '/app/email-verified', '/reset-password', '/app/reset-password', '/teacher-login', '/teacher-dashboard']) {
     let intercepted = false;
     handlers.fetch({
       request: { method: 'GET', mode: 'navigate', url: origin + path },
