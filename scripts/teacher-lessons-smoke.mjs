@@ -5,6 +5,28 @@ import vm from "node:vm";
 import { createClient } from "@supabase/supabase-js";
 import ts from "typescript";
 
+test("lesson playback recognizes the saved YouTube Kids link and leaves video files alone", () => {
+  const { outputText } = ts.transpileModule(readFileSync("src/backend/lessonVideoSource.ts", "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  });
+  const exports = {};
+  vm.runInNewContext(outputText, { exports, URL });
+  const { getLessonYouTubeEmbed } = exports;
+  const expected = "https://www.youtube-nocookie.com/embed/ccEpTTZW34g?playsinline=1&rel=0";
+  for (const source of [
+    "https://www.youtubekids.com/watch?v=ccEpTTZW34g",
+    "https://www.youtube.com/watch?v=ccEpTTZW34g&list=test",
+    "https://youtu.be/ccEpTTZW34g",
+    "https://www.youtube.com/shorts/ccEpTTZW34g",
+  ]) assert.equal(getLessonYouTubeEmbed(source), expected);
+  for (const source of [
+    "https://example.com/letters.mp4",
+    "https://www.youtubekids.com.example.com/watch?v=ccEpTTZW34g",
+    "https://www.youtubekids.com/watch?v=invalid",
+    "blob:https://example.com/cached-video",
+  ]) assert.equal(getLessonYouTubeEmbed(source), null);
+});
+
 const { outputText } = ts.transpileModule(readFileSync("src/backend/teacherLessons.ts", "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 });

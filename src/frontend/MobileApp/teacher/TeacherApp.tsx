@@ -16,6 +16,7 @@ import { getActivityConfig, type ActivityConfig } from "../../../backend/activit
 import { classSettingsStatusMessage, publishActivityConfig, publishStudentAccess } from "../../../backend/classSettings";
 import { createOfflineLessonUrl, getOfflineLessons, removeOfflineLesson, saveOfflineLesson, type OfflineLesson } from "../../../backend/offlineLessonStore";
 import { archiveTeacherLesson, findLessonPublication, lessonErrorMessage, lessonFilePath, publishTeacherLesson, uploadLessonFile, type LessonWrite } from "../../../backend/teacherLessons";
+import { getLessonYouTubeEmbed } from "../../../backend/lessonVideoSource";
 import { cacheOfflineCategoryProgress, cacheOfflineLessons, cacheOfflineChild, getOfflineCategoryProgress, getOfflineChildrenFromSqlite, getOfflineLessonsFromSqlite } from "../../../backend/offlineSqlite";
 import { getAttendanceRecords, localDateKey } from "../../../backend/attendance";
 import { StudentMonthReport } from "./AttendanceReports";
@@ -940,6 +941,7 @@ function Lessons({ notify }: { notify: Notify }) {
     } finally { setPreviewLoading(false); }
   };
   const visible = lessons.filter(lesson => tab === "All" || categoryFromDb(lesson.category) === tab);
+  const youtubePreview = preview ? getLessonYouTubeEmbed(preview.url) : null;
 
   const libraryFull = !loading && !loadError && !availableCategories.length;
   return <><Heading eyebrow="CURRICULUM LIBRARY" title="Lessons & Videos" detail={libraryFull ? "All six categories have a lesson. Use Edit to replace a video." : "Manage one lesson for each of the six learning games."}><button className="ta-primary" disabled={loading || removing || !!loadError || libraryFull} onClick={openNew}><Upload /> Upload New Lesson</button></Heading>
@@ -981,12 +983,22 @@ function Lessons({ notify }: { notify: Notify }) {
       onCancel={() => setRemoval(null)}
       onConfirm={() => void archiveLesson()}
     />}
-    {preview && <div className="ta-overlay" onMouseDown={() => setPreview(null)}><section className="ta-modal ta-video-modal" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setPreview(null)}><X /></button><div className="ta-video-heading"><i>{lessonIcons[categoryFromDb(preview.lesson.category)] ?? lessonIcons.Others}</i><span><small>{categoryFromDb(preview.lesson.category)} VIDEO LESSON</small><h2>{preview.lesson.title}</h2></span></div><video src={preview.url} controls autoPlay playsInline onError={() => { setPreview(null); notify("This video could not be played. Please upload the video again."); }}>Your device does not support video playback.</video><p>{preview.lesson.description || "Watch this learning video."}</p></section></div>}
+    {preview && <div className="ta-overlay" onMouseDown={() => setPreview(null)}>
+      <section className="ta-modal ta-video-modal" onMouseDown={event => event.stopPropagation()}>
+        <button className="ta-close" aria-label="Close video preview" onClick={() => setPreview(null)}><X /></button>
+        <div className="ta-video-heading"><i>{lessonIcons[categoryFromDb(preview.lesson.category)] ?? lessonIcons.Others}</i><span><small>{categoryFromDb(preview.lesson.category)} VIDEO LESSON</small><h2>{preview.lesson.title}</h2></span></div>
+        {youtubePreview
+          ? <iframe src={youtubePreview} title={preview.lesson.title} allow="encrypted-media; fullscreen; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen />
+          : <video src={preview.url} controls autoPlay playsInline onError={() => { setPreview(null); notify("This video could not be played. Check the file or use a direct video link."); }}>Your device does not support video playback.</video>}
+        <p>{preview.lesson.description || "Watch this learning video."}</p>
+        {youtubePreview && <p><a href={preview.url} target="_blank" rel="noopener noreferrer">Open original video</a></p>}
+      </section>
+    </div>}
     {upload && <div className="ta-overlay" onMouseDown={() => !isSaving.current && closeForm()}>
       <form className="ta-modal ta-form" onMouseDown={event => event.stopPropagation()} onSubmit={saveLesson} aria-busy={saving}>
         <button type="button" className="ta-close" aria-label="Close lesson form" disabled={saving} onClick={closeForm}><X /></button>
         <h2>{editing ? "Edit Video Lesson" : "Upload New Video Lesson"}</h2>
-        <p>Choose a lesson category and provide a file or a direct video URL.</p>
+        <p>Choose a lesson category and provide a file or video link.</p>
         <label>Lesson category
           <select disabled={saving} value={category} onChange={event => setCategory(event.target.value)}>
             {lessonCategories.map(value => <option disabled={lessons.some(item =>
@@ -1005,7 +1017,7 @@ function Lessons({ notify }: { notify: Notify }) {
             }} />
           </label>
           <span>OR</span>
-          <label>{editing ? "Replace with direct video URL (optional)" : "Direct video URL"}
+          <label>{editing ? "Replace with a video link (optional)" : "Video link"}
             <input type="url" disabled={saving} value={videoUrl} onChange={event => {
               setVideoUrl(event.target.value);
               if (event.target.value && fileInput.current) {
@@ -1013,7 +1025,7 @@ function Lessons({ notify }: { notify: Notify }) {
                 setFile(null);
               }
             }} placeholder="https://example.com/lesson.mp4" />
-            <small>Use a direct MP4, WebM, or hosted video-file link.</small>
+            <small>Use a direct video file, YouTube, or YouTube Kids link. YouTube videos need internet to play.</small>
           </label>
         </div>
         {formError && <div className="ta-lesson-error" role="alert">{formError}</div>}

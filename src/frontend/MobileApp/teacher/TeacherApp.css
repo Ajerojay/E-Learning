@@ -87,6 +87,7 @@
 .ta-video-heading>i{width:52px;height:52px;display:grid;place-items:center;flex:0 0 auto;border-radius:16px;background:#f1eaff;font-style:normal;font-size:29px}
 .ta-video-heading span{min-width:0}.ta-video-heading small{color:#8064bd;font-size:9px;letter-spacing:.1em}.ta-video-heading h2{margin:2px 0}
 .ta-video-modal video{display:block;width:100%;max-height:62dvh;border-radius:16px;background:#111;box-shadow:0 10px 30px rgba(25,27,40,.2)}
+.ta-video-modal iframe{display:block;width:100%;aspect-ratio:16/9;max-height:62dvh;border:0;border-radius:16px;background:#111}
 .ta-video-modal>p{margin:12px 2px 0}.ta-thumb>button:disabled{opacity:.65}
 @keyframes ta-toast-center{from{opacity:0;transform:translate(-50%,-44%) scale(.96)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 @media(max-width:720px){.teacher-app .ta-toast{top:48%;bottom:auto;right:auto}.ta-video-modal{padding:16px}.ta-video-modal video{max-height:55dvh}}
