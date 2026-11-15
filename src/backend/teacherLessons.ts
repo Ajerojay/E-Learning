@@ -85,13 +85,32 @@ export async function publishTeacherLesson(slot: LessonPublication, payload: Les
   throw new Error(writeError ? `Could not publish the lesson. ${writeError.message}` : "Supabase did not save the lesson. Refresh and try again.");
 }
 
+function isDatabaseUnavailable(status: number, code?: string) {
+  return status === 0 || status === 502 || status === 503 || status === 504 || /^PGRST00[0-3]$/.test(code ?? "");
+}
+
 export async function archiveTeacherLesson(lesson: { id: string; title: string; video_path: string }) {
-  const query = supabase.from("video_lessons").update({ is_published: false })
-    .eq("id", lesson.id).eq("is_published", true).eq("title", lesson.title);
-  const matchedVideo = lesson.video_path == null ? query.is("video_path", null) : query.eq("video_path", lesson.video_path);
-  const { data, error } = await matchedVideo.select("id,is_published").maybeSingle();
-  if (!error && data?.is_published === false) return;
-  const { data: current } = await supabase.from("video_lessons").select("id,is_published").eq("id", lesson.id).maybeSingle();
-  if (current?.is_published === false) return;
-  throw new Error(error ? `Could not remove the lesson. ${error.message}` : "The lesson may have changed or is still published. Refresh and try again.");
+  const retryDelays = [0, 1000, 2500];
+  for (const delay of retryDelays) {
+    if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+    const query = supabase.from("video_lessons").update({ is_published: false })
+      .eq("id", lesson.id).eq("is_published", true).eq("title", lesson.title);
+    const matchedVideo = lesson.video_path == null ? query.is("video_path", null) : query.eq("video_path", lesson.video_path);
+    const { data, error, status } = await matchedVideo.select("id,is_published").maybeSingle();
+    if (!error && data?.is_published === false) return;
+    if (error && isDatabaseUnavailable(status, error.code)) continue;
+
+    const verification = await supabase.from("video_lessons").select("id,is_published")
+      .eq("id", lesson.id).maybeSingle();
+    if (verification.data?.is_published === false) return;
+    if (error) throw new Error(`Could not remove the lesson. ${error.message}`);
+    if (verification.error && isDatabaseUnavailable(verification.status, verification.error.code)) continue;
+    throw new Error("The lesson may have changed or is still published. Refresh and try again.");
+  }
+
+  // The last request may have reached the database even if its response timed out.
+  const { data } = await supabase.from("video_lessons").select("id,is_published")
+    .eq("id", lesson.id).maybeSingle();
+  if (data?.is_published === false) return;
+  throw new Error("Supabase is temporarily unavailable. The removal could not be confirmed. Try again in a moment.");
 }

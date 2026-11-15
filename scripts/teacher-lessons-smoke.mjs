@@ -27,7 +27,7 @@ const replacement = {
   is_published: true,
 };
 
-function fixture({ initialRows = [original], ignoreUpdates = false, loseUpdateResponse = false, storedVideoSize } = {}) {
+function fixture({ initialRows = [original], ignoreUpdates = false, loseUpdateResponse = false, storedVideoSize, unavailableUpdates = 0 } = {}) {
   const rows = initialRows.map(row => ({ ...row }));
   const writes = [];
   const uploads = [];
@@ -59,6 +59,9 @@ function fixture({ initialRows = [original], ignoreUpdates = false, loseUpdateRe
       }
       if (init.method === "PATCH") {
         writes.push("update");
+        if (unavailableUpdates-- > 0) {
+          return Response.json({ code: "PGRST002", message: "Could not query the database for the schema cache. Retrying." }, { status: 503 });
+        }
         if (ignoreUpdates) return Response.json([]);
         for (const row of matches) Object.assign(row, JSON.parse(init.body));
         if (loseUpdateResponse && matches.length) return Response.json({ message: "Response lost" }, { status: 500 });
@@ -69,7 +72,11 @@ function fixture({ initialRows = [original], ignoreUpdates = false, loseUpdateRe
     } },
   });
   const module = { exports: {} };
-  vm.runInNewContext(outputText, { exports: module.exports, require: () => ({ supabase }) });
+  vm.runInNewContext(outputText, {
+    exports: module.exports,
+    require: () => ({ supabase }),
+    setTimeout: callback => queueMicrotask(callback),
+  });
   return { ...module.exports, rows, writes, uploads };
 }
 
@@ -94,6 +101,28 @@ test("a zero-row delete never reports success while the lesson is still publishe
   const lessons = fixture({ ignoreUpdates: true });
   await assert.rejects(lessons.archiveTeacherLesson(original), /still published/);
   assert.equal(lessons.rows[0].is_published, true);
+  assert.equal(lessons.writes.length, 1);
+});
+
+test("delete retries a temporary Supabase schema-cache failure", async () => {
+  const lessons = fixture({ unavailableUpdates: 2 });
+  await lessons.archiveTeacherLesson(original);
+  assert.equal(lessons.rows[0].is_published, false);
+  assert.equal(lessons.writes.length, 3);
+});
+
+test("a persistent schema-cache failure stops after three attempts without removing the lesson", async () => {
+  const lessons = fixture({ unavailableUpdates: 5 });
+  await assert.rejects(lessons.archiveTeacherLesson(original), /removal could not be confirmed/);
+  assert.equal(lessons.rows[0].is_published, true);
+  assert.equal(lessons.writes.length, 3);
+});
+
+test("delete confirms an archive whose write response was lost", async () => {
+  const lessons = fixture({ loseUpdateResponse: true });
+  await lessons.archiveTeacherLesson(original);
+  assert.equal(lessons.rows[0].is_published, false);
+  assert.equal(lessons.writes.length, 1);
 });
 
 test("an empty category accepts a fresh row and later blocks a different draft", async () => {
