@@ -314,7 +314,7 @@ export default function LessonPage() {
             setOnlineVideoUrl(offlineUrl);
             setPlaybackUrl(online ? offlineUrl : "");
             setOfflineReady(false);
-            setOfflineMessage("This YouTube lesson needs an internet connection.");
+            setOfflineMessage("This video needs an internet connection.");
             setLoading(false);
             return;
           }
@@ -347,7 +347,7 @@ export default function LessonPage() {
       if (getLessonYouTubeEmbed(videoUrl)) {
         setOfflineReady(false);
         setPlaybackUrl(videoUrl);
-        setOfflineMessage("This YouTube lesson needs an internet connection.");
+        setOfflineMessage("This video needs an internet connection.");
         setLoading(false);
         return;
       }
