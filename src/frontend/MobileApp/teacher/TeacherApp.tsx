@@ -608,6 +608,47 @@ function Students({ notify }: { notify: Notify }) {
   </>;
 }
 
+function LessonRemovalDialog({ lesson, busy, error, onCancel, onConfirm }: {
+  lesson: LessonRecord;
+  busy: boolean;
+  error: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const discard = !!lesson.offlineDraft;
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    dialog?.showModal();
+    return () => dialog?.close();
+  }, []);
+
+  return <dialog
+    ref={dialogRef}
+    className="ta-modal ta-lesson-removal"
+    aria-labelledby="lesson-removal-title"
+    aria-describedby="lesson-removal-detail"
+    aria-busy={busy}
+    onCancel={event => {
+      event.preventDefault();
+      if (!busy) onCancel();
+    }}
+  >
+    <div className="ta-lesson-removal-icon"><Trash2 aria-hidden="true" /></div>
+    <h2 id="lesson-removal-title">{discard ? "Discard this draft?" : "Delete this lesson?"}</h2>
+    <p id="lesson-removal-detail">
+      <strong>{lesson.title}</strong> will be removed from {discard ? "your saved drafts" : "the published lesson library"}.
+    </p>
+    {error && <div className="ta-lesson-error" role="alert">{error}</div>}
+    <div className="ta-lesson-removal-actions">
+      <button type="button" className="ta-secondary" disabled={busy} onClick={onCancel} autoFocus>Cancel</button>
+      <button type="button" className="ta-lesson-delete" disabled={busy} onClick={onConfirm}>
+        <Trash2 aria-hidden="true" /> {busy ? "Removing…" : discard ? "Discard Draft" : "Delete Lesson"}
+      </button>
+    </div>
+  </dialog>;
+}
+
 function Lessons({ notify }: { notify: Notify }) {
   const [tab, setTab] = useState("All");
   const [lessons, setLessons] = useState<LessonRecord[]>([]);
@@ -616,6 +657,9 @@ function Lessons({ notify }: { notify: Notify }) {
   const [upload, setUpload] = useState(false);
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [removal, setRemoval] = useState<LessonRecord | null>(null);
+  const [removalError, setRemovalError] = useState("");
+  const removalInProgress = useRef(false);
   const [formError, setFormError] = useState("");
   const [syncError, setSyncError] = useState("");
   const [syncing, setSyncing] = useState(false);
@@ -635,7 +679,7 @@ function Lessons({ notify }: { notify: Notify }) {
   const [previewLoading, setPreviewLoading] = useState(false);
 
   const syncOfflineLessons = useCallback(async () => {
-    if (!navigator.onLine || isSyncing.current) return;
+    if (!navigator.onLine || isSyncing.current || removalInProgress.current) return;
     isSyncing.current = true;
     let published = false;
     try {
@@ -714,7 +758,8 @@ function Lessons({ notify }: { notify: Notify }) {
       }
       const published = (data ?? []) as LessonRecord[];
       setLessons([...queuedLessons, ...published]);
-      void cacheOfflineLessons(published.map(lesson => ({ id: String(lesson.id), title: lesson.title, description: lesson.description, category: lesson.category, videoPath: lesson.video_path, isPublished: lesson.is_published }))).catch(error => console.warn("Teacher lesson cache failed:", error));
+      await cacheOfflineLessons(published.map(lesson => ({ id: String(lesson.id), title: lesson.title, description: lesson.description, category: lesson.category, videoPath: lesson.video_path, isPublished: lesson.is_published })), "snapshot")
+        .catch(error => console.warn("Teacher lesson cache failed:", error));
     } catch (error) {
       if (request === loadRequest.current) {
         console.error("Teacher lessons error:", error);
@@ -834,26 +879,39 @@ function Lessons({ notify }: { notify: Notify }) {
       setSaving(false);
     }
   };
-  const archiveLesson = async (lesson: LessonRecord) => {
-    if (removing || isSyncing.current) return;
-    if (!lesson.offlineDraft && !navigator.onLine) { notify("Go online to remove a published lesson."); return; }
-    const confirmation = lesson.offlineDraft ? `Discard the saved draft “${lesson.title}”?` : `Remove “${lesson.title}” from published lessons?`;
-    if (!window.confirm(confirmation)) return;
+  const requestLessonRemoval = (lesson: LessonRecord) => {
+    if (isSyncing.current || removalInProgress.current) return;
+    setRemovalError("");
+    setRemoval(lesson);
+  };
+  const archiveLesson = async () => {
+    const lesson = removal;
+    if (!lesson || removalInProgress.current) return;
+    if (isSyncing.current) { setRemovalError("Wait for lesson syncing to finish and try again."); return; }
+    if (!lesson.offlineDraft && !navigator.onLine) { setRemovalError("Go online to remove a published lesson."); return; }
+    removalInProgress.current = true;
     setRemoving(true);
+    setRemovalError("");
     try {
       if (lesson.offlineDraft) {
         await removeOfflineLesson(lesson.offlineDraft.id);
         setSyncError("");
       } else {
         await archiveTeacherLesson(lesson);
+        ++loadRequest.current;
+        await cacheOfflineLessons([{
+          id: lesson.id, title: lesson.title, description: lesson.description,
+          category: lesson.category, videoPath: lesson.video_path, isPublished: false,
+        }]).catch(error => console.warn("Teacher lesson cache failed:", error));
       }
       setLessons(current => current.filter(item => item.id !== lesson.id));
       await fetchLessons();
+      setRemoval(null);
       notify(lesson.offlineDraft ? "Draft discarded" : "Lesson removed");
     } catch (error) {
-      notify(lessonErrorMessage(error));
-      await fetchLessons();
+      setRemovalError(lessonErrorMessage(error));
     } finally {
+      removalInProgress.current = false;
       setRemoving(false);
     }
   };
@@ -908,7 +966,7 @@ function Lessons({ notify }: { notify: Notify }) {
               {lesson.offlineDraft
                 ? <button disabled={previewLoading} onClick={() => void previewLesson(lesson)}><Video /> Preview</button>
                 : <button disabled={removing} onClick={() => openEdit(lesson)}><Pencil /> Edit</button>}
-              <button disabled={removing || syncing} onClick={() => void archiveLesson(lesson)}>
+              <button disabled={removing || syncing} onClick={() => requestLessonRemoval(lesson)}>
                 <Trash2 /> {lesson.offlineDraft ? "Discard Draft" : "Delete"}
               </button>
             </footer>
@@ -916,6 +974,13 @@ function Lessons({ notify }: { notify: Notify }) {
         </article>;
       })}
     </section>}
+    {removal && <LessonRemovalDialog
+      lesson={removal}
+      busy={removing}
+      error={removalError}
+      onCancel={() => setRemoval(null)}
+      onConfirm={() => void archiveLesson()}
+    />}
     {preview && <div className="ta-overlay" onMouseDown={() => setPreview(null)}><section className="ta-modal ta-video-modal" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setPreview(null)}><X /></button><div className="ta-video-heading"><i>{lessonIcons[categoryFromDb(preview.lesson.category)] ?? lessonIcons.Others}</i><span><small>{categoryFromDb(preview.lesson.category)} VIDEO LESSON</small><h2>{preview.lesson.title}</h2></span></div><video src={preview.url} controls autoPlay playsInline onError={() => { setPreview(null); notify("This video could not be played. Please upload the video again."); }}>Your device does not support video playback.</video><p>{preview.lesson.description || "Watch this learning video."}</p></section></div>}
     {upload && <div className="ta-overlay" onMouseDown={() => !isSaving.current && closeForm()}>
       <form className="ta-modal ta-form" onMouseDown={event => event.stopPropagation()} onSubmit={saveLesson} aria-busy={saving}>

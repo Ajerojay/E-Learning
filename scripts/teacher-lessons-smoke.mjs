@@ -155,3 +155,29 @@ test("a duplicate storage response only succeeds when the existing video has the
     /Video upload failed/,
   );
 });
+
+test("a confirmed removal and a refreshed catalog both evict stale offline lessons", async () => {
+  const { outputText: cacheCode } = ts.transpileModule(readFileSync("src/backend/offlineSqlite.ts", "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  });
+  const module = { exports: {} };
+  const storage = new Map();
+  vm.runInNewContext(cacheCode, {
+    exports: module.exports,
+    require: name => name === "@capacitor/core" ? { Capacitor: { isNativePlatform: () => false } } : {},
+    localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
+  });
+  const cache = module.exports;
+  const first = { id: "removed", title: "Numbers test", category: "Numbers", videoPath: "removed.mp4" };
+  const second = { id: "retained", title: "Number basics", category: "Numbers", videoPath: "retained.mp4" };
+  const ids = async () => Array.from(await cache.getOfflineLessonsFromSqlite(), row => row.id);
+  await cache.cacheOfflineLessons([first, second]);
+  await cache.cacheOfflineLessons([{ ...first, isPublished: false }]);
+  assert.deepEqual(await ids(), [second.id]);
+
+  await cache.cacheOfflineLessons([first]);
+  await cache.cacheOfflineLessons([second], "snapshot");
+  assert.deepEqual(await ids(), [second.id]);
+  await cache.cacheOfflineLessons([], "snapshot");
+  assert.deepEqual(await ids(), []);
+});
