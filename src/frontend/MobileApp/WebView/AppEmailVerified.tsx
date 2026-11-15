@@ -60,7 +60,6 @@ export default function AppEmailVerified() {
         }
         if (active) {
           setVerified(true);
-          navigate(PARENT_SIGN_IN_PATH, { replace: true, state: { emailJustVerified: true } });
         }
       })
       .catch((caughtError) => {

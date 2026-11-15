@@ -190,7 +190,8 @@ async function provisionParentProfile(user: User): Promise<string | null> {
   const username = typeof meta.username === "string" ? normalizeUsername(meta.username) : "";
   const email = user.email?.trim().toLowerCase() || "";
 
-  let parentId = email ? (await findParentByEmail(email))?.id ?? null : null;
+  const emailParent = email ? await findParentByEmail(email) : null;
+  let parentId = emailParent?.id ?? null;
   if (!parentId && username) {
     const existing = await findParentByUsername(username);
     if (existing) {
@@ -214,7 +215,13 @@ async function provisionParentProfile(user: User): Promise<string | null> {
   }
 
   const children = await getParentChildren(parentId);
-  if (children.length === 0 && typeof meta.child_name === "string" && meta.child_name.trim()) {
+  const signupChildExists = children.some(child =>
+    child.childName?.trim() === String(meta.child_name ?? "").trim()
+    && (!meta.child_date_of_birth || child.dateOfBirth === meta.child_date_of_birth)
+    && (!meta.child_pin_code || child.pinCode === meta.child_pin_code),
+  );
+  if ((children.length === 0 || meta.pending_registration) && !signupChildExists
+    && typeof meta.child_name === "string" && meta.child_name.trim()) {
     await createChildProfile(undefined, {
       parentId,
       childName: String(meta.child_name),
@@ -278,6 +285,7 @@ export async function signInParentAccount(login: string, password: string): Prom
         }
         const parentId = (await completePendingParentRegistration(data.user)) ?? parent?.id ?? null;
         if (parentId) {
+          parent = await findParentByEmail(authEmail) ?? parent;
           const meta = data.user.user_metadata as { username?: string };
           return {
             id: String(parentId),

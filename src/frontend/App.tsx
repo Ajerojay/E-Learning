@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { lazy, Suspense, useEffect, useLayoutEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import "./App.css";
 import { getOrCreateActiveChildId, type SubjectKey } from "../backend/childProgress";
 import { completePendingParentRegistration, EMAIL_VERIFIED_PATH, RESET_PASSWORD_PATH } from "../backend/supabaseAuth";
@@ -76,9 +76,12 @@ function StudentGameGuard({ category, children }: { category: SubjectKey; childr
 
 function AuthEmailRedirect() {
   const navigate = useNavigate();
+  const handled = useRef(false);
   useEffect(() => {
+    if (handled.current) return;
+    handled.current = true;
     const type = pendingEmailLink.type;
-    const path = window.location.pathname;
+    const path = pendingEmailLink.path;
     if ([EMAIL_VERIFIED_PATH, RESET_PASSWORD_PATH, `/app${EMAIL_VERIFIED_PATH}`, `/app${RESET_PASSWORD_PATH}`].includes(path)) return;
     if (type === "recovery") {
       navigate(RESET_PASSWORD_PATH, { replace: true });
