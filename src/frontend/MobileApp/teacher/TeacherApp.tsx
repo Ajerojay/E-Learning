@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Activity, Award, BarChart3, Bell, BookOpen, CalendarDays, Camera,
@@ -14,7 +14,7 @@ import { buildChildAchievements, normalizeSubjectKey, SUBJECT_KEYS, type ChildAc
 import { getStudentGameAccess } from "../../../backend/studentGameAccess";
 import { getActivityConfig, type ActivityConfig } from "../../../backend/activityConfig";
 import { classSettingsStatusMessage, publishActivityConfig, publishStudentAccess } from "../../../backend/classSettings";
-import { createOfflineLessonUrl, getOfflineLessons, removeOfflineLesson, saveOfflineLesson } from "../../../backend/offlineLessonStore";
+import { createOfflineLessonUrl, getOfflineLessons, removeOfflineLesson, saveOfflineLesson, type OfflineLesson } from "../../../backend/offlineLessonStore";
 import { cacheOfflineCategoryProgress, cacheOfflineLessons, cacheOfflineChild, getOfflineCategoryProgress, getOfflineChildrenFromSqlite, getOfflineLessonsFromSqlite } from "../../../backend/offlineSqlite";
 import { getAttendanceRecords, localDateKey } from "../../../backend/attendance";
 import { StudentMonthReport } from "./AttendanceReports";
@@ -80,9 +80,45 @@ type LessonRecord = {
   category: string;
   video_path: string;
   is_published: boolean;
-  offlineUrl?: string;
-  offlineStatus?: "queued";
+  offlineDraft?: OfflineLesson;
 };
+
+type LessonWrite = {
+  title: string;
+  description: string;
+  grade_level: string;
+  category: string;
+  video_path: string;
+  is_published: true;
+};
+
+function lessonErrorMessage(error: unknown) {
+  if (typeof error === "object" && error !== null && "message" in error && typeof error.message === "string") {
+    return error.message;
+  }
+  return "Unable to save the lesson. Please try again.";
+}
+
+async function uploadLessonFile(path: string, video: Blob) {
+  const { error } = await supabase.storage.from("lesson-videos").upload(path, video, { upsert: false });
+  // Each draft owns a unique path. An existing object here came from an earlier attempt.
+  if (error && !/already exists|duplicate/i.test(error.message)) {
+    throw new Error(`Video upload failed. ${error.message}`);
+  }
+}
+
+function lessonFilePath(id: string, name: string, category: string) {
+  const safeName = name.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-120);
+  return `Nursery/${category}/${id}-${safeName || "video"}`;
+}
+
+async function publishNewLesson(id: string, payload: LessonWrite) {
+  const { error } = await supabase.from("video_lessons").insert({ id, ...payload });
+  if (!error) return;
+  // A request can time out after the server has already saved the row.
+  const { data } = await supabase.from("video_lessons").select("id").eq("id", id).maybeSingle();
+  if (!data) throw new Error(`Could not publish the lesson. ${error.message}`);
+}
 
 type RecentGameActivity = {
   id: string;
@@ -615,6 +651,14 @@ function Lessons({ notify }: { notify: Notify }) {
   const [loadError, setLoadError] = useState("");
   const [upload, setUpload] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [syncError, setSyncError] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const isSyncing = useRef(false);
+  const isSaving = useRef(false);
+  const draftId = useRef("");
+  const fileInput = useRef<HTMLInputElement>(null);
+  const fileAttempt = useRef<{ file: File; category: string; path: string } | null>(null);
   const [editing, setEditing] = useState<LessonRecord | null>(null);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<string>("Colors");
@@ -624,46 +668,74 @@ function Lessons({ notify }: { notify: Notify }) {
   const [preview, setPreview] = useState<{ lesson: LessonRecord; url: string } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
-  const syncOfflineLessons = async () => {
-    if (!navigator.onLine) return;
-    const queued = await getOfflineLessons();
-    for (const lesson of queued) {
-      let videoPath = lesson.videoUrl?.trim() || "";
-      if (lesson.video) {
-        videoPath = `Nursery/${lesson.category}/${Date.now()}-${lesson.videoName}`;
-        const uploadResult = await supabase.storage.from("lesson-videos").upload(videoPath, lesson.video, { upsert: false });
-        if (uploadResult.error) continue;
+  const syncOfflineLessons = useCallback(async () => {
+    if (!navigator.onLine || isSyncing.current) return;
+    isSyncing.current = true;
+    let published = false;
+    try {
+      const queued = await getOfflineLessons();
+      if (!queued.length) return false;
+      setSyncing(true);
+      setSyncError("");
+      for (const lesson of queued) {
+        try {
+          const publishId = lesson.publishId ?? crypto.randomUUID();
+          if (!lesson.publishId) await saveOfflineLesson({ ...lesson, publishId });
+          const { data, error } = await supabase.from("video_lessons").select("id")
+            .eq("category", lesson.category).eq("is_published", true).limit(1).maybeSingle();
+          if (error) throw error;
+          if (data && String(data.id) !== publishId) {
+            throw new Error(`${categoryFromDb(lesson.category)} already has a published lesson.`);
+          }
+          if (!data) {
+            let videoPath = lesson.videoUrl?.trim() || "";
+            if (lesson.video) {
+              videoPath = lessonFilePath(publishId, lesson.videoName, lesson.category);
+              await uploadLessonFile(videoPath, lesson.video);
+            }
+            if (!videoPath) throw new Error("This draft has no video.");
+            await publishNewLesson(publishId, {
+              title: lesson.title,
+              description: lesson.description,
+              grade_level: lesson.gradeLevel,
+              category: lesson.category,
+              video_path: videoPath,
+              is_published: true,
+            });
+          }
+          await removeOfflineLesson(lesson.id);
+          published = true;
+        } catch (error) {
+          setSyncError(`Could not sync “${lesson.title}”. ${lessonErrorMessage(error)}`);
+        }
       }
-      if (!videoPath) continue;
-      const insertResult = await supabase.from("video_lessons").insert([{
+    } catch (error) {
+      console.warn("Teacher lesson drafts could not be read:", error);
+    } finally {
+      isSyncing.current = false;
+      setSyncing(false);
+    }
+    return published;
+  }, []);
+
+  const fetchLessons = useCallback(async () => {
+    setLoading(true);
+    setLoadError("");
+    try {
+      const { data, error } = await supabase.from("video_lessons").select("id,title,description,category,video_path,is_published").eq("is_published", true).order("created_at", { ascending: false });
+      const queued = await getOfflineLessons().catch(() => []);
+      const queuedLessons: LessonRecord[] = queued.map(lesson => ({
+        id: lesson.id,
         title: lesson.title,
         description: lesson.description,
-        grade_level: lesson.gradeLevel,
         category: lesson.category,
-        video_path: videoPath,
+        video_path: "",
         is_published: true,
-      }]);
-      if (!insertResult.error) await removeOfflineLesson(lesson.id);
-    }
-  };
-
-  const fetchLessons = async () => {
-    setLoading(true); setLoadError("");
-    const { data, error } = await supabase.from("video_lessons").select("id,title,description,category,video_path,is_published").eq("is_published", true).order("created_at", { ascending: false });
-    const queued = await getOfflineLessons();
-    const queuedLessons: LessonRecord[] = queued.map(lesson => ({
-      id: lesson.id,
-      title: lesson.title,
-      description: lesson.description,
-      category: lesson.category,
-      video_path: "",
-      is_published: true,
-      offlineUrl: createOfflineLessonUrl(lesson),
-      offlineStatus: "queued",
-    }));
-    if (error) {
-      const cachedLessons = await getOfflineLessonsFromSqlite();
-      if (cachedLessons.length || queuedLessons.length) {
+        offlineDraft: lesson,
+      }));
+      if (error) {
+        const cachedLessons = await getOfflineLessonsFromSqlite().catch(() => []);
+        if (!cachedLessons.length && !queuedLessons.length) throw error;
         setLessons([...queuedLessons, ...cachedLessons.map(lesson => ({
           id: lesson.id,
           title: lesson.title,
@@ -672,49 +744,70 @@ function Lessons({ notify }: { notify: Notify }) {
           video_path: lesson.video_path,
           is_published: true,
         }))]);
-      } else {
-        console.error("Teacher lessons error:", error.message);
-        setLoadError("Unable to load video lessons. Please try again.");
-        setLessons([]);
+        return;
       }
-    } else {
-      await cacheOfflineLessons((data ?? []).map(lesson => ({ id: String(lesson.id), title: lesson.title, description: lesson.description, category: lesson.category, videoPath: lesson.video_path, isPublished: lesson.is_published })));
-      setLessons([...queuedLessons, ...((data ?? []) as LessonRecord[])]);
+      const published = (data ?? []) as LessonRecord[];
+      setLessons([...queuedLessons.filter(draft => !published.some(lesson => lesson.id === draft.offlineDraft?.publishId)), ...published]);
+      void cacheOfflineLessons(published.map(lesson => ({ id: String(lesson.id), title: lesson.title, description: lesson.description, category: lesson.category, videoPath: lesson.video_path, isPublished: lesson.is_published }))).catch(error => console.warn("Teacher lesson cache failed:", error));
+    } catch (error) {
+      console.error("Teacher lessons error:", error);
+      setLoadError("Unable to load video lessons. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  };
+  }, []);
+  const retrySync = useCallback(async () => {
+    if (await syncOfflineLessons()) await fetchLessons();
+  }, [fetchLessons, syncOfflineLessons]);
+  const refresh = useCallback(() => {
+    void fetchLessons().then(retrySync);
+  }, [fetchLessons, retrySync]);
   useEffect(() => {
-    const refresh = () => { void syncOfflineLessons().then(fetchLessons); };
-    void refresh();
+    void Promise.resolve().then(refresh);
     window.addEventListener("online", refresh);
     return () => window.removeEventListener("online", refresh);
-  }, []);
+  }, [refresh]);
+  useEffect(() => {
+    const url = preview?.url;
+    return () => { if (url?.startsWith("blob:")) URL.revokeObjectURL(url); };
+  }, [preview]);
 
-  const closeForm = () => { setUpload(false); setEditing(null); setTitle(""); setCategory("Colors"); setDescription(""); setFile(null); setVideoUrl(""); };
+  const closeForm = () => {
+    setUpload(false); setEditing(null); setTitle(""); setCategory("Colors"); setDescription(""); setFile(null); setVideoUrl(""); setFormError("");
+    draftId.current = "";
+    fileAttempt.current = null;
+  };
+  const availableCategories = lessonCategories.filter(value => !lessons.some(item => categoryFromDb(item.category) === value));
   const openNew = () => {
-    const used = new Set(lessons.map(item => categoryFromDb(item.category)));
-    const available = lessonCategories.find(item => !used.has(item));
-    if (!available) { notify("Maximum of 6 lessons reached. Edit an existing lesson to replace its video."); return; }
-    setCategory(available); setUpload(true);
+    if (!availableCategories.length) return;
+    setCategory(availableCategories[0]); setUpload(true);
   };
   const openEdit = (lesson: LessonRecord) => { setEditing(lesson); setTitle(lesson.title); setCategory(categoryFromDb(lesson.category)); setDescription(lesson.description ?? ""); setFile(null); setVideoUrl(/^https?:\/\//i.test(lesson.video_path) ? lesson.video_path : ""); setUpload(true); };
   const saveLesson = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (isSaving.current) return;
+    setFormError("");
     const cleanUrl = videoUrl.trim();
-    if (!title.trim() || (!editing && !file && !cleanUrl)) { notify("Choose a video file or enter a direct video URL."); return; }
-    if (cleanUrl && !/^https?:\/\//i.test(cleanUrl)) { notify("Enter a complete video URL starting with http:// or https://."); return; }
+    if (!title.trim()) { setFormError("Enter a video title."); return; }
+    if (!editing && !file && !cleanUrl) { setFormError("Choose a video file or enter a direct video URL."); return; }
+    if (cleanUrl && !/^https?:\/\//i.test(cleanUrl)) { setFormError("Enter a complete video URL starting with http:// or https://."); return; }
+    if (file && !file.size) { setFormError("Choose a video file that is not empty."); return; }
     const duplicate = lessons.some(item => item.id !== editing?.id && categoryFromDb(item.category) === category);
-    if (duplicate) { notify(`${category} already has a lesson. Edit that lesson instead.`); return; }
-    const configuredCategories = new Set(lessons.map(item => categoryFromDb(item.category)).filter(item => lessonCategories.includes(item as typeof lessonCategories[number])));
-    if (!editing && configuredCategories.size >= lessonCategories.length) { notify("Maximum of 6 lessons reached."); return; }
+    if (duplicate) { setFormError(`${category} already has a lesson. Edit that lesson instead.`); return; }
+    isSaving.current = true;
     setSaving(true);
     try {
-      if (!navigator.onLine && !editing && (file || cleanUrl)) {
+      const dbCategory = categoryToDb(category);
+      const lessonDescription = description.trim() || `${category} lesson video`;
+      if (!navigator.onLine) {
+        if (editing) throw new Error("Go online to update this published lesson.");
+        const id = draftId.current ||= crypto.randomUUID();
         await saveOfflineLesson({
-          id: `offline-${Date.now()}-${file?.name || "link"}`,
+          id,
+          publishId: id,
           title: title.trim(),
-          description: description.trim() || `${category} lesson video`,
-          category: categoryToDb(category),
+          description: lessonDescription,
+          category: dbCategory,
           gradeLevel: "Nursery",
           videoName: file?.name || "video-link",
           videoType: file?.type || "video/mp4",
@@ -723,50 +816,41 @@ function Lessons({ notify }: { notify: Notify }) {
           createdAt: Date.now(),
         });
         closeForm();
-        await fetchLessons();
+        setTab(category);
+        refresh();
         notify("Saved on this browser. It will upload when you are back online.");
-        return;
-      }
-      if (!navigator.onLine && editing) {
-        notify("This lesson change waits until you are back online.");
         return;
       }
       let videoPath = editing?.video_path ?? "";
       if (cleanUrl) {
         videoPath = cleanUrl;
       } else if (file) {
-        const cleanName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-");
-        videoPath = `Nursery/${categoryToDb(category)}/${Date.now()}-${cleanName}`;
-        const { error } = await supabase.storage.from("lesson-videos").upload(videoPath, file, { upsert: false });
-        if (error) throw error;
+        if (fileAttempt.current?.file !== file || fileAttempt.current.category !== dbCategory) {
+          fileAttempt.current = { file, category: dbCategory, path: lessonFilePath(crypto.randomUUID(), file.name, dbCategory) };
+        }
+        videoPath = fileAttempt.current.path;
+        await uploadLessonFile(videoPath, file);
       }
-      const payload = { title: title.trim(), description: description.trim() || `${category} lesson video`, grade_level: "Nursery", category: categoryToDb(category), video_path: videoPath, is_published: true };
-      const result = editing
-        ? await supabase.from("video_lessons").update(payload).eq("id", editing.id)
-        : await supabase.from("video_lessons").insert([payload]);
-      if (result.error) throw result.error;
-      closeForm(); await fetchLessons(); notify(editing ? "Lesson updated" : "New lesson uploaded");
+      const payload: LessonWrite = { title: title.trim(), description: lessonDescription, grade_level: "Nursery", category: dbCategory, video_path: videoPath, is_published: true };
+      if (editing) {
+        const { data, error } = await supabase.from("video_lessons").update(payload).eq("id", editing.id).select("id").maybeSingle();
+        if (error) throw error;
+        if (!data) throw new Error("This lesson could not be updated. Check your permissions and try again.");
+      } else {
+        const id = draftId.current ||= crypto.randomUUID();
+        await publishNewLesson(id, payload);
+      }
+      closeForm();
+      setTab(category);
+      void fetchLessons();
+      notify(editing ? "Lesson updated" : "New lesson uploaded");
     } catch (error) {
       console.error("Teacher lesson save error:", error);
-      if ((file || cleanUrl) && !editing) {
-        await saveOfflineLesson({
-          id: `offline-${Date.now()}-${file?.name || "link"}`,
-          title: title.trim(),
-          description: description.trim() || `${category} lesson video`,
-          category: categoryToDb(category),
-          gradeLevel: "Nursery",
-          videoName: file?.name || "video-link",
-          videoType: file?.type || "video/mp4",
-          video: file,
-          videoUrl: cleanUrl || undefined,
-          createdAt: Date.now(),
-        });
-        closeForm();
-        await fetchLessons();
-        notify("Saved on this browser. It will upload when you are back online.");
-      } else notify(error instanceof Error ? error.message : "Unable to save lesson");
+      setFormError(lessonErrorMessage(error));
+    } finally {
+      isSaving.current = false;
+      setSaving(false);
     }
-    finally { setSaving(false); }
   };
   const archiveLesson = async (lesson: LessonRecord) => {
     if (!navigator.onLine) { notify("This removal waits until you are back online."); return; }
@@ -776,8 +860,8 @@ function Lessons({ notify }: { notify: Notify }) {
     setLessons(current => current.filter(item => item.id !== lesson.id)); notify("Lesson removed");
   };
   const previewLesson = async (lesson: LessonRecord) => {
-    if (lesson.offlineUrl) {
-      setPreview({ lesson, url: lesson.offlineUrl });
+    if (lesson.offlineDraft) {
+      setPreview({ lesson, url: createOfflineLessonUrl(lesson.offlineDraft) });
       return;
     }
     const rawPath = lesson.video_path?.trim();
@@ -801,14 +885,52 @@ function Lessons({ notify }: { notify: Notify }) {
   };
   const visible = lessons.filter(lesson => tab === "All" || categoryFromDb(lesson.category) === tab);
 
-  return <><Heading eyebrow="CURRICULUM LIBRARY" title="Lessons & Videos" detail="Manage one lesson for each of the six learning games."><button className="ta-primary" onClick={openNew}><Upload /> Upload New Lesson</button></Heading>
+  const libraryFull = !loading && !loadError && !availableCategories.length;
+  return <><Heading eyebrow="CURRICULUM LIBRARY" title="Lessons & Videos" detail={libraryFull ? "All six categories have a lesson. Use Edit to replace a video." : "Manage one lesson for each of the six learning games."}><button className="ta-primary" disabled={loading || !!loadError || libraryFull} onClick={openNew}><Upload /> Upload New Lesson</button></Heading>
     <div className="ta-tabs">{["All", ...lessonCategories].map(value => <button className={tab === value ? "active" : ""} onClick={() => setTab(value)} key={value}>{value}</button>)}</div>
     {loading && <section className="ta-student-state"><BearLoading compact /></section>}
-    {!loading && loadError && <section className="ta-student-state error"><CircleAlert/><h3>Unable to load lessons</h3><p>{loadError}</p></section>}
+    {!loading && loadError && <section className="ta-student-state error"><CircleAlert/><h3>Unable to load lessons</h3><p>{loadError}</p><button className="ta-secondary" onClick={refresh}>Try again</button></section>}
+    {syncing && <p role="status">Uploading saved lesson drafts…</p>}
+    {syncError && <div role="alert"><p>{syncError}</p><button className="ta-secondary" disabled={syncing} onClick={() => void retrySync()}>Retry sync</button></div>}
     {!loading && !loadError && visible.length === 0 && <section className="ta-student-state"><Video/><h3>No video lessons yet</h3><p>Use Upload New Lesson to add the first lesson in this category.</p></section>}
-    {!loading && !loadError && <section className="ta-lessons">{visible.map(lesson => { const uiCategory = categoryFromDb(lesson.category); return <article key={lesson.id}><div className="ta-thumb"><span>{lessonIcons[uiCategory] ?? lessonIcons.Others}</span><b>VIDEO</b><button disabled={previewLoading} onClick={() => void previewLesson(lesson)}>{previewLoading ? "…" : "▶"}</button></div><div><span><i>{uiCategory}</i><em>{lesson.offlineStatus === "queued" ? "Waiting to sync" : "Published"}</em></span><h3>{lesson.title}</h3><p>{lesson.description || `${uiCategory} lesson video`}</p><small><Activity /> Attached: {uiCategory === "Others" ? "Custom lesson" : `${uiCategory} Quest`}</small><footer>{lesson.offlineStatus === "queued" ? <button onClick={() => void previewLesson(lesson)}><Video /> Preview</button> : <><button onClick={() => openEdit(lesson)}><Pencil /> Edit</button><button onClick={() => void archiveLesson(lesson)}><Trash2 /> Delete</button></>}</footer></div></article>; })}</section>}
+    {!loading && !loadError && <section className="ta-lessons">{visible.map(lesson => { const uiCategory = categoryFromDb(lesson.category); return <article key={lesson.id}><div className="ta-thumb"><span>{lessonIcons[uiCategory] ?? lessonIcons.Others}</span><b>VIDEO</b><button disabled={previewLoading} onClick={() => void previewLesson(lesson)}>{previewLoading ? "…" : "▶"}</button></div><div><span><i>{uiCategory}</i><em>{lesson.offlineDraft ? "Waiting to sync" : "Published"}</em></span><h3>{lesson.title}</h3><p>{lesson.description || `${uiCategory} lesson video`}</p><small><Activity /> Attached: {uiCategory === "Others" ? "Custom lesson" : `${uiCategory} Quest`}</small><footer>{lesson.offlineDraft ? <button onClick={() => void previewLesson(lesson)}><Video /> Preview</button> : <><button onClick={() => openEdit(lesson)}><Pencil /> Edit</button><button onClick={() => void archiveLesson(lesson)}><Trash2 /> Delete</button></>}</footer></div></article>; })}</section>}
     {preview && <div className="ta-overlay" onMouseDown={() => setPreview(null)}><section className="ta-modal ta-video-modal" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setPreview(null)}><X /></button><div className="ta-video-heading"><i>{lessonIcons[categoryFromDb(preview.lesson.category)] ?? lessonIcons.Others}</i><span><small>{categoryFromDb(preview.lesson.category)} VIDEO LESSON</small><h2>{preview.lesson.title}</h2></span></div><video src={preview.url} controls autoPlay playsInline onError={() => { setPreview(null); notify("This video could not be played. Please upload the video again."); }}>Your device does not support video playback.</video><p>{preview.lesson.description || "Watch this learning video."}</p></section></div>}
-    {upload && <div className="ta-overlay" onMouseDown={closeForm}><form className="ta-modal ta-form" onMouseDown={event => event.stopPropagation()} onSubmit={saveLesson}><button type="button" className="ta-close" onClick={closeForm}><X /></button><h2>{editing ? "Edit Video Lesson" : "Upload New Video Lesson"}</h2><p>Choose one of the six lesson categories and provide either a file or a direct video URL.</p><label>Lesson title<select value={category} onChange={event => setCategory(event.target.value)}>{lessonCategories.map(value => <option disabled={lessons.some(item => item.id !== editing?.id && categoryFromDb(item.category) === value)} key={value}>{value}</option>)}</select></label><label>Video title<input required value={title} onChange={event => setTitle(event.target.value)} placeholder="Enter video title" /></label><label>Description<textarea value={description} onChange={event => setDescription(event.target.value)} placeholder="Enter lesson description" /></label><div className="ta-video-source"><label>{editing ? "Replace with video file (optional)" : "Video file"}<input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={event => { setFile(event.target.files?.[0] ?? null); if (event.target.files?.[0]) setVideoUrl(""); }} /></label><span>OR</span><label>{editing ? "Replace with direct video URL (optional)" : "Direct video URL"}<input type="url" value={videoUrl} onChange={event => { setVideoUrl(event.target.value); if (event.target.value) setFile(null); }} placeholder="https://example.com/lesson.mp4" /><small>Use a direct MP4, WebM, or hosted video-file link.</small></label></div><button className="ta-primary ta-full" disabled={saving}>{saving ? "Saving…" : editing ? "Update Lesson" : "Upload Lesson"}</button></form></div>}
+    {upload && <div className="ta-overlay" onMouseDown={() => !isSaving.current && closeForm()}>
+      <form className="ta-modal ta-form" onMouseDown={event => event.stopPropagation()} onSubmit={saveLesson} aria-busy={saving}>
+        <button type="button" className="ta-close" aria-label="Close lesson form" disabled={saving} onClick={closeForm}><X /></button>
+        <h2>{editing ? "Edit Video Lesson" : "Upload New Video Lesson"}</h2>
+        <p>Choose a lesson category and provide a file or a direct video URL.</p>
+        <label>Lesson category
+          <select disabled={saving} value={category} onChange={event => setCategory(event.target.value)}>
+            {lessonCategories.map(value => <option disabled={lessons.some(item => item.id !== editing?.id && categoryFromDb(item.category) === value)} key={value}>{value}</option>)}
+          </select>
+        </label>
+        <label>Video title<input required disabled={saving} value={title} onChange={event => setTitle(event.target.value)} placeholder="Enter video title" /></label>
+        <label>Description<textarea disabled={saving} value={description} onChange={event => setDescription(event.target.value)} placeholder="Enter lesson description" /></label>
+        <div className="ta-video-source">
+          <label>{editing ? "Replace with video file (optional)" : "Video file"}
+            <input ref={fileInput} type="file" disabled={saving} accept="video/mp4,video/webm,video/quicktime" onChange={event => {
+              const selected = event.target.files?.[0] ?? null;
+              setFile(selected);
+              if (selected) setVideoUrl("");
+            }} />
+          </label>
+          <span>OR</span>
+          <label>{editing ? "Replace with direct video URL (optional)" : "Direct video URL"}
+            <input type="url" disabled={saving} value={videoUrl} onChange={event => {
+              setVideoUrl(event.target.value);
+              if (event.target.value && fileInput.current) {
+                fileInput.current.value = "";
+                setFile(null);
+              }
+            }} placeholder="https://example.com/lesson.mp4" />
+            <small>Use a direct MP4, WebM, or hosted video-file link.</small>
+          </label>
+        </div>
+        {formError && <div className="ta-lesson-error" role="alert">{formError}</div>}
+        <button className="ta-primary ta-full" disabled={saving}>{saving ? file ? "Uploading video…" : "Saving lesson…" : editing ? "Update Lesson" : "Upload Lesson"}</button>
+      </form>
+    </div>}
   </>;
 }
 

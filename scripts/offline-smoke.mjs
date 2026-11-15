@@ -29,6 +29,19 @@ await check('Wi-Fi without internet aborts rather than hanging forever', async (
   await assert.rejects(networkFetch('https://example.com'), /timed out/);
   assert.equal(aborted, true);
 });
+await check('lesson uploads get longer timeouts than regular requests', async () => {
+  const timeouts = [];
+  const { networkFetch } = load('src/backend/networkFetch.ts', {}, {
+    navigator: { onLine: true },
+    setTimeout: (_callback, ms) => { timeouts.push(ms); return 1; },
+    clearTimeout: () => {},
+    fetch: async () => new Response(null, { status: 200 }),
+  });
+  await networkFetch('https://example.com/rest/v1/parents_accounts');
+  await networkFetch('https://example.com/storage/v1/object/lesson-videos/Nursery/Colors/demo.mp4', { method: 'POST' });
+  await networkFetch('https://example.com/storage/v1/object/lesson-videos/Nursery/Colors/demo.mp4');
+  assert.deepEqual(timeouts, [6000, 600000, 6000]);
+});
 await check('online requests preserve responses and caller cancellation', async () => {
   const controller = new AbortController();
   const { networkFetch } = load('src/backend/networkFetch.ts', {}, { navigator: { onLine: true }, fetch: (_url, init) => new Promise((_resolve, reject) => {
