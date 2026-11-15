@@ -171,15 +171,17 @@ export async function activateChildPinSession(child: PinChildMatch, pin: string)
     last_name: child.lastName,
     child_name: child.childName,
   });
-  await cacheOfflineChild({
+  void cacheOfflineChild({
     id: child.id,
     parentId: child.parentId ?? null,
     childName: child.childName,
     firstName: child.firstName,
     lastName: child.lastName,
     pinCode: child.pinCode ?? cleanPin,
-  });
-  await setOfflineActiveChildId(child.id);
+  }).then(() => {
+    if (localStorage.getItem(CHILD_ID_KEY) === child.id) return setOfflineActiveChildId(child.id);
+  })
+    .catch(error => console.warn("PIN session is using local storage:", error));
 }
 
 export async function findChildrenByPin(pin: string): Promise<PinChildMatch[]> {
@@ -223,7 +225,8 @@ export async function findChildrenByPin(pin: string): Promise<PinChildMatch[]> {
       const serverIds = new Set(rows.map(row => String(row.id)));
       const removed = offlineMatches.filter(child => !serverIds.has(child.id));
       for (const child of removed) byId.delete(child.id);
-      await Promise.all(removed.map(child => removeOfflineChild(child.id)));
+      void Promise.all(removed.map(child => removeOfflineChild(child.id)))
+        .catch(error => console.warn("Could not remove stale cached PIN matches:", error));
       for (const row of rows) {
         const id = String(row.id);
         const remoteAvatar = normalizeChildAvatar(row.avatar);
@@ -245,14 +248,14 @@ export async function findChildrenByPin(pin: string): Promise<PinChildMatch[]> {
   }
 
   const matches = [...byId.values()];
-  await Promise.all(matches.map(child => cacheOfflineChild({
+  void Promise.all(matches.map(child => cacheOfflineChild({
     id: child.id,
     parentId: child.parentId ?? null,
     childName: child.childName,
     firstName: child.firstName,
     lastName: child.lastName,
     pinCode: child.pinCode ?? cleanPin,
-  })));
+  }))).catch(error => console.warn("Could not save PIN matches to SQLite:", error));
   return matches.sort((a, b) => getChildDisplayName({
     first_name: a.firstName,
     last_name: a.lastName,

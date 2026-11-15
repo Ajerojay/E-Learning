@@ -280,13 +280,19 @@ export async function findOfflineChildrenByPin(pin: string): Promise<CachedChild
   const localMatches = readLocalChildren().filter(row => row.pinCode === cleanPin && row.isActive !== false);
   const byId = new Map(localMatches.map(row => [row.id, row]));
   if (Capacitor.isNativePlatform()) {
-    await initializeOfflineSqlite();
-    const result = await CapacitorSQLite.query({
-      database: DATABASE_NAME,
-      statement: "SELECT id, parent_id, child_name, first_name, last_name, pin_code, is_active FROM children WHERE pin_code = ? AND is_active = 1",
-      values: [cleanPin],
-    });
-    for (const row of result.values ?? []) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const result = await Promise.race([
+      initializeOfflineSqlite().then(() => CapacitorSQLite.query({
+        database: DATABASE_NAME,
+        statement: "SELECT id, parent_id, child_name, first_name, last_name, pin_code, is_active FROM children WHERE pin_code = ? AND is_active = 1",
+        values: [cleanPin],
+      })),
+      new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), 2000); }),
+    ]).catch(error => {
+      console.warn("PIN lookup is using the local child roster:", error);
+      return null;
+    }).finally(() => clearTimeout(timer));
+    for (const row of result?.values ?? []) {
       const id = row.id ? String(row.id) : "";
       if (!id || byId.has(id)) continue;
       byId.set(id, {

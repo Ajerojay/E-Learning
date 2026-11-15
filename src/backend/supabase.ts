@@ -29,3 +29,15 @@ export const pendingEmailLink = readEmailLink();
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   global: { fetch: networkFetch },
 });
+
+export function createPasswordRecoveryClient() {
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: { fetch: networkFetch },
+    auth: {
+      storageKey: "learnease-password-recovery",
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+}

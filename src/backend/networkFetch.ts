@@ -12,8 +12,8 @@ export async function networkFetch(input: RequestInfo | URL, init?: RequestInit)
   const method = init?.method ?? (typeof Request !== "undefined" && input instanceof Request ? input.method : "GET");
   const lessonUpload = method.toUpperCase() === "POST"
     && url.pathname.startsWith("/storage/v1/object/lesson-videos/");
-  // Video uploads send the whole file.
-  const timeoutMs = lessonUpload ? 600000 : 6000;
+  // Video uploads send the whole file. Password recovery waits for the mail provider.
+  const timeoutMs = lessonUpload ? 600000 : url.pathname === "/auth/v1/recover" ? 60000 : 6000;
   const timeout = setTimeout(() => controller.abort(new DOMException("Connection timed out", "TimeoutError")), timeoutMs);
   try {
     return await fetch(input, { ...init, signal: controller.signal });

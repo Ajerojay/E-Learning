@@ -222,7 +222,7 @@ function SpeakerIcon() {
 export default function StudentAccess() {
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
-  const [pinError, setPinError] = useState<"incorrect" | "setup" | null>(null);
+  const [pinError, setPinError] = useState<"incorrect" | "setup" | "retry" | null>(null);
   const [pinMatches, setPinMatches] = useState<PinChildMatch[] | null>(null);
   const [spokenChildId, setSpokenChildId] = useState<string | null>(null);
   const [namesPlaying, setNamesPlaying] = useState(false);
@@ -268,7 +268,7 @@ export default function StudentAccess() {
     saveChildDeviceLabel(child.id);
     rememberChildAvatar(child.id, child.avatar);
     sessionStorage.setItem(`studentGreetingPending:${child.id}`, "1");
-    await recordChildLoginAttendance(child.id);
+    void recordChildLoginAttendance(child.id).catch(error => console.warn("PIN attendance could not sync:", error));
     const childFirstName = getChildDisplayName({
       first_name: child.firstName,
       last_name: child.lastName,
@@ -280,6 +280,7 @@ export default function StudentAccess() {
       state: {
         childId: child.id,
         childFirstName,
+        needsAvatar,
       },
     });
   }, [navigate]);
@@ -287,7 +288,7 @@ export default function StudentAccess() {
   const handleInput = (num: string) => {
     if (choosingName || busy || pin.length >= 4) return;
     setPinError(null);
-    setPin(pin + num);
+    setPin(current => current.length < 4 ? current + num : current);
   };
 
   const handleDelete = () => {
@@ -319,7 +320,12 @@ export default function StudentAccess() {
       attemptedPin.current = "";
       setPin("");
       const storedPin = localStorage.getItem("studentPin");
-      setPinError(storedPin ? "incorrect" : "setup");
+      setPinError(navigator.onLine || storedPin ? "incorrect" : "setup");
+    } catch (error) {
+      console.warn("PIN sign-in could not finish:", error);
+      attemptedPin.current = "";
+      setPin("");
+      setPinError("retry");
     } finally {
       setBusy(false);
     }
@@ -331,6 +337,12 @@ export default function StudentAccess() {
     stopNameSpeech();
     try {
       await enterChild(child, pin);
+    } catch (error) {
+      console.warn("PIN sign-in could not finish:", error);
+      attemptedPin.current = "";
+      setPinMatches(null);
+      setPin("");
+      setPinError("retry");
     } finally {
       setBusy(false);
     }
@@ -344,7 +356,9 @@ export default function StudentAccess() {
   };
 
   useEffect(() => {
-    if (pin.length === 4) void handleSubmit();
+    if (pin.length !== 4) return;
+    const timer = window.setTimeout(() => void handleSubmit(), 0);
+    return () => window.clearTimeout(timer);
   }, [pin, handleSubmit]);
 
   useEffect(() => {
@@ -456,15 +470,16 @@ export default function StudentAccess() {
               <section className="pin-error-card" role="alertdialog" aria-modal="true" aria-live="assertive" aria-labelledby="pin-error-title">
                 <span className="pin-error-mascot" aria-hidden="true">🧸</span>
                 <span>
-                <strong id="pin-error-title">{pinError === "incorrect" ? "Oops! That PIN doesn't match" : "Let's ask a parent"}</strong>
+                <strong id="pin-error-title">{pinError === "incorrect" ? "Oops! That PIN doesn't match" : pinError === "retry" ? "Could not check your PIN" : "Let's ask a parent"}</strong>
                 <small>
                   {pinError === "incorrect"
                     ? "Try your four numbers again, or ask your parent for help."
+                    : pinError === "retry" ? "Please try entering your four-digit PIN again."
                     : "A parent needs to sign in online once to set up your PIN on this device."}
                 </small>
                 </span>
                 <button type="button" onClick={() => setPinError(null)}>
-                  {pinError === "incorrect" ? "Try Again" : "Got It"}
+                  {pinError === "setup" ? "Got It" : "Try Again"}
                 </button>
               </section>
             </div>

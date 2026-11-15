@@ -108,6 +108,11 @@ export async function createParentAccount(
   const confirmed = isAuthEmailConfirmed(authData.user) && Boolean(authData.session);
   if (!confirmed) {
     if (authData.session) {
+      const { error: parentInsertError } = await supabase.from("parents_accounts")
+        .insert([{ username: normalizedUsername, email: cleanEmail, password }]);
+      if (parentInsertError) {
+        console.warn("Parent profile will be created after email confirmation:", parentInsertError);
+      }
       try { await supabase.auth.signOut({ scope: "local" }); }
       catch (error) { console.warn("Signup session cleanup failed:", error); }
     }
@@ -137,8 +142,8 @@ type ParentRow = {
   email?: string | null;
 };
 
-async function selectParent(column: "username" | "email", value: string): Promise<ParentRow | null> {
-  const withEmail = await supabase
+async function selectParent(column: "username" | "email", value: string, client = supabase): Promise<ParentRow | null> {
+  const withEmail = await client
     .from("parents_accounts")
     .select("id, username, password, email")
     .eq(column, value)
@@ -146,7 +151,7 @@ async function selectParent(column: "username" | "email", value: string): Promis
   if (!withEmail.error) return withEmail.data as ParentRow | null;
   if (!/column|schema cache/i.test(withEmail.error.message)) throw withEmail.error;
   if (column === "email") return null;
-  const basic = await supabase
+  const basic = await client
     .from("parents_accounts")
     .select("id, username, password")
     .eq(column, value)
@@ -155,17 +160,17 @@ async function selectParent(column: "username" | "email", value: string): Promis
   return basic.data as ParentRow | null;
 }
 
-async function findParentByUsername(username: string) {
+async function findParentByUsername(username: string, client = supabase) {
   const candidates = Array.from(new Set([username, normalizeUsername(username)]));
   for (const value of candidates) {
-    const parent = await selectParent("username", value);
+    const parent = await selectParent("username", value, client);
     if (parent) return parent;
   }
   return null;
 }
 
-async function findParentByEmail(email: string) {
-  return selectParent("email", email.trim().toLowerCase());
+async function findParentByEmail(email: string, client = supabase) {
+  return selectParent("email", email.trim().toLowerCase(), client);
 }
 
 const pendingParentSetups = new Map<string, Promise<string | null>>();
@@ -199,8 +204,10 @@ async function provisionParentProfile(user: User): Promise<string | null> {
 
   if (!parentId) {
     if (!email) return null;
+    // Live parents_accounts.password is still NOT NULL; Auth stores the real
+    // password. Send an empty placeholder so confirmation can finish.
     const { data: parent, error } = await supabase.from("parents_accounts")
-      .insert([{ username, email }]).select("id").single();
+      .insert([{ username, email, password: "" }]).select("id").single();
     if (error) throw error;
     if (!parent) throw new Error("Failed to create parent account.");
     parentId = String(parent.id);
@@ -280,6 +287,7 @@ export async function signInParentAccount(login: string, password: string): Prom
       }
     } catch (error) {
       if (error instanceof Error && confirmationError(error.message)) throw error;
+      if (error instanceof Error && !/invalid login credentials/i.test(error.message)) throw error;
       console.warn("Supabase auth sign-in skipped:", error);
     }
     if (looksLikeEmail && !parent) {
@@ -294,8 +302,8 @@ export async function signInParentAccount(login: string, password: string): Prom
   throw new Error("Invalid username or email, or wrong password. If you just signed up, confirm your email first.");
 }
 
-export function sendPasswordReset(email: string): Promise<void> {
-  return supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+export function sendPasswordReset(email: string, client = supabase): Promise<void> {
+  return client.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
     redirectTo: appRedirect(RESET_PASSWORD_PATH),
   }).then(({ error }) => {
     if (error) throw error;
@@ -383,26 +391,29 @@ export async function openEmailLinkSession(kind: "recovery" | "signup"): Promise
   return "ready";
 }
 
-export async function updateSignedInParentPassword(password: string): Promise<void> {
-  const { data, error } = await supabase.auth.updateUser({ password });
+export async function updateSignedInParentPassword(password: string, client = supabase): Promise<void> {
+  const { data, error } = await client.auth.updateUser({ password });
   if (error) throw error;
   const user = data.user;
   if (!user) throw new Error("This reset link has expired. Request a new one from the sign-in page.");
 
   const email = user.email?.trim().toLowerCase() || "";
-  const meta = (user.user_metadata ?? {}) as { username?: string };
-  const username = typeof meta.username === "string" ? normalizeUsername(meta.username) : "";
-  let parentId: string | null = null;
-  if (username) parentId = (await findParentByUsername(username))?.id ?? null;
-  if (!parentId && email) parentId = (await findParentByEmail(email))?.id ?? null;
-  if (parentId) {
-    const { error: updateError } = await supabase.from("parents_accounts").update({ password }).eq("id", parentId);
-    if (updateError && !/column|schema cache/i.test(updateError.message)) {
-      console.warn("Parent password record was not updated:", updateError.message);
+  try {
+    const parent = email ? await findParentByEmail(email, client) : null;
+    if (parent?.password) {
+      const { error: updateError } = await client.from("parents_accounts").update({ password }).eq("id", parent.id);
+      if (updateError) console.warn("Legacy parent password record was not updated:", updateError.message);
     }
+  } catch (lookupError) {
+    console.warn("Could not sync the legacy parent password record:", lookupError);
   }
 
-  await supabase.auth.signOut();
+  try {
+    const { error: signOutError } = await client.auth.signOut();
+    if (signOutError) console.warn("Could not close the recovery session:", signOutError.message);
+  } catch (signOutError) {
+    console.warn("Could not close the recovery session:", signOutError);
+  }
 }
 
 export function signOutSupabase(): Promise<void> {

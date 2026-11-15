@@ -29,7 +29,7 @@ await check('Wi-Fi without internet aborts rather than hanging forever', async (
   await assert.rejects(networkFetch('https://example.com'), /timed out/);
   assert.equal(aborted, true);
 });
-await check('lesson uploads get longer timeouts than regular requests', async () => {
+await check('lesson uploads and password recovery get longer timeouts than regular requests', async () => {
   const timeouts = [];
   const { networkFetch } = load('src/backend/networkFetch.ts', {}, {
     navigator: { onLine: true },
@@ -37,10 +37,12 @@ await check('lesson uploads get longer timeouts than regular requests', async ()
     clearTimeout: () => {},
     fetch: async () => new Response(null, { status: 200 }),
   });
+  const response = await networkFetch('https://example.com/auth/v1/recover?redirect_to=https://example.com/reset-password');
   await networkFetch('https://example.com/rest/v1/parents_accounts');
   await networkFetch('https://example.com/storage/v1/object/lesson-videos/Nursery/Colors/demo.mp4', { method: 'POST' });
   await networkFetch('https://example.com/storage/v1/object/lesson-videos/Nursery/Colors/demo.mp4');
-  assert.deepEqual(timeouts, [6000, 600000, 6000]);
+  assert.equal(response.status, 200);
+  assert.deepEqual(timeouts, [60000, 6000, 600000, 6000]);
 });
 await check('online requests preserve responses and caller cancellation', async () => {
   const controller = new AbortController();

@@ -9,7 +9,7 @@ import { holdChildMusic, releaseChildMusic } from "../../../../backend/childMusi
 import { getActiveChild } from "../../../../backend/supabaseData";
 import { CHILD_AVATARS } from "./childAvatars";
 
-type LocationState = { childId?: string; childFirstName?: string; chooseAvatar?: boolean };
+type LocationState = { childId?: string; childFirstName?: string; chooseAvatar?: boolean; needsAvatar?: boolean };
 
 export default function PickAvatar() {
   const navigate = useNavigate();
@@ -22,7 +22,7 @@ export default function PickAvatar() {
   const helloName = firstName && firstName !== "Child" ? firstName : "friend";
   const [selected, setSelected] = useState("");
   const [saving, setSaving] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(Boolean(childId && state?.needsAvatar));
 
   useEffect(() => {
     if (!childId) {
@@ -35,6 +35,8 @@ export default function PickAvatar() {
       setReady(true);
       return;
     }
+
+    if (state?.needsAvatar) return;
 
     let active = true;
     let settled = false;
@@ -73,7 +75,7 @@ export default function PickAvatar() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [childId, choosing, helloName, navigate, remembered]);
+  }, [childId, choosing, helloName, navigate, remembered, state?.needsAvatar]);
 
   useEffect(() => {
     if (!ready) return;
@@ -94,18 +96,14 @@ export default function PickAvatar() {
     speakKidPrompt(label, { interrupt: true });
   };
 
-  const confirm = async () => {
+  const confirm = () => {
     if (!selected || saving || !childId) return;
     setSaving(true);
-    try {
-      await saveChildAvatar(childId, selected);
-      navigate("/student", {
-        replace: true,
-        state: { childId, childFirstName: remembered || helloName },
-      });
-    } finally {
-      setSaving(false);
-    }
+    void saveChildAvatar(childId, selected).catch(error => console.warn("Could not save avatar:", error));
+    navigate("/student", {
+      replace: true,
+      state: { childId, childFirstName: remembered || helloName },
+    });
   };
 
   if (!ready) return <BearLoading />;

@@ -1,16 +1,17 @@
 import { useState, type FormEvent } from "react";
 import { flushSync } from "react-dom";
-import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, KeyRound, LogIn, Mail } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Eye, EyeOff, KeyRound, LogIn } from "lucide-react";
 import "./AppAuth.css";
 import logo from "../../../../images/learnease logo-no bg.png";
-import { sendPasswordReset, signInParentAccount } from "../../../backend/supabaseAuth";
+import { signInParentAccount } from "../../../backend/supabaseAuth";
 import { getOrCreateActiveChildId } from "../../../backend/childProgress";
 import { supabase } from "../../../backend/supabase";
 import { authenticateOfflineParent, cacheOfflineChild, cacheOfflineParentLogin } from "../../../backend/offlineSqlite";
 import { authenticateOffline, cacheVerifiedLogin } from "../../../backend/offlineAuth";
 import BearLoading from "../BearLoading";
 import { isMobileApp } from "../isMobileApp";
+import TeacherLogin from "./TeacherLogin";
 
 const TEACHER_USERNAME = "teacher";
 const TEACHER_PASSWORD = "teacher123";
@@ -49,13 +50,19 @@ function openTeacherSite() {
 
 export default function AppSignIn() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [leaveOpen, setLeaveOpen] = useState(false);
-  const [resetMessage, setResetMessage] = useState("");
-  const [resetMode, setResetMode] = useState(false);
+  const [teacherFormOpen, setTeacherFormOpen] = useState(false);
+  const [signInNotice] = useState(
+    location.state && typeof location.state === "object" && "emailJustVerified" in location.state
+      && (location.state as { emailJustVerified?: boolean }).emailJustVerified
+      ? "Your email is verified. Sign in with your username or email."
+      : ""
+  );
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
@@ -215,29 +222,11 @@ export default function AppSignIn() {
     }
   };
 
-  const handlePasswordReset = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError("");
-    setResetMessage("");
-    const cleanEmail = username.trim().toLowerCase();
-    if (!cleanEmail) {
-      setError("Enter your email address first.");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      await sendPasswordReset(cleanEmail);
-      setResetMessage("Password reset instructions were sent to your email.");
-    } catch (caughtError) {
-      console.error(caughtError);
-      setError("We could not send the reset email. Check the email address and try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const siteUrl = teacherSiteUrl();
+
+  if (teacherFormOpen) {
+    return <TeacherLogin onBack={() => setTeacherFormOpen(false)} onAuthenticated={openTeacherSite} />;
+  }
 
   return (
     <main className="app-auth-shell">
@@ -267,24 +256,24 @@ export default function AppSignIn() {
           <h1 className="app-auth-title app-auth-welcome">WELCOME PARENT!</h1>
           <p className="app-auth-copy app-auth-tagline">Learning made fun and easy!</p>
 
-          <form className="app-auth-form" onSubmit={resetMode ? handlePasswordReset : handleLogin}>
+          <form className="app-auth-form" onSubmit={handleLogin}>
             {error && <p className="app-auth-alert">{error}</p>}
-            {resetMessage && <p className="app-auth-success">{resetMessage}</p>}
+            {signInNotice && <p className="app-auth-success">{signInNotice}</p>}
 
             <div className="app-auth-field">
-              <label htmlFor="app-signin-username">{resetMode ? "Email address" : "Username or email"}</label>
+              <label htmlFor="app-signin-username">Username or email</label>
               <input
                 id="app-signin-username"
                 className="app-auth-input"
-                type={resetMode ? "email" : "text"}
-                autoComplete={resetMode ? "email" : "username"}
-                placeholder={resetMode ? "Enter email address" : "Enter username or email"}
+                type="text"
+                autoComplete="username"
+                placeholder="Enter username or email"
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
               />
             </div>
 
-            {!resetMode && <div className="app-auth-field">
+            <div className="app-auth-field">
               <label htmlFor="app-signin-password">Password</label>
               <div className="app-auth-input-wrap">
                 <input
@@ -305,33 +294,43 @@ export default function AppSignIn() {
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
-            </div>}
+            </div>
 
             <button className="app-auth-main-btn" type="submit" disabled={loading}>
-              {resetMode ? <Mail size={19} /> : <LogIn size={19} />}
-              {loading ? "Please wait..." : resetMode ? "Send reset email" : "Sign in"}
+              <LogIn size={19} />
+              {loading ? "Please wait..." : "Sign in"}
             </button>
 
             <button
               className="app-auth-link-button"
               type="button"
-              onClick={() => { setResetMode((current) => !current); setError(""); setResetMessage(""); }}
+              onClick={() => navigate("/app/forgot-password")}
             >
-              {resetMode ? "Back to sign in" : "Forgot password?"}
+              Forgot password?
             </button>
 
-            {!resetMode && <button
+            <button
               className="app-auth-secondary-btn"
               type="button"
               onClick={() => navigate("/student-access")}
             >
               <KeyRound size={19} />
               Enter kids PIN
-            </button>}
+            </button>
 
-            {!resetMode && <p className="app-auth-link-line">
+            <p className="app-auth-link-line">
               New parent? <Link to="/app/signup">Create account</Link>
-            </p>}
+            </p>
+            {siteUrl && (
+              <p className="app-auth-link-line">
+                Teacher?{" "}
+                {isMobileApp() ? (
+                  <button className="app-auth-link-button" type="button" onClick={() => setTeacherFormOpen(true)}>
+                    Teacher sign in
+                  </button>
+                ) : <Link to="/teacher-login">Teacher sign in</Link>}
+              </p>
+            )}
           </form>
         </div>
       </section>

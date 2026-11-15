@@ -26,8 +26,8 @@ import AppSignUp from "./MobileApp/WebView/AppSignUp";
 import AppResetPassword from "./MobileApp/WebView/AppResetPassword";
 import AppEmailVerified from "./MobileApp/WebView/AppEmailVerified";
 import AppStudentAccess from "./MobileApp/WebView/AppStudentAccess";
-const AppStudentPage = lazy(() => import("./MobileApp/WebView/AppStudentPage"));
-const PickAvatar = lazy(() => import("./MobileApp/pages/Student/PickAvatar"));
+import AppStudentPage from "./MobileApp/WebView/AppStudentPage";
+import PickAvatar from "./MobileApp/pages/Student/PickAvatar";
 const AppLessonPage = lazy(() => import("./MobileApp/WebView/AppLessonPage"));
 const LettersGameRouter = lazy(() => import("./MobileApp/pages/Student/games/letters/LettersGameRouter"));
 const AppColorsQuestPage = lazy(() => import("./MobileApp/WebView/AppColorsQuestPage"));
@@ -214,6 +214,7 @@ function App() {
         <Route path="/app/signin" element={<AppSignIn />} />
         <Route path="/app/signup" element={<AppSignUp />} />
         <Route path="/app/reset-password" element={<AppResetPassword />} />
+        <Route path="/app/forgot-password" element={<AppResetPassword useEmailCode />} />
         <Route path="/app/email-verified" element={<AppEmailVerified />} />
         <Route path="/app/phonics-quest" element={<StudentGameGuard category="phonics"><AppPhonicsQuestPage /></StudentGameGuard>} />
         <Route path="/app/phonics-quest/:gameId" element={<StudentGameGuard category="phonics"><PhonicsGameRouter mobileApp /></StudentGameGuard>} />

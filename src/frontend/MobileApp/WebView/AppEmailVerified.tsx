@@ -43,13 +43,24 @@ export default function AppEmailVerified() {
           if (data.session?.user) await completePendingParentRegistration(data.session.user);
         } catch (caughtError) {
           console.error(caughtError);
+          if (active) {
+            setError(
+              caughtError instanceof Error
+                ? caughtError.message
+                : "Your email is verified, but the parent account could not be finished. Try signing in."
+            );
+          }
+          return;
         }
-        if (active) setVerified(true);
         try {
           const { error: signOutError } = await supabase.auth.signOut({ scope: "local" });
           if (signOutError) console.error(signOutError);
         } catch (signOutError) {
           console.error(signOutError);
+        }
+        if (active) {
+          setVerified(true);
+          navigate(PARENT_SIGN_IN_PATH, { replace: true, state: { emailJustVerified: true } });
         }
       })
       .catch((caughtError) => {
