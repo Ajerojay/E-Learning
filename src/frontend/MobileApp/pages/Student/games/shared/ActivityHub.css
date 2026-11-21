@@ -248,3 +248,89 @@
     width: min(680px, 100%);
   }
 }
+
+@media (orientation: landscape) {
+  .ah {
+    padding: max(8px, env(safe-area-inset-top))
+      max(20px, env(safe-area-inset-right))
+      max(20px, env(safe-area-inset-bottom))
+      max(20px, env(safe-area-inset-left));
+  }
+
+  .ah-hero {
+    width: min(340px, 100%);
+    margin: 0 0 12px;
+  }
+
+  .ah-bear-wrap {
+    width: clamp(46px, 16dvh, 76px);
+    height: clamp(46px, 16dvh, 76px);
+    margin-bottom: 6px;
+  }
+
+  .ah-bear {
+    width: 76%;
+    height: 76%;
+  }
+
+  .ah-banner {
+    box-sizing: border-box;
+    padding: 5px 14px 8px;
+    border-radius: 20px;
+  }
+
+  .ah-kicker {
+    margin-bottom: 3px;
+  }
+
+  .ah-title {
+    font-size: clamp(21px, 3.6vw, 32px);
+  }
+
+  .ah-copy {
+    max-width: 100%;
+    margin-top: 10px;
+    padding: 4px 12px;
+  }
+
+  .ah-grid {
+    width: min(960px, 100%);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(8px, 2vw, 20px);
+  }
+
+  .ah-card {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    justify-items: center;
+    align-items: start;
+    gap: 6px;
+    min-width: 0;
+    min-height: 0;
+    padding: 9px 12px 11px;
+    border-radius: 20px;
+    text-align: center;
+  }
+
+  .ah-emoji {
+    width: clamp(34px, 12dvh, 60px);
+    height: clamp(34px, 12dvh, 60px);
+    border-radius: 14px;
+    font-size: clamp(22px, 8dvh, 36px);
+  }
+
+  .ah-card-copy {
+    overflow-wrap: anywhere;
+  }
+
+  .ah-card strong {
+    font-size: clamp(15px, 2.4vw, 21px);
+  }
+
+  .ah-card-go {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+  }
+}

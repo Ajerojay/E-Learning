@@ -203,6 +203,10 @@ html:has(.lesson-page)::-webkit-scrollbar, body:has(.lesson-page)::-webkit-scrol
   object-fit: contain;
 }
 
+.tv-container iframe {
+  border: 0;
+}
+
 .tv-container video:fullscreen,
 .tv-container video:-webkit-full-screen,
 .tv-container:fullscreen,

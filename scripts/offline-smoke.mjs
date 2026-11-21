@@ -29,6 +29,21 @@ await check('Wi-Fi without internet aborts rather than hanging forever', async (
   await assert.rejects(networkFetch('https://example.com'), /timed out/);
   assert.equal(aborted, true);
 });
+await check('lesson uploads and password recovery get longer timeouts than regular requests', async () => {
+  const timeouts = [];
+  const { networkFetch } = load('src/backend/networkFetch.ts', {}, {
+    navigator: { onLine: true },
+    setTimeout: (_callback, ms) => { timeouts.push(ms); return 1; },
+    clearTimeout: () => {},
+    fetch: async () => new Response(null, { status: 200 }),
+  });
+  const response = await networkFetch('https://example.com/auth/v1/recover?redirect_to=https://example.com/reset-password');
+  await networkFetch('https://example.com/rest/v1/parents_accounts');
+  await networkFetch('https://example.com/storage/v1/object/lesson-videos/Nursery/Colors/demo.mp4', { method: 'POST' });
+  await networkFetch('https://example.com/storage/v1/object/lesson-videos/Nursery/Colors/demo.mp4');
+  assert.equal(response.status, 200);
+  assert.deepEqual(timeouts, [60000, 6000, 600000, 6000]);
+});
 await check('online requests preserve responses and caller cancellation', async () => {
   const controller = new AbortController();
   const { networkFetch } = load('src/backend/networkFetch.ts', {}, { navigator: { onLine: true }, fetch: (_url, init) => new Promise((_resolve, reject) => {
@@ -69,17 +84,18 @@ const files = JSON.parse(worker.match(/const FILES = (.*);/)[1]);
 const handlers = {};
 const cacheData = new Map();
 const deleted = [];
+let legacyWorkerReplaced = false;
 const origin = 'https://test.local';
 const makeCache = name => ({
   add: async req => {
-    const path = decodeURIComponent(new URL(req.url).pathname.slice(1));
+    const path = decodeURIComponent(new URL(req.url).pathname.slice(1)) || 'index.html';
     assert.ok(existsSync(`dist/${path}`), `missing ${path}`);
     cacheData.set(`${name}:${req.url}`, new Response(path === 'index.html' ? readFileSync('dist/index.html', 'utf8') : `cached:${path}`));
   },
   match: async req => cacheData.get(`${name}:${typeof req === 'string' ? req : req.url ?? req.href}`)?.clone(),
 });
 vm.runInNewContext(worker, {
-  self: { registration: { scope: `${origin}/` }, location: { origin }, clients: { claim: async () => {} }, addEventListener: (name, fn) => { handlers[name] = fn; } },
+  self: { registration: { scope: `${origin}/`, active: {} }, location: { origin }, clients: { claim: async () => {} }, skipWaiting: async () => { legacyWorkerReplaced = true; }, addEventListener: (name, fn) => { handlers[name] = fn; } },
   caches: { open: async name => makeCache(name), keys: async () => ['learnease-shell-old', 'offline-lesson-videos'], delete: async name => { deleted.push(name); } },
   URL, Request, Promise, fetch: async () => { throw new Error('offline'); },
 });
@@ -88,12 +104,24 @@ await check('browser install saves every emitted script, style, image and audio 
   assert.ok(files.some(file => file.endsWith('.mp3')));
   assert.ok(files.some(file => file.includes('GameRouter') && file.endsWith('.js')));
   assert.equal(cacheData.size, files.length);
+  assert.ok(files.includes('/') && !files.includes('index.html'));
+  assert.ok(legacyWorkerReplaced);
 });
 await check('nested lesson/game reloads work without internet', async () => {
   for (const path of ['/lesson/letters', '/quest/colors/sort', '/parent-children']) {
     let response; handlers.fetch({ request: { method: 'GET', mode: 'navigate', url: origin + path }, respondWith: p => { response = p; } });
     const html = await (await response).text();
     assert.match(html, /src="\/assets\//);
+  }
+});
+await check('auth and teacher portal navigations bypass the offline shell', async () => {
+  for (const path of ['/email-verified', '/app/email-verified', '/reset-password', '/app/reset-password', '/teacher-login', '/teacher-dashboard']) {
+    let intercepted = false;
+    handlers.fetch({
+      request: { method: 'GET', mode: 'navigate', url: origin + path },
+      respondWith: () => { intercepted = true; },
+    });
+    assert.equal(intercepted, false, path);
   }
 });
 await check('lazy game files load offline; database requests are never cached', async () => {

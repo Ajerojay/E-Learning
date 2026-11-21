@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Maximize2, Minimize2, Play } from "lucide-react";
 // ===== SUPABASE DATABASE CONNECTION: lessons shared by web and Android app =====
 import { supabase } from "../../../../../backend/supabase";
+import { getLessonYouTubeEmbed } from "../../../../../backend/lessonVideoSource";
 import { getOrCreateActiveChildId } from "../../../../../backend/childProgress";
 import { isStudentGameAllowed } from "../../../../../backend/studentGameAccess";
 import { recordGameOpened } from "../../../../../backend/gameProgressDb";
@@ -200,7 +201,7 @@ export default function LessonPage() {
   };
 
   useEffect(() => {
-    if (!activeChildId || !dbCategory) return;
+    if (!activeChildId || !dbCategory || getLessonYouTubeEmbed(onlineVideoUrl)) return;
     void hasStudentLessonDownload(activeChildId, dbCategory, onlineVideoUrl).then(ready => {
       if (ready) setOfflineReady(true);
     });
@@ -222,6 +223,7 @@ export default function LessonPage() {
           const saved = await getStudentLessonDownload(childId, dbCategory);
           if (!saved?.video) return false;
           const meta = await getStudentLessonMeta(childId, dbCategory);
+          if (getLessonYouTubeEmbed(saved.sourceUrl || meta?.sourceUrl || "")) return false;
           setLessonTitle(saved.title || meta?.title || dbCategory);
           setOnlineVideoUrl(saved.sourceUrl || meta?.sourceUrl || "");
           setPlaybackUrl(URL.createObjectURL(saved.video), true);
@@ -308,6 +310,14 @@ export default function LessonPage() {
             return;
           }
           setLessonTitle(offlineLesson.title);
+          if (getLessonYouTubeEmbed(offlineUrl)) {
+            setOnlineVideoUrl(offlineUrl);
+            setPlaybackUrl(online ? offlineUrl : "");
+            setOfflineReady(false);
+            setOfflineMessage("This video needs an internet connection.");
+            setLoading(false);
+            return;
+          }
           setOnlineVideoUrl(offlineUrl);
           setPlaybackUrl(offlineUrl, true);
           setOfflineReady(true);
@@ -334,6 +344,13 @@ export default function LessonPage() {
       }
 
       setOnlineVideoUrl(videoUrl);
+      if (getLessonYouTubeEmbed(videoUrl)) {
+        setOfflineReady(false);
+        setPlaybackUrl(videoUrl);
+        setOfflineMessage("This video needs an internet connection.");
+        setLoading(false);
+        return;
+      }
       const downloaded = childId ? await hasStudentLessonDownload(childId, dbCategory, videoUrl) : false;
       setOfflineReady(downloaded);
 
@@ -355,7 +372,7 @@ export default function LessonPage() {
   }, [category, dbCategory, formattedCategory]);
 
   const downloadForOffline = async () => {
-    if (!onlineVideoUrl || downloading || offlineReady) return;
+    if (!onlineVideoUrl || downloading || offlineReady || getLessonYouTubeEmbed(onlineVideoUrl)) return;
 
     setDownloading(true);
     setOfflineMessage("");
@@ -371,7 +388,7 @@ export default function LessonPage() {
       }
 
       const video = await response.blob();
-      if (!video.size) {
+      if (!video.size || video.type.startsWith("text/html")) {
         throw new Error("The lesson video could not be saved.");
       }
 
@@ -396,6 +413,7 @@ export default function LessonPage() {
     }
   };
 
+  const youtubeEmbed = getLessonYouTubeEmbed(lessonVideoUrl);
   return (
     <div
       className={`lesson-page${isVideoFullscreen ? " is-video-fullscreen" : ""}`}
@@ -408,7 +426,7 @@ export default function LessonPage() {
         &#8592; Back
       </button>
 
-      {!loading && lessonVideoUrl && (
+      {!loading && lessonVideoUrl && !youtubeEmbed && !getLessonYouTubeEmbed(onlineVideoUrl) && (
         <button
           type="button"
           className={`offline-video-btn${offlineReady ? " is-offline" : ""}${downloading ? " is-saving" : ""}`}
@@ -432,6 +450,8 @@ export default function LessonPage() {
           <div className="tv-screen">
           {loading ? (
             <BearLoading compact dark />
+          ) : youtubeEmbed ? (
+            <iframe src={youtubeEmbed} title={lessonTitle || dbCategory} allow="encrypted-media; fullscreen; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen />
           ) : lessonVideoUrl ? (
             <>
               <video

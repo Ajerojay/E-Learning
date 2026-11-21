@@ -10,16 +10,20 @@ export function offlineBuildPlugin(): Plugin {
       const files = Object.keys(bundle).filter(name => name.startsWith("assets/") && /\.(js|css|png|jpe?g|svg|webp|woff2?|mp3)$/i.test(name));
       const version = createHash("sha256").update(files.sort().join("\n")).digest("hex").slice(0, 16);
       this.emitFile({ type: "asset", fileName: "sw.js", source: `
-const CACHE = 'learnease-shell-${version}';
-const FILES = ${JSON.stringify(["index.html", ...files])};
+const CACHE_PREFIX = 'learnease-shell-v2-';
+const CACHE = CACHE_PREFIX + '${version}';
+const FILES = ${JSON.stringify(["/", ...files])};
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
+    const upgradingLegacyWorker = self.registration.active &&
+      !(await caches.keys()).some(key => key.startsWith(CACHE_PREFIX));
     const cache = await caches.open(CACHE);
     try {
       for (let i = 0; i < FILES.length; i += 8) {
         await Promise.all(FILES.slice(i, i + 8).map(file => cache.add(new Request(new URL(file, self.registration.scope), { cache: 'reload' }))));
       }
     } catch (error) { await caches.delete(CACHE); throw error; }
+    if (upgradingLegacyWorker) await self.skipWaiting();
   })());
 });
 self.addEventListener('activate', event => {
@@ -34,9 +38,13 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
   if (request.mode === 'navigate') {
+    // Auth callbacks and the teacher portal need the current hosted page.
+    if (/^\\/(?:app\\/)?(?:email-verified|reset-password|teacher-login|teacher-dashboard)\\/?$/.test(url.pathname)) return;
     event.respondWith((async () => {
       const cache = await caches.open(CACHE);
-      const shell = await cache.match(new URL('index.html', self.registration.scope));
+      // Cloudflare redirects /index.html. A cached redirected response cannot
+      // satisfy a browser navigation whose redirect mode is manual.
+      const shell = await cache.match(new URL('/', self.registration.scope));
       return shell || fetch(request);
     })());
   } else if (url.pathname.includes('/assets/')) {

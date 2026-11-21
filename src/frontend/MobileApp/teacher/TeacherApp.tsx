@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Activity, Award, BarChart3, Bell, CalendarDays, Camera,
@@ -15,7 +15,9 @@ import { buildChildAchievements, normalizeSubjectKey, SUBJECT_KEYS, type ChildAc
 import { getStudentGameAccess } from "../../../backend/studentGameAccess";
 import { getActivityConfig, type ActivityConfig } from "../../../backend/activityConfig";
 import { classSettingsStatusMessage, publishActivityConfig, publishStudentAccess } from "../../../backend/classSettings";
-import { createOfflineLessonUrl, getOfflineLessons, removeOfflineLesson, saveOfflineLesson } from "../../../backend/offlineLessonStore";
+import { createOfflineLessonUrl, getOfflineLessons, removeOfflineLesson, saveOfflineLesson, type OfflineLesson } from "../../../backend/offlineLessonStore";
+import { archiveTeacherLesson, findLessonPublication, lessonErrorMessage, lessonFilePath, publishTeacherLesson, uploadLessonFile, type LessonWrite } from "../../../backend/teacherLessons";
+import { getLessonYouTubeEmbed } from "../../../backend/lessonVideoSource";
 import { cacheOfflineCategoryProgress, cacheOfflineLessons, cacheOfflineChild, getOfflineCategoryProgress, getOfflineChildrenFromSqlite, getOfflineLessonsFromSqlite } from "../../../backend/offlineSqlite";
 import { getAttendanceRecords, localDateKey } from "../../../backend/attendance";
 import { StudentMonthReport } from "./AttendanceReports";
@@ -81,8 +83,7 @@ type LessonRecord = {
   category: string;
   video_path: string;
   is_published: boolean;
-  offlineUrl?: string;
-  offlineStatus?: "queued";
+  offlineDraft?: OfflineLesson;
 };
 
 type RecentGameActivity = {
@@ -376,12 +377,6 @@ function getPresenceStatus(enrolled: boolean, lastActiveAt: string | null): Data
   return Date.now() - new Date(lastActiveAt).getTime() < 2 * 60 * 1000 ? "Online" : "Offline";
 }
 
-function studentPresenceLabel(student: DatabaseStudent) {
-  if (!student.enrolled) return "Unenrolled";
-  if (student.status === "Online") return "Online now";
-  return "Enrolled";
-}
-
 function getStudentAge(dateOfBirth: string | null) {
   if (!dateOfBirth) return null;
   const birthday = new Date(`${dateOfBirth}T00:00:00`);
@@ -408,14 +403,11 @@ function Students({ notify }: { notify: Notify }) {
   const [students, setStudents] = useState<DatabaseStudent[]>([]);
   const [rosterRefresh, setRosterRefresh] = useState(0);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("All");
   const [profile, setProfile] = useState<DatabaseStudent | null>(null);
   const [achievementStudent, setAchievementStudent] = useState<DatabaseStudent | null>(null);
   const [achievements, setAchievements] = useState<{ id: string; icon: string; text: string }[]>([]);
   const [achievementsLoading, setAchievementsLoading] = useState(false);
   const [studentMenu, setStudentMenu] = useState<string | null>(null);
-  const [enrollmentPrompt, setEnrollmentPrompt] = useState<{ student: DatabaseStudent; enroll: boolean } | null>(null);
-  const [enrollmentSaving, setEnrollmentSaving] = useState(false);
   const [attendanceStudent, setAttendanceStudent] = useState<DatabaseStudent | null>(null);
   const [healthStudent, setHealthStudent] = useState<DatabaseStudent | null>(null);
   const [healthTitle, setHealthTitle] = useState("Health update");
@@ -535,8 +527,8 @@ function Students({ notify }: { notify: Notify }) {
   }, []);
 
   const shown = students.filter(student =>
-    student.name.toLowerCase().includes(query.toLowerCase()) &&
-    (filter === "All" || (filter === "Enrolled" ? student.enrolled : !student.enrolled))
+    student.enrolled &&
+    student.name.toLowerCase().includes(query.toLowerCase())
   );
 
   const openAchievements = async (student: DatabaseStudent) => {
@@ -548,17 +540,6 @@ function Students({ notify }: { notify: Notify }) {
       : await learnerProgress(student.id);
     setAchievements(buildChildAchievements(progress.progressActivity, progress.progressCategories));
     setAchievementsLoading(false);
-  };
-
-  const setEnrollment = async (student: DatabaseStudent, enrolled: boolean) => {
-    setEnrollmentSaving(true);
-    const { error } = await supabase.from("children_accounts").update({ is_active: enrolled }).eq("id", student.id);
-    if (error) { notify(error.message); setEnrollmentSaving(false); return; }
-    setStudents(current => current.map(item => item.id === student.id ? { ...item, enrolled, status: getPresenceStatus(enrolled, item.lastActiveAt) } : item));
-    setStudentMenu(null);
-    setEnrollmentPrompt(null);
-    setEnrollmentSaving(false);
-    notify(enrolled ? `${student.name} restored to the class` : `${student.name} has been unenrolled`);
   };
 
   const openHealthAnnouncement = (student: DatabaseStudent) => {
@@ -598,18 +579,58 @@ function Students({ notify }: { notify: Notify }) {
     notify(status === "sent" ? `Pinned on ${healthStudent.name}'s parent announcements` : "Saved on this browser. The parent will see it when you are back online.");
   };
 
-  return <><Heading eyebrow="CLASSROOM ROSTER" title="Students Management" detail="Manage learner profiles, enrollment, and classroom activity."/>
-    <section className="ta-card ta-tools"><label><Search /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search learner by name…" /></label><div>{["All", "Enrolled", "Unenrolled"].map(value => <button className={filter === value ? "active" : ""} onClick={() => setFilter(value)} key={value}>{value}</button>)}</div></section>
+  return <><Heading eyebrow="CLASSROOM ROSTER" title="Students Management" detail="Manage learner profiles and classroom activity."/>
+    <section className="ta-card ta-tools"><label><Search /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search learner by name…" /></label></section>
     {loading && <section className="ta-student-state"><BearLoading compact /></section>}
     {!loading && loadError && <section className="ta-student-state error"><CircleAlert/><h3>Unable to load roster</h3><p>{loadError}</p></section>}
-    {!loading && !loadError && shown.length === 0 && <section className="ta-student-state"><Users/><h3>No student accounts found</h3><p>Students registered by parents will appear here automatically.</p></section>}
-    {!loading && !loadError && <section className="ta-students">{shown.map(student => { const attendanceRate = getSavedAttendanceRate(student.id); return <article key={student.id}><div className="ta-pupil-head"><i>{student.avatar}</i><span className={student.status.toLowerCase()}>{student.status === "Offline" ? studentPresenceLabel(student) : student.status}</span><button className="ta-student-more" aria-label={`More actions for ${student.name}`} onClick={() => setStudentMenu(studentMenu === student.id ? null : student.id)}><MoreHorizontal /></button>{studentMenu === student.id && <div className="ta-student-menu"><button onClick={() => { setProfile(student); setStudentMenu(null); }}><UserRound/> View details</button><button onClick={() => { void openAchievements(student); setStudentMenu(null); }}><Trophy/> Achievements</button><button onClick={() => { setEnrollmentPrompt({ student, enroll: !student.enrolled }); setStudentMenu(null); }} className={student.enrolled ? "danger" : "restore"}>{student.enrolled ? <Trash2/> : <Check/>}{student.enrolled ? "Unenroll student" : "Restore enrollment"}</button></div>}</div><h3>{student.name}</h3><p>{student.age === null ? "Age not provided" : `Age ${student.age}`} · {student.section}</p><div className="ta-pupil-stats"><button className="ta-stars-stat" onClick={() => void openAchievements(student)} aria-label={`View ${student.name}'s progress and achievements`}><Star /><b>{student.stars}%</b><small>Progress · Tap to view</small></button><button className="ta-attendance-stat" onClick={() => setAttendanceStudent(student)} aria-label={`View ${student.name}'s attendance history`}><CalendarDays /><b>{attendanceRate}%</b><small>Attendance · Tap to view</small></button></div><div className="ta-progress"><i style={{ width: `${attendanceRate}%` }} /></div><footer className="ta-student-actions"><button onClick={() => setProfile(student)}><UserRound /> Profile</button><button onClick={() => notify(`Reward panel opened for ${student.name}`)}><Award /> Reward</button><button onClick={() => void openAchievements(student)}><Trophy /> Child's Achievements</button><button className="health" onClick={() => openHealthAnnouncement(student)}><HeartPulse/> Health Monitoring</button></footer></article>; })}</section>}
+    {!loading && !loadError && shown.length === 0 && <section className="ta-student-state"><Users/><h3>No enrolled students found</h3><p>{query.trim() ? "Try a different name." : "Students registered by parents will appear here automatically."}</p></section>}
+    {!loading && !loadError && <section className="ta-students">{shown.map(student => { const attendanceRate = getSavedAttendanceRate(student.id); return <article key={student.id}><div className="ta-pupil-head"><i>{student.avatar}</i><span className="enrolled">Active</span><button className="ta-student-more" aria-label={`More actions for ${student.name}`} onClick={() => setStudentMenu(studentMenu === student.id ? null : student.id)}><MoreHorizontal /></button>{studentMenu === student.id && <div className="ta-student-menu"><button onClick={() => { setProfile(student); setStudentMenu(null); }}><UserRound/> View details</button><button onClick={() => { void openAchievements(student); setStudentMenu(null); }}><Trophy/> Achievements</button></div>}</div><h3>{student.name}</h3><p>{student.age === null ? "Age not provided" : `Age ${student.age}`} · {student.section}</p><div className="ta-pupil-stats"><button className="ta-stars-stat" onClick={() => void openAchievements(student)} aria-label={`View ${student.name}'s progress and achievements`}><Star /><b>{student.stars}%</b><small>Progress · Tap to view</small></button><button className="ta-attendance-stat" onClick={() => setAttendanceStudent(student)} aria-label={`View ${student.name}'s attendance history`}><CalendarDays /><b>{attendanceRate}%</b><small>Attendance · Tap to view</small></button></div><div className="ta-progress"><i style={{ width: `${attendanceRate}%` }} /></div><footer className="ta-student-actions"><button onClick={() => setProfile(student)}><UserRound /> Profile</button><button className="achievements" onClick={() => void openAchievements(student)}><Trophy /> Child's Achievements</button><button className="health" onClick={() => openHealthAnnouncement(student)}><HeartPulse/> Health Monitoring</button></footer></article>; })}</section>}
     {profile && <div className="ta-overlay" onMouseDown={() => setProfile(null)}><section className="ta-modal ta-child-profile" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setProfile(null)}><X /></button><div className="ta-avatar">{profile.avatar}</div><h2>{profile.name}</h2><p>Child details provided by the parent</p><dl><div><dt>First name</dt><dd>{profile.firstName || "Not provided"}</dd></div><div><dt>Last name</dt><dd>{profile.lastName || "Not provided"}</dd></div><div><dt>Date of birth</dt><dd>{profile.dateOfBirth ? new Date(`${profile.dateOfBirth}T00:00:00`).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }) : "Not provided"}</dd></div><div><dt>Age</dt><dd>{profile.age === null ? "Not provided" : `${profile.age} years old`}</dd></div><div><dt>Sex</dt><dd>{profile.sex || "Not provided"}</dd></div><div><dt>Grade level</dt><dd>{profile.section}</dd></div><div><dt>Student PIN</dt><dd>{profile.pinCode || "Not provided"}</dd></div></dl><small>Student ID: {profile.id}</small><ParentAllergyCards childId={profile.id} /><button className="ta-primary ta-full" onClick={() => setProfile(null)}>Close Profile</button></section></div>}
     {achievementStudent && <div className="ta-overlay" onMouseDown={() => setAchievementStudent(null)}><section className="ta-modal ta-achievements-modal" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setAchievementStudent(null)}><X /></button><div className="ta-avatar"><Trophy /></div><h2>{achievementStudent.name}'s Achievements</h2><p>Earned from completed learning games</p>{achievementsLoading ? <div className="ta-achievement-empty"><BearLoading compact /></div> : achievements.length ? <div className="ta-achievement-list">{achievements.map(item => <article key={item.id}><i>{item.icon}</i><span><b>{item.text}</b><small>Earned achievement</small></span></article>)}</div> : <div className="ta-achievement-empty"><Trophy/><b>No achievements yet</b><small>Achievements will appear after this student completes games.</small></div>}<button className="ta-primary ta-full" onClick={() => setAchievementStudent(null)}>Close Achievements</button></section></div>}
-    {enrollmentPrompt && <div className="ta-overlay ta-enrollment-overlay" onMouseDown={() => !enrollmentSaving && setEnrollmentPrompt(null)}><section className={`ta-modal ta-enrollment-modal ${enrollmentPrompt.enroll ? "restore" : "unenroll"}`} onMouseDown={event => event.stopPropagation()} role="alertdialog" aria-modal="true"><div className="ta-enrollment-sparkles" aria-hidden="true"><i>⭐</i><i>🌈</i><i>✨</i></div><div className="ta-enrollment-avatar">{enrollmentPrompt.student.avatar}<span>{enrollmentPrompt.enroll ? "↩" : "👋"}</span></div><h2>{enrollmentPrompt.enroll ? "Welcome Back!" : "Pause Enrollment?"}</h2><p>{enrollmentPrompt.enroll ? <>Restore <b>{enrollmentPrompt.student.name}</b> to the class?</> : <>Are you sure you want to unenroll <b>{enrollmentPrompt.student.name}</b>?</>}</p><div className="ta-enrollment-note">{enrollmentPrompt.enroll ? <><Check/><span><b>Student access will return</b><small>They can sign in and continue their learning games.</small></span></> : <><ShieldCheck/><span><b>Their learning memories stay safe</b><small>Progress, stars, and achievements will not be deleted.</small></span></>}</div><div className="ta-enrollment-actions"><button disabled={enrollmentSaving} onClick={() => setEnrollmentPrompt(null)}><X/> Not now</button><button disabled={enrollmentSaving} onClick={() => void setEnrollment(enrollmentPrompt.student, enrollmentPrompt.enroll)}>{enrollmentSaving ? <span className="ta-button-loader"/> : enrollmentPrompt.enroll ? <Check/> : <Trash2/>}{enrollmentSaving ? "Saving…" : enrollmentPrompt.enroll ? "Restore Student" : "Yes, Unenroll"}</button></div></section></div>}
     {attendanceStudent && <StudentMonthReport learner={{ id: attendanceStudent.id, name: attendanceStudent.name, section: attendanceStudent.section }} teacher={teacherIdentity()} onClose={() => setAttendanceStudent(null)} />}
     {healthStudent && <div className="ta-overlay" onMouseDown={() => setHealthStudent(null)}><section className="ta-modal ta-student-health-compose" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setHealthStudent(null)}><X/></button><div className="ta-quick-modal-title"><i><HeartPulse/></i><span><h2>Send Health Announcement</h2><p>Pin this only on {healthStudent.name}'s parent announcements.</p></span></div><div className={`ta-health-recipient ${healthStudent.parentId ? "linked" : "missing"}`}><UserRound/><span><small>Automatic recipient</small><b>{healthStudent.name}'s Parent</b><em>{healthStudent.parentId ? "Linked parent account" : "No linked parent account"}</em></span>{healthStudent.parentId ? <Check/> : <CircleAlert/>}</div><label>Sender<input value={teacherIdentity().name} readOnly/></label><label>Announcement title <small>Optional</small><input value={healthTitle} onChange={event => setHealthTitle(event.target.value)} placeholder="Health update"/></label><label>Message<textarea maxLength={300} value={healthMessage} onChange={event => setHealthMessage(event.target.value)} placeholder="Write the learner's health update…"/><small>{healthMessage.length}/300</small></label><div className="ta-student-health-templates"><header><b>Quick Health Templates</b><small>Tap to use</small></header><div>{[["Health Reminder", `Good day! Please remember to update us about ${healthStudent.name}'s current health condition.`],["Health Concern", `Good day! We observed a minor health concern for ${healthStudent.name} today. Please contact the teacher for details.`],["Wellness Check", `Good day! ${healthStudent.name}'s classroom wellness check has been recorded.`]].map(([title, message]) => <button type="button" key={title} onClick={() => { setHealthTitle(title); setHealthMessage(message); }}><b>{title}</b><span>{message}</span></button>)}</div></div><div className="ta-health-compose-actions ta-send-only"><button className="ta-primary" disabled={healthSending || !healthMessage.trim() || !healthStudent.parentId} onClick={() => void sendHealthToParent()}><Send/>{healthSending ? "Sending…" : "Pin to Parent"}</button></div><p className="ta-sms-note">Only this learner's parent will see it, pinned at the top of their Announcements.</p></section></div>}
   </>;
+}
+
+function LessonRemovalDialog({ lesson, busy, error, onCancel, onConfirm }: {
+  lesson: LessonRecord;
+  busy: boolean;
+  error: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const discard = !!lesson.offlineDraft;
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    dialog?.showModal();
+    return () => dialog?.close();
+  }, []);
+
+  return <dialog
+    ref={dialogRef}
+    className="ta-modal ta-lesson-removal"
+    aria-labelledby="lesson-removal-title"
+    aria-describedby="lesson-removal-detail"
+    aria-busy={busy}
+    onCancel={event => {
+      event.preventDefault();
+      if (!busy) onCancel();
+    }}
+  >
+    <div className="ta-lesson-removal-icon"><Trash2 aria-hidden="true" /></div>
+    <h2 id="lesson-removal-title">{discard ? "Discard this draft?" : "Delete this lesson?"}</h2>
+    <p id="lesson-removal-detail">
+      <strong>{lesson.title}</strong> will be removed from {discard ? "your saved drafts" : "the published lesson library"}.
+    </p>
+    {error && <div className="ta-lesson-error" role="alert">{error}</div>}
+    <div className="ta-lesson-removal-actions">
+      <button type="button" className="ta-secondary" disabled={busy} onClick={onCancel} autoFocus>Cancel</button>
+      <button type="button" className="ta-lesson-delete" disabled={busy} onClick={onConfirm}>
+        <Trash2 aria-hidden="true" /> {busy ? "Removing…" : discard ? "Discard Draft" : "Delete Lesson"}
+      </button>
+    </div>
+  </dialog>;
 }
 
 function Lessons({ notify }: { notify: Notify }) {
@@ -619,6 +640,19 @@ function Lessons({ notify }: { notify: Notify }) {
   const [loadError, setLoadError] = useState("");
   const [upload, setUpload] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [removal, setRemoval] = useState<LessonRecord | null>(null);
+  const [removalError, setRemovalError] = useState("");
+  const removalInProgress = useRef(false);
+  const [formError, setFormError] = useState("");
+  const [syncError, setSyncError] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const isSyncing = useRef(false);
+  const isSaving = useRef(false);
+  const draft = useRef<{ id: string; category: string } | null>(null);
+  const loadRequest = useRef(0);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const fileAttempt = useRef<{ file: File; category: string; path: string } | null>(null);
   const [editing, setEditing] = useState<LessonRecord | null>(null);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<string>("Colors");
@@ -628,46 +662,74 @@ function Lessons({ notify }: { notify: Notify }) {
   const [preview, setPreview] = useState<{ lesson: LessonRecord; url: string } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
-  const syncOfflineLessons = async () => {
-    if (!navigator.onLine) return;
-    const queued = await getOfflineLessons();
-    for (const lesson of queued) {
-      let videoPath = lesson.videoUrl?.trim() || "";
-      if (lesson.video) {
-        videoPath = `Nursery/${lesson.category}/${Date.now()}-${lesson.videoName}`;
-        const uploadResult = await supabase.storage.from("lesson-videos").upload(videoPath, lesson.video, { upsert: false });
-        if (uploadResult.error) continue;
+  const syncOfflineLessons = useCallback(async () => {
+    if (!navigator.onLine || isSyncing.current || removalInProgress.current) return;
+    isSyncing.current = true;
+    let published = false;
+    try {
+      const queued = await getOfflineLessons();
+      if (!queued.length) return false;
+      setSyncing(true);
+      setSyncError("");
+      for (const lesson of queued) {
+        try {
+          const uploadId = lesson.uploadId ?? lesson.publishId ?? crypto.randomUUID();
+          const slot = await findLessonPublication(lesson.category, lesson.gradeLevel, lesson.publishId ?? uploadId);
+          if (lesson.publishId !== slot.id || lesson.uploadId !== uploadId) {
+            await saveOfflineLesson({ ...lesson, publishId: slot.id, uploadId });
+          }
+          let videoPath = lesson.videoUrl?.trim() || "";
+          if (lesson.video) {
+            videoPath = lessonFilePath(uploadId, lesson.videoName, lesson.category);
+            if (slot.state !== "published") {
+              await uploadLessonFile(videoPath, lesson.video);
+            }
+          }
+          if (!videoPath) throw new Error("This draft has no video.");
+          await publishTeacherLesson(slot, {
+            title: lesson.title,
+            description: lesson.description,
+            grade_level: lesson.gradeLevel,
+            category: lesson.category,
+            video_path: videoPath,
+            is_published: true,
+          });
+          await removeOfflineLesson(lesson.id);
+          published = true;
+        } catch (error) {
+          setSyncError(`Could not sync “${lesson.title}”. ${lessonErrorMessage(error)}`);
+        }
       }
-      if (!videoPath) continue;
-      const insertResult = await supabase.from("video_lessons").insert([{
+    } catch (error) {
+      console.warn("Teacher lesson drafts could not be read:", error);
+    } finally {
+      isSyncing.current = false;
+      setSyncing(false);
+    }
+    return published;
+  }, []);
+
+  const fetchLessons = useCallback(async () => {
+    const request = ++loadRequest.current;
+    setLoading(true);
+    setLoadError("");
+    try {
+      const { data, error } = await supabase.from("video_lessons").select("id,title,description,category,video_path,is_published").eq("is_published", true).order("created_at", { ascending: false });
+      const queued = await getOfflineLessons().catch(() => []);
+      if (request !== loadRequest.current) return;
+      const queuedLessons: LessonRecord[] = queued.map(lesson => ({
+        id: `draft-${lesson.id}`,
         title: lesson.title,
         description: lesson.description,
-        grade_level: lesson.gradeLevel,
         category: lesson.category,
-        video_path: videoPath,
+        video_path: "",
         is_published: true,
-      }]);
-      if (!insertResult.error) await removeOfflineLesson(lesson.id);
-    }
-  };
-
-  const fetchLessons = async () => {
-    setLoading(true); setLoadError("");
-    const { data, error } = await supabase.from("video_lessons").select("id,title,description,category,video_path,is_published").eq("is_published", true).order("created_at", { ascending: false });
-    const queued = await getOfflineLessons();
-    const queuedLessons: LessonRecord[] = queued.map(lesson => ({
-      id: lesson.id,
-      title: lesson.title,
-      description: lesson.description,
-      category: lesson.category,
-      video_path: "",
-      is_published: true,
-      offlineUrl: createOfflineLessonUrl(lesson),
-      offlineStatus: "queued",
-    }));
-    if (error) {
-      const cachedLessons = await getOfflineLessonsFromSqlite();
-      if (cachedLessons.length || queuedLessons.length) {
+        offlineDraft: lesson,
+      }));
+      if (error) {
+        const cachedLessons = await getOfflineLessonsFromSqlite().catch(() => []);
+        if (request !== loadRequest.current) return;
+        if (!cachedLessons.length && !queuedLessons.length) throw error;
         setLessons([...queuedLessons, ...cachedLessons.map(lesson => ({
           id: lesson.id,
           title: lesson.title,
@@ -676,49 +738,80 @@ function Lessons({ notify }: { notify: Notify }) {
           video_path: lesson.video_path,
           is_published: true,
         }))]);
-      } else {
-        console.error("Teacher lessons error:", error.message);
-        setLoadError("Unable to load video lessons. Please try again.");
-        setLessons([]);
+        return;
       }
-    } else {
-      await cacheOfflineLessons((data ?? []).map(lesson => ({ id: String(lesson.id), title: lesson.title, description: lesson.description, category: lesson.category, videoPath: lesson.video_path, isPublished: lesson.is_published })));
-      setLessons([...queuedLessons, ...((data ?? []) as LessonRecord[])]);
+      const published = (data ?? []) as LessonRecord[];
+      setLessons([...queuedLessons, ...published]);
+      await cacheOfflineLessons(published.map(lesson => ({ id: String(lesson.id), title: lesson.title, description: lesson.description, category: lesson.category, videoPath: lesson.video_path, isPublished: lesson.is_published })), "snapshot")
+        .catch(error => console.warn("Teacher lesson cache failed:", error));
+    } catch (error) {
+      if (request === loadRequest.current) {
+        console.error("Teacher lessons error:", error);
+        setLoadError("Unable to load video lessons. Please try again.");
+      }
+    } finally {
+      if (request === loadRequest.current) setLoading(false);
     }
-    setLoading(false);
-  };
+  }, []);
+  const retrySync = useCallback(async () => {
+    if (await syncOfflineLessons()) await fetchLessons();
+  }, [fetchLessons, syncOfflineLessons]);
+  const refresh = useCallback(() => {
+    void fetchLessons().then(retrySync);
+  }, [fetchLessons, retrySync]);
   useEffect(() => {
-    const refresh = () => { void syncOfflineLessons().then(fetchLessons); };
-    void refresh();
+    void Promise.resolve().then(refresh);
     window.addEventListener("online", refresh);
     return () => window.removeEventListener("online", refresh);
-  }, []);
+  }, [refresh]);
+  useEffect(() => {
+    const url = preview?.url;
+    return () => { if (url?.startsWith("blob:")) URL.revokeObjectURL(url); };
+  }, [preview]);
 
-  const closeForm = () => { setUpload(false); setEditing(null); setTitle(""); setCategory("Colors"); setDescription(""); setFile(null); setVideoUrl(""); };
+  const closeForm = () => {
+    setUpload(false); setEditing(null); setTitle(""); setCategory("Colors"); setDescription(""); setFile(null); setVideoUrl(""); setFormError("");
+    draft.current = null;
+    fileAttempt.current = null;
+  };
+  const availableCategories = lessonCategories.filter(value => !lessons.some(item => categoryFromDb(item.category) === value));
   const openNew = () => {
-    const used = new Set(lessons.map(item => categoryFromDb(item.category)));
-    const available = lessonCategories.find(item => !used.has(item));
-    if (!available) { notify("Maximum of 6 lessons reached. Edit an existing lesson to replace its video."); return; }
-    setCategory(available); setUpload(true);
+    if (!availableCategories.length || removing) return;
+    setCategory(availableCategories[0]); setUpload(true);
   };
   const openEdit = (lesson: LessonRecord) => { setEditing(lesson); setTitle(lesson.title); setCategory(categoryFromDb(lesson.category)); setDescription(lesson.description ?? ""); setFile(null); setVideoUrl(/^https?:\/\//i.test(lesson.video_path) ? lesson.video_path : ""); setUpload(true); };
   const saveLesson = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (isSaving.current) return;
+    setFormError("");
     const cleanUrl = videoUrl.trim();
-    if (!title.trim() || (!editing && !file && !cleanUrl)) { notify("Choose a video file or enter a direct video URL."); return; }
-    if (cleanUrl && !/^https?:\/\//i.test(cleanUrl)) { notify("Enter a complete video URL starting with http:// or https://."); return; }
-    const duplicate = lessons.some(item => item.id !== editing?.id && categoryFromDb(item.category) === category);
-    if (duplicate) { notify(`${category} already has a lesson. Edit that lesson instead.`); return; }
-    const configuredCategories = new Set(lessons.map(item => categoryFromDb(item.category)).filter(item => lessonCategories.includes(item as typeof lessonCategories[number])));
-    if (!editing && configuredCategories.size >= lessonCategories.length) { notify("Maximum of 6 lessons reached."); return; }
+    if (!title.trim()) { setFormError("Enter a video title."); return; }
+    if (!editing && !file && !cleanUrl) { setFormError("Choose a video file or enter a direct video URL."); return; }
+    if (cleanUrl && !/^https?:\/\//i.test(cleanUrl)) { setFormError("Enter a complete video URL starting with http:// or https://."); return; }
+    if (file && !file.size) { setFormError("Choose a video file that is not empty."); return; }
+    const duplicate = lessons.some(item =>
+      item.id !== (editing?.id ?? draft.current?.id)
+      && (!editing || !item.offlineDraft)
+      && categoryFromDb(item.category) === category,
+    );
+    if (duplicate) { setFormError(`${category} already has a lesson. Edit that lesson instead.`); return; }
+    isSaving.current = true;
     setSaving(true);
     try {
-      if (!navigator.onLine && !editing && (file || cleanUrl)) {
+      const dbCategory = categoryToDb(category);
+      const lessonDescription = description.trim() || `${category} lesson video`;
+      const pendingId = !editing && draft.current?.category === dbCategory ? draft.current.id : "";
+      if (!navigator.onLine) {
+        if (editing) throw new Error("Go online to update this published lesson.");
+        if (pendingId) throw new Error("Go online to check the previous upload before trying again.");
+        const draftId = crypto.randomUUID();
         await saveOfflineLesson({
-          id: `offline-${Date.now()}-${file?.name || "link"}`,
+          id: draftId,
+          publishId: draftId,
+          uploadId: draftId,
           title: title.trim(),
-          description: description.trim() || `${category} lesson video`,
-          category: categoryToDb(category),
+          description: lessonDescription,
+          category: dbCategory,
           gradeLevel: "Nursery",
           videoName: file?.name || "video-link",
           videoType: file?.type || "video/mp4",
@@ -727,61 +820,88 @@ function Lessons({ notify }: { notify: Notify }) {
           createdAt: Date.now(),
         });
         closeForm();
-        await fetchLessons();
+        setTab(category);
+        refresh();
         notify("Saved on this browser. It will upload when you are back online.");
         return;
       }
-      if (!navigator.onLine && editing) {
-        notify("This lesson change waits until you are back online.");
-        return;
+      if (editing && dbCategory !== categoryToDb(editing.category)) {
+        await findLessonPublication(dbCategory, "Nursery", "");
       }
+      const slot = editing ? null : await findLessonPublication(dbCategory, "Nursery", pendingId || crypto.randomUUID());
+      if (slot) draft.current = { id: slot.id, category: dbCategory };
       let videoPath = editing?.video_path ?? "";
       if (cleanUrl) {
         videoPath = cleanUrl;
       } else if (file) {
-        const cleanName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-");
-        videoPath = `Nursery/${categoryToDb(category)}/${Date.now()}-${cleanName}`;
-        const { error } = await supabase.storage.from("lesson-videos").upload(videoPath, file, { upsert: false });
-        if (error) throw error;
+        if (fileAttempt.current?.file !== file || fileAttempt.current.category !== dbCategory) {
+          fileAttempt.current = { file, category: dbCategory, path: lessonFilePath(crypto.randomUUID(), file.name, dbCategory) };
+        }
+        videoPath = fileAttempt.current.path;
+        if (slot?.state !== "published") await uploadLessonFile(videoPath, file);
       }
-      const payload = { title: title.trim(), description: description.trim() || `${category} lesson video`, grade_level: "Nursery", category: categoryToDb(category), video_path: videoPath, is_published: true };
-      const result = editing
-        ? await supabase.from("video_lessons").update(payload).eq("id", editing.id)
-        : await supabase.from("video_lessons").insert([payload]);
-      if (result.error) throw result.error;
-      closeForm(); await fetchLessons(); notify(editing ? "Lesson updated" : "New lesson uploaded");
+      const payload: LessonWrite = { title: title.trim(), description: lessonDescription, grade_level: "Nursery", category: dbCategory, video_path: videoPath, is_published: true };
+      if (editing) {
+        const query = supabase.from("video_lessons").update(payload).eq("id", editing.id)
+          .eq("is_published", true).eq("title", editing.title);
+        const matchedVideo = editing.video_path == null ? query.is("video_path", null) : query.eq("video_path", editing.video_path);
+        const { data, error } = await matchedVideo.select("id").maybeSingle();
+        if (error) throw error;
+        if (!data) throw new Error("The lesson may have changed since you opened it. Refresh and try again.");
+      } else if (slot) {
+        await publishTeacherLesson(slot, payload);
+      }
+      closeForm();
+      setTab(category);
+      void fetchLessons();
+      notify(editing ? "Lesson updated" : "New lesson uploaded");
     } catch (error) {
       console.error("Teacher lesson save error:", error);
-      if ((file || cleanUrl) && !editing) {
-        await saveOfflineLesson({
-          id: `offline-${Date.now()}-${file?.name || "link"}`,
-          title: title.trim(),
-          description: description.trim() || `${category} lesson video`,
-          category: categoryToDb(category),
-          gradeLevel: "Nursery",
-          videoName: file?.name || "video-link",
-          videoType: file?.type || "video/mp4",
-          video: file,
-          videoUrl: cleanUrl || undefined,
-          createdAt: Date.now(),
-        });
-        closeForm();
-        await fetchLessons();
-        notify("Saved on this browser. It will upload when you are back online.");
-      } else notify(error instanceof Error ? error.message : "Unable to save lesson");
+      setFormError(lessonErrorMessage(error));
+    } finally {
+      isSaving.current = false;
+      setSaving(false);
     }
-    finally { setSaving(false); }
   };
-  const archiveLesson = async (lesson: LessonRecord) => {
-    if (!navigator.onLine) { notify("This removal waits until you are back online."); return; }
-    if (!window.confirm(`Remove “${lesson.title}” from published lessons?`)) return;
-    const { error } = await supabase.from("video_lessons").update({ is_published: false }).eq("id", lesson.id);
-    if (error) { notify(error.message); return; }
-    setLessons(current => current.filter(item => item.id !== lesson.id)); notify("Lesson removed");
+  const requestLessonRemoval = (lesson: LessonRecord) => {
+    if (isSyncing.current || removalInProgress.current) return;
+    setRemovalError("");
+    setRemoval(lesson);
+  };
+  const archiveLesson = async () => {
+    const lesson = removal;
+    if (!lesson || removalInProgress.current) return;
+    if (isSyncing.current) { setRemovalError("Wait for lesson syncing to finish and try again."); return; }
+    if (!lesson.offlineDraft && !navigator.onLine) { setRemovalError("Go online to remove a published lesson."); return; }
+    removalInProgress.current = true;
+    setRemoving(true);
+    setRemovalError("");
+    try {
+      if (lesson.offlineDraft) {
+        await removeOfflineLesson(lesson.offlineDraft.id);
+        setSyncError("");
+      } else {
+        await archiveTeacherLesson(lesson);
+        ++loadRequest.current;
+        await cacheOfflineLessons([{
+          id: lesson.id, title: lesson.title, description: lesson.description,
+          category: lesson.category, videoPath: lesson.video_path, isPublished: false,
+        }]).catch(error => console.warn("Teacher lesson cache failed:", error));
+      }
+      setLessons(current => current.filter(item => item.id !== lesson.id));
+      await fetchLessons();
+      setRemoval(null);
+      notify(lesson.offlineDraft ? "Draft discarded" : "Lesson removed");
+    } catch (error) {
+      setRemovalError(lessonErrorMessage(error));
+    } finally {
+      removalInProgress.current = false;
+      setRemoving(false);
+    }
   };
   const previewLesson = async (lesson: LessonRecord) => {
-    if (lesson.offlineUrl) {
-      setPreview({ lesson, url: lesson.offlineUrl });
+    if (lesson.offlineDraft) {
+      setPreview({ lesson, url: createOfflineLessonUrl(lesson.offlineDraft) });
       return;
     }
     const rawPath = lesson.video_path?.trim();
@@ -804,15 +924,97 @@ function Lessons({ notify }: { notify: Notify }) {
     } finally { setPreviewLoading(false); }
   };
   const visible = lessons.filter(lesson => tab === "All" || categoryFromDb(lesson.category) === tab);
+  const youtubePreview = preview ? getLessonYouTubeEmbed(preview.url) : null;
 
-  return <><Heading eyebrow="CURRICULUM LIBRARY" title="Lessons & Videos" detail="Manage one lesson for each of the six learning games."><button className="ta-primary" onClick={openNew}><Upload /> Upload New Lesson</button></Heading>
+  const libraryFull = !loading && !loadError && !availableCategories.length;
+  return <><Heading eyebrow="CURRICULUM LIBRARY" title="Lessons & Videos" detail={libraryFull ? "All six categories have a lesson. Use Edit to replace a video." : "Manage one lesson for each of the six learning games."}><button className="ta-primary" disabled={loading || removing || !!loadError || libraryFull} onClick={openNew}><Upload /> Upload New Lesson</button></Heading>
     <div className="ta-tabs">{["All", ...lessonCategories].map(value => <button className={tab === value ? "active" : ""} onClick={() => setTab(value)} key={value}>{value}</button>)}</div>
     {loading && <section className="ta-student-state"><BearLoading compact /></section>}
-    {!loading && loadError && <section className="ta-student-state error"><CircleAlert/><h3>Unable to load lessons</h3><p>{loadError}</p></section>}
+    {!loading && loadError && <section className="ta-student-state error"><CircleAlert/><h3>Unable to load lessons</h3><p>{loadError}</p><button className="ta-secondary" onClick={refresh}>Try again</button></section>}
+    {syncing && <p role="status">Uploading saved lesson drafts…</p>}
+    {syncError && <div role="alert"><p>{syncError}</p><button className="ta-secondary" disabled={syncing} onClick={() => void retrySync()}>Retry sync</button></div>}
     {!loading && !loadError && visible.length === 0 && <section className="ta-student-state"><Video/><h3>No video lessons yet</h3><p>Use Upload New Lesson to add the first lesson in this category.</p></section>}
-    {!loading && !loadError && <section className="ta-lessons">{visible.map(lesson => { const uiCategory = categoryFromDb(lesson.category); return <article key={lesson.id}><div className="ta-thumb"><span>{lessonIcons[uiCategory] ?? lessonIcons.Others}</span><b>VIDEO</b><button disabled={previewLoading} onClick={() => void previewLesson(lesson)}>{previewLoading ? "…" : "▶"}</button></div><div><span><i>{uiCategory}</i><em>{lesson.offlineStatus === "queued" ? "Waiting to sync" : "Published"}</em></span><h3>{lesson.title}</h3><p>{lesson.description || `${uiCategory} lesson video`}</p><small><Activity /> Attached: {uiCategory === "Others" ? "Custom lesson" : `${uiCategory} Quest`}</small><footer>{lesson.offlineStatus === "queued" ? <button onClick={() => void previewLesson(lesson)}><Video /> Preview</button> : <><button onClick={() => openEdit(lesson)}><Pencil /> Edit</button><button onClick={() => void archiveLesson(lesson)}><Trash2 /> Delete</button></>}</footer></div></article>; })}</section>}
-    {preview && <div className="ta-overlay" onMouseDown={() => setPreview(null)}><section className="ta-modal ta-video-modal" onMouseDown={event => event.stopPropagation()}><button className="ta-close" onClick={() => setPreview(null)}><X /></button><div className="ta-video-heading"><i>{lessonIcons[categoryFromDb(preview.lesson.category)] ?? lessonIcons.Others}</i><span><small>{categoryFromDb(preview.lesson.category)} VIDEO LESSON</small><h2>{preview.lesson.title}</h2></span></div><video src={preview.url} controls autoPlay playsInline onError={() => { setPreview(null); notify("This video could not be played. Please upload the video again."); }}>Your device does not support video playback.</video><p>{preview.lesson.description || "Watch this learning video."}</p></section></div>}
-    {upload && <div className="ta-overlay" onMouseDown={closeForm}><form className="ta-modal ta-form" onMouseDown={event => event.stopPropagation()} onSubmit={saveLesson}><button type="button" className="ta-close" onClick={closeForm}><X /></button><h2>{editing ? "Edit Video Lesson" : "Upload New Video Lesson"}</h2><p>Choose one of the six lesson categories and provide either a file or a direct video URL.</p><label>Lesson title<select value={category} onChange={event => setCategory(event.target.value)}>{lessonCategories.map(value => <option disabled={lessons.some(item => item.id !== editing?.id && categoryFromDb(item.category) === value)} key={value}>{value}</option>)}</select></label><label>Video title<input required value={title} onChange={event => setTitle(event.target.value)} placeholder="Enter video title" /></label><label>Description<textarea value={description} onChange={event => setDescription(event.target.value)} placeholder="Enter lesson description" /></label><div className="ta-video-source"><label>{editing ? "Replace with video file (optional)" : "Video file"}<input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={event => { setFile(event.target.files?.[0] ?? null); if (event.target.files?.[0]) setVideoUrl(""); }} /></label><span>OR</span><label>{editing ? "Replace with direct video URL (optional)" : "Direct video URL"}<input type="url" value={videoUrl} onChange={event => { setVideoUrl(event.target.value); if (event.target.value) setFile(null); }} placeholder="https://example.com/lesson.mp4" /><small>Use a direct MP4, WebM, or hosted video-file link.</small></label></div><button className="ta-primary ta-full" disabled={saving}>{saving ? "Saving…" : editing ? "Update Lesson" : "Upload Lesson"}</button></form></div>}
+    {!loading && !loadError && <section className="ta-lessons">
+      {visible.map(lesson => {
+        const uiCategory = categoryFromDb(lesson.category);
+        return <article key={lesson.id}>
+          <div className="ta-thumb">
+            <span>{lessonIcons[uiCategory] ?? lessonIcons.Others}</span><b>VIDEO</b>
+            <button disabled={previewLoading} onClick={() => void previewLesson(lesson)}>{previewLoading ? "…" : "▶"}</button>
+          </div>
+          <div>
+            <span><i>{uiCategory}</i><em>{lesson.offlineDraft ? "Waiting to sync" : "Published"}</em></span>
+            <h3>{lesson.title}</h3>
+            <p>{lesson.description || `${uiCategory} lesson video`}</p>
+            <small><Activity /> Attached: {uiCategory === "Others" ? "Custom lesson" : `${uiCategory} Quest`}</small>
+            <footer>
+              {lesson.offlineDraft
+                ? <button disabled={previewLoading} onClick={() => void previewLesson(lesson)}><Video /> Preview</button>
+                : <button disabled={removing} onClick={() => openEdit(lesson)}><Pencil /> Edit</button>}
+              <button disabled={removing || syncing} onClick={() => requestLessonRemoval(lesson)}>
+                <Trash2 /> {lesson.offlineDraft ? "Discard Draft" : "Delete"}
+              </button>
+            </footer>
+          </div>
+        </article>;
+      })}
+    </section>}
+    {removal && <LessonRemovalDialog
+      lesson={removal}
+      busy={removing}
+      error={removalError}
+      onCancel={() => setRemoval(null)}
+      onConfirm={() => void archiveLesson()}
+    />}
+    {preview && <div className="ta-overlay" onMouseDown={() => setPreview(null)}>
+      <section className="ta-modal ta-video-modal" onMouseDown={event => event.stopPropagation()}>
+        <button className="ta-close" aria-label="Close video preview" onClick={() => setPreview(null)}><X /></button>
+        <div className="ta-video-heading"><i>{lessonIcons[categoryFromDb(preview.lesson.category)] ?? lessonIcons.Others}</i><span><small>{categoryFromDb(preview.lesson.category)} VIDEO LESSON</small><h2>{preview.lesson.title}</h2></span></div>
+        {youtubePreview
+          ? <iframe src={youtubePreview} title={preview.lesson.title} allow="encrypted-media; fullscreen; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen />
+          : <video src={preview.url} controls autoPlay playsInline onError={() => { setPreview(null); notify("This video could not be played. Check the file or use a direct video link."); }}>Your device does not support video playback.</video>}
+        <p>{preview.lesson.description || "Watch this learning video."}</p>
+        {youtubePreview && <p><a href={preview.url} target="_blank" rel="noopener noreferrer">Open original video</a></p>}
+      </section>
+    </div>}
+    {upload && <div className="ta-overlay" onMouseDown={() => !isSaving.current && closeForm()}>
+      <form className="ta-modal ta-form" onMouseDown={event => event.stopPropagation()} onSubmit={saveLesson} aria-busy={saving}>
+        <button type="button" className="ta-close" aria-label="Close lesson form" disabled={saving} onClick={closeForm}><X /></button>
+        <h2>{editing ? "Edit Video Lesson" : "Upload New Video Lesson"}</h2>
+        <p>Choose a lesson category and provide a file or video link.</p>
+        <label>Lesson category
+          <select disabled={saving} value={category} onChange={event => setCategory(event.target.value)}>
+            {lessonCategories.map(value => <option disabled={lessons.some(item =>
+              item.id !== editing?.id && (!editing || !item.offlineDraft) && categoryFromDb(item.category) === value,
+            )} key={value}>{value}</option>)}
+          </select>
+        </label>
+        <label>Video title<input required disabled={saving} value={title} onChange={event => setTitle(event.target.value)} placeholder="Enter video title" /></label>
+        <label>Description<textarea disabled={saving} value={description} onChange={event => setDescription(event.target.value)} placeholder="Enter lesson description" /></label>
+        <div className="ta-video-source">
+          <label>{editing ? "Replace with video file (optional)" : "Video file"}
+            <input ref={fileInput} type="file" disabled={saving} accept="video/mp4,video/webm,video/quicktime" onChange={event => {
+              const selected = event.target.files?.[0] ?? null;
+              setFile(selected);
+              if (selected) setVideoUrl("");
+            }} />
+          </label>
+          <span>OR</span>
+          <label>{editing ? "Replace with a video link (optional)" : "Video link"}
+            <input type="url" disabled={saving} value={videoUrl} onChange={event => {
+              setVideoUrl(event.target.value);
+              if (event.target.value && fileInput.current) {
+                fileInput.current.value = "";
+                setFile(null);
+              }
+            }} placeholder="https://example.com/lesson.mp4" />
+            <small>Use a direct video file, YouTube, or YouTube Kids link. YouTube videos need internet to play.</small>
+          </label>
+        </div>
+        {formError && <div className="ta-lesson-error" role="alert">{formError}</div>}
+        <button className="ta-primary ta-full" disabled={saving}>{saving ? file ? "Uploading video…" : "Saving lesson…" : editing ? "Update Lesson" : "Upload Lesson"}</button>
+      </form>
+    </div>}
   </>;
 }
 

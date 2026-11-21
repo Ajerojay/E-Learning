@@ -282,13 +282,19 @@ export async function findOfflineChildrenByPin(pin: string): Promise<CachedChild
   const localMatches = readLocalChildren().filter(row => row.pinCode === cleanPin && row.isActive !== false);
   const byId = new Map(localMatches.map(row => [row.id, row]));
   if (Capacitor.isNativePlatform()) {
-    await initializeOfflineSqlite();
-    const result = await CapacitorSQLite.query({
-      database: DATABASE_NAME,
-      statement: "SELECT id, parent_id, child_name, first_name, last_name, pin_code, is_active FROM children WHERE pin_code = ? AND is_active = 1",
-      values: [cleanPin],
-    });
-    for (const row of result.values ?? []) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const result = await Promise.race([
+      initializeOfflineSqlite().then(() => CapacitorSQLite.query({
+        database: DATABASE_NAME,
+        statement: "SELECT id, parent_id, child_name, first_name, last_name, pin_code, is_active FROM children WHERE pin_code = ? AND is_active = 1",
+        values: [cleanPin],
+      })),
+      new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), 2000); }),
+    ]).catch(error => {
+      console.warn("PIN lookup is using the local child roster:", error);
+      return null;
+    }).finally(() => clearTimeout(timer));
+    for (const row of result?.values ?? []) {
       const id = row.id ? String(row.id) : "";
       if (!id || byId.has(id)) continue;
       byId.set(id, {
@@ -387,9 +393,9 @@ export async function cacheOfflineLessons(lessons: Array<{
   gradeLevel?: string | null;
   videoPath: string;
   isPublished?: boolean;
-}>): Promise<void> {
-  if (lessons.length) {
-    const merged = new Map(readLocalLessons().map(lesson => [lesson.id, lesson]));
+}>, mode: "merge" | "snapshot" = "merge"): Promise<void> {
+  if (lessons.length || mode === "snapshot") {
+    const merged = new Map((mode === "snapshot" ? [] : readLocalLessons()).map(lesson => [lesson.id, lesson]));
     lessons.forEach(lesson => merged.set(lesson.id, {
       id: lesson.id,
       title: lesson.title,
@@ -401,15 +407,15 @@ export async function cacheOfflineLessons(lessons: Array<{
     }));
     localStorage.setItem(LOCAL_LESSONS_KEY, JSON.stringify([...merged.values()]));
   }
-  if (!Capacitor.isNativePlatform() || !lessons.length) return;
+  if (!Capacitor.isNativePlatform() || (!lessons.length && mode === "merge")) return;
   await initializeOfflineSqlite();
-  for (const lesson of lessons) {
-    await CapacitorSQLite.run({
-      database: DATABASE_NAME,
-      statement: "INSERT OR REPLACE INTO lessons (id, title, description, category, grade_level, video_path, is_published, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-      values: [lesson.id, lesson.title, lesson.description ?? null, lesson.category, lesson.gradeLevel ?? null, lesson.videoPath, lesson.isPublished === false ? 0 : 1, new Date().toISOString()],
-    });
-  }
+  const now = new Date().toISOString();
+  const writes = lessons.map(lesson => ({
+    statement: "INSERT OR REPLACE INTO lessons (id, title, description, category, grade_level, video_path, is_published, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    values: [lesson.id, lesson.title, lesson.description ?? null, lesson.category, lesson.gradeLevel ?? null, lesson.videoPath, lesson.isPublished === false ? 0 : 1, now],
+  }));
+  if (mode === "snapshot") writes.unshift({ statement: "DELETE FROM lessons", values: [] });
+  await CapacitorSQLite.executeSet({ database: DATABASE_NAME, set: writes, transaction: true });
 }
 
 export async function getOfflineLessonsFromSqlite(): Promise<Array<{ id: string; title: string; description: string | null; category: string; grade_level: string | null; video_path: string; is_published: number }>> {

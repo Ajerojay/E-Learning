@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, LogIn } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, LogIn } from "lucide-react";
 import "./AppAuth.css";
 import logo from "../../../../images/learnease logo-no bg.png";
 import { supabase } from "../../../backend/supabase";
@@ -13,7 +13,10 @@ import { openTeacherPortal } from "./teacherPortal";
 const TEACHER_USERNAME = "teacher";
 const TEACHER_PASSWORD = "teacher123";
 
-export default function TeacherLogin() {
+export default function TeacherLogin({ onAuthenticated, onBack }: {
+  onAuthenticated?: () => void;
+  onBack?: () => void;
+}) {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -22,6 +25,10 @@ export default function TeacherLogin() {
   const [loading, setLoading] = useState(false);
 
   const finishTeacherLogin = async (teacherUser: Record<string, unknown>, cleanUsername: string, cleanPassword: string) => {
+    if (onAuthenticated) {
+      onAuthenticated();
+      return;
+    }
     if (isMobileApp()) {
       openTeacherPortal();
       return;
@@ -82,6 +89,11 @@ export default function TeacherLogin() {
     <main className="app-auth-shell">
       {loading && <BearLoading overlay />}
       <section className="app-auth-phone" aria-label="LearnEase teacher sign in">
+        {onBack && (
+          <button className="app-auth-back-btn" type="button" aria-label="Back to parent sign in" onClick={onBack}>
+            <ArrowLeft size={22} />
+          </button>
+        )}
         <header className="app-auth-top">
           <img className="app-auth-logo" src={logo} alt="LearnEase" />
           <div className="app-auth-brand">

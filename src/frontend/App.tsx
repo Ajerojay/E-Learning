@@ -1,8 +1,8 @@
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { lazy, Suspense, useEffect, useLayoutEffect, useState, type ReactNode } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import "./App.css";
 import { getOrCreateActiveChildId, type SubjectKey } from "../backend/childProgress";
-import { completePendingParentRegistration, EMAIL_VERIFIED_PATH, openEmailLinkSession, RESET_PASSWORD_PATH } from "../backend/supabaseAuth";
+import { completePendingParentRegistration, EMAIL_VERIFIED_PATH, RESET_PASSWORD_PATH } from "../backend/supabaseAuth";
 import { pendingEmailLink, supabase } from "../backend/supabase";
 import { syncOfflineProgress } from "../backend/gameProgressDb";
 import { syncLocalQuestStars } from "../backend/questLevelResults";
@@ -26,8 +26,8 @@ import AppSignUp from "./MobileApp/WebView/AppSignUp";
 import AppResetPassword from "./MobileApp/WebView/AppResetPassword";
 import AppEmailVerified from "./MobileApp/WebView/AppEmailVerified";
 import AppStudentAccess from "./MobileApp/WebView/AppStudentAccess";
-const AppStudentPage = lazy(() => import("./MobileApp/WebView/AppStudentPage"));
-const PickAvatar = lazy(() => import("./MobileApp/pages/Student/PickAvatar"));
+import AppStudentPage from "./MobileApp/WebView/AppStudentPage";
+import PickAvatar from "./MobileApp/pages/Student/PickAvatar";
 const AppLessonPage = lazy(() => import("./MobileApp/WebView/AppLessonPage"));
 const LettersGameRouter = lazy(() => import("./MobileApp/pages/Student/games/letters/LettersGameRouter"));
 const AppColorsQuestPage = lazy(() => import("./MobileApp/WebView/AppColorsQuestPage"));
@@ -76,19 +76,18 @@ function StudentGameGuard({ category, children }: { category: SubjectKey; childr
 
 function AuthEmailRedirect() {
   const navigate = useNavigate();
+  const handled = useRef(false);
   useEffect(() => {
+    if (handled.current) return;
+    handled.current = true;
     const type = pendingEmailLink.type;
-    const kind = type === "recovery" ? "recovery" : type === "signup" || type === "email" ? "signup" : "";
-    if (!kind) return;
-    const pathname = kind === "recovery" ? RESET_PASSWORD_PATH : EMAIL_VERIFIED_PATH;
-    if (window.location.pathname === pathname || window.location.pathname === `/app${pathname}`) return;
-    let active = true;
-    void openEmailLinkSession(kind).finally(() => {
-      if (active) navigate(pathname, { replace: true });
-    });
-    return () => {
-      active = false;
-    };
+    const path = pendingEmailLink.path;
+    if ([EMAIL_VERIFIED_PATH, RESET_PASSWORD_PATH, `/app${EMAIL_VERIFIED_PATH}`, `/app${RESET_PASSWORD_PATH}`].includes(path)) return;
+    if (type === "recovery") {
+      navigate(RESET_PASSWORD_PATH, { replace: true });
+    } else if (type === "signup" || type === "email" || (path === "/" && pendingEmailLink.errorCode === "otp_expired")) {
+      navigate(EMAIL_VERIFIED_PATH, { replace: true });
+    }
   }, [navigate]);
   return null;
 }
@@ -106,6 +105,12 @@ function AppDeepLinkListener() {
     return () => window.removeEventListener("learnease-deeplink", open);
   }, [navigate]);
   return null;
+}
+
+function DefaultSignIn() {
+  const [params] = useSearchParams();
+  if (params.get("view") === "parent-signin") return <Navigate to="/app/signin" replace />;
+  return isMobileApp() ? <AppSignIn /> : <TeacherLogin />;
 }
 
 function App() {
@@ -201,7 +206,7 @@ function App() {
       <Routes>
 
         {/* DEFAULT */}
-        <Route path="/" element={isMobileApp() ? <AppSignIn /> : <TeacherLogin />} />
+        <Route path="/" element={<DefaultSignIn />} />
         <Route path="/teacher-login" element={<TeacherLogin />} />
         <Route path="/signup" element={<AppSignUp />} />
         <Route path="/reset-password" element={<AppResetPassword />} />
@@ -212,6 +217,7 @@ function App() {
         <Route path="/app/signin" element={<AppSignIn />} />
         <Route path="/app/signup" element={<AppSignUp />} />
         <Route path="/app/reset-password" element={<AppResetPassword />} />
+        <Route path="/app/forgot-password" element={<AppResetPassword useEmailCode />} />
         <Route path="/app/email-verified" element={<AppEmailVerified />} />
         <Route path="/app/phonics-quest" element={<StudentGameGuard category="phonics"><AppPhonicsQuestPage /></StudentGameGuard>} />
         <Route path="/app/phonics-quest/:gameId" element={<StudentGameGuard category="phonics"><PhonicsGameRouter mobileApp /></StudentGameGuard>} />

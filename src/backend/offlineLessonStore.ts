@@ -8,6 +8,8 @@ export type OfflineLesson = {
   videoType: string;
   video: Blob | null;
   videoUrl?: string;
+  publishId?: string;
+  uploadId?: string;
   createdAt: number;
 };
 
