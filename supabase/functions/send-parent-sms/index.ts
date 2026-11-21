@@ -11,20 +11,47 @@ function normalizePhMobile(value: string) {
   return /^09\d{9}$/.test(local) ? local : null;
 }
 
-async function sendSemaphore(apiKey: string, number: string, message: string, sender?: string) {
-  const params = new URLSearchParams();
-  params.set("apikey", apiKey);
-  params.set("number", number);
-  params.set("message", message);
-  if (sender) params.set("sendername", sender);
+function json(ok: boolean, extra: Record<string, unknown> = {}, status = 200) {
+  return Response.json({ ok, ...extra }, { status, headers: corsHeaders });
+}
 
-  const response = await fetch("https://api.semaphore.co/api/v4/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: params.toString(),
-  });
-  const body = await response.text();
-  return { ok: response.ok, status: response.status, body };
+async function sendSemaphore(apiKey: string, number: string, message: string, sender?: string) {
+  const form = new URLSearchParams();
+  form.set("apikey", apiKey);
+  form.set("number", number);
+  form.set("message", message);
+  if (sender) form.set("sendername", sender);
+
+  const attempts = [
+    {
+      url: "https://api.semaphore.co/api/v4/messages",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: form.toString(),
+    },
+    {
+      url: "https://api.semaphore.co/api/v4/messages",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        apikey: apiKey,
+        number,
+        message,
+        ...(sender ? { sendername: sender } : {}),
+      }),
+    },
+  ];
+
+  let last = { ok: false, status: 0, body: "" };
+  for (const attempt of attempts) {
+    const response = await fetch(attempt.url, {
+      method: "POST",
+      headers: attempt.headers,
+      body: attempt.body,
+    });
+    const body = await response.text();
+    last = { ok: response.ok, status: response.status, body };
+    if (response.ok) return last;
+  }
+  return last;
 }
 
 Deno.serve(async (request) => {
@@ -37,16 +64,17 @@ Deno.serve(async (request) => {
     const number = normalizePhMobile(String(payload.number || ""));
     const message = String(payload.message || "").trim();
     if (!number || !message) {
-      return Response.json({ ok: false, error: "Number and message are required." }, { status: 400, headers: corsHeaders });
+      return json(false, { error: "Number and message are required." });
     }
 
-    const apiKey =
+    const apiKey = (
       Deno.env.get("SEMAPHORE_API_KEY") ||
       Deno.env.get("semaphore") ||
       Deno.env.get("SEMAPHORE") ||
-      "";
+      ""
+    ).trim();
     if (!apiKey) {
-      return Response.json({ ok: false, error: "unconfigured" }, { status: 501, headers: corsHeaders });
+      return json(false, { error: "unconfigured" });
     }
 
     const sender = (Deno.env.get("SEMAPHORE_SENDER") || "").trim();
@@ -55,13 +83,10 @@ Deno.serve(async (request) => {
       result = await sendSemaphore(apiKey, number, message);
     }
     if (!result.ok) {
-      return Response.json({ ok: false, error: result.body || `HTTP ${result.status}` }, { status: 502, headers: corsHeaders });
+      return json(false, { error: result.body || `Semaphore HTTP ${result.status}` });
     }
-    return Response.json({ ok: true, result: result.body }, { headers: corsHeaders });
+    return json(true, { result: result.body });
   } catch (error) {
-    return Response.json(
-      { ok: false, error: error instanceof Error ? error.message : "SMS failed." },
-      { status: 500, headers: corsHeaders },
-    );
+    return json(false, { error: error instanceof Error ? error.message : "SMS failed." });
   }
 });

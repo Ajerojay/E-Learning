@@ -228,6 +228,23 @@ function smsFunctionError(value: unknown) {
   return String((value as { error?: string; message?: string }).error || (value as { message?: string }).message || "");
 }
 
+async function readFunctionErrorBody(error: unknown) {
+  const context = error && typeof error === "object" && "context" in error
+    ? (error as { context?: Response }).context
+    : null;
+  if (!context) return "";
+  try {
+    const parsed = await context.clone().json() as { error?: string };
+    return String(parsed.error || "");
+  } catch {
+    try {
+      return (await context.clone().text()).trim();
+    } catch {
+      return "";
+    }
+  }
+}
+
 async function deliverSms(number: string, message: string): Promise<{ status: ParentSmsStatus; detail?: string }> {
   const payload = { number, message };
   const authHeaders = {
@@ -241,10 +258,10 @@ async function deliverSms(number: string, message: string): Promise<{ status: Pa
       headers: authHeaders,
     });
     if (!error && data && (data as { ok?: boolean }).ok !== false) return { status: "sent" };
-    const detail = smsFunctionError(data) || error?.message || "";
+    const detail = smsFunctionError(data) || await readFunctionErrorBody(error) || error?.message || "";
     if (/unconfigured/i.test(detail)) return { status: "unconfigured", detail };
+    if (detail && !/non-2xx|failed to send/i.test(detail)) return { status: "failed", detail };
     if (error) console.warn("SMS function error:", error.message, data);
-    if (detail) return { status: "failed", detail };
   } catch (error) {
     console.warn("SMS function skipped:", error);
   }
@@ -259,7 +276,7 @@ async function deliverSms(number: string, message: string): Promise<{ status: Pa
       body: JSON.stringify(payload),
     });
     const data = await response.json().catch(() => ({})) as { ok?: boolean; error?: string };
-    if (response.ok && data.ok !== false) return { status: "sent" };
+    if (data.ok !== false && (response.ok || data.result)) return { status: "sent" };
     const detail = String(data.error || response.status);
     if (/unconfigured/i.test(detail)) return { status: "unconfigured", detail };
     console.warn("SMS function HTTP error:", detail);
