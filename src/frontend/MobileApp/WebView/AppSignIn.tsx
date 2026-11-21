@@ -5,14 +5,14 @@ import { Eye, EyeOff, KeyRound, LogIn } from "lucide-react";
 import "./AppAuth.css";
 import logo from "../../../../images/learnease logo-no bg.png";
 import { signInParentAccount } from "../../../backend/supabaseAuth";
-import { getOrCreateActiveChildId } from "../../../backend/childProgress";
+import { getOrCreateActiveChildId, isSignedInParent, lastParentRoute } from "../../../backend/childProgress";
 import { supabase } from "../../../backend/supabase";
 import { authenticateOfflineParent, cacheOfflineChild, cacheOfflineParentLogin } from "../../../backend/offlineSqlite";
 import { authenticateOffline, cacheVerifiedLogin } from "../../../backend/offlineAuth";
 import BearLoading from "../BearLoading";
 import { isMobileApp } from "../isMobileApp";
 import TeacherLogin from "./TeacherLogin";
-import { openTeacherPortal } from "./teacherPortal";
+import TeacherBrowserPrompt from "./TeacherBrowserPrompt";
 
 const TEACHER_USERNAME = "teacher";
 const TEACHER_PASSWORD = "teacher123";
@@ -25,6 +25,7 @@ export default function AppSignIn() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [teacherFormOpen, setTeacherFormOpen] = useState(false);
+  const [browserPrompt, setBrowserPrompt] = useState(false);
   const [signInNotice] = useState(
     location.state && typeof location.state === "object" && "emailJustVerified" in location.state
       && (location.state as { emailJustVerified?: boolean }).emailJustVerified
@@ -36,6 +37,10 @@ export default function AppSignIn() {
   useEffect(() => {
     void import("./AppParentDashboard");
   }, []);
+
+  useEffect(() => {
+    if (isSignedInParent()) navigate(lastParentRoute(), { replace: true });
+  }, [navigate]);
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -55,7 +60,7 @@ export default function AppSignIn() {
     };
     const finishTeacherLogin = async (teacherUser: Record<string, unknown>) => {
       if (isMobileApp()) {
-        openTeacherPortal();
+        setBrowserPrompt(true);
         return;
       }
       localStorage.setItem("user", JSON.stringify(teacherUser));
@@ -185,12 +190,13 @@ export default function AppSignIn() {
   };
 
   if (teacherFormOpen) {
-    return <TeacherLogin onBack={() => setTeacherFormOpen(false)} onAuthenticated={openTeacherPortal} />;
+    return <TeacherLogin onBack={() => setTeacherFormOpen(false)} />;
   }
 
   return (
     <main className="app-auth-shell">
       {loading && <BearLoading overlay />}
+      <TeacherBrowserPrompt open={browserPrompt} onClose={() => setBrowserPrompt(false)} />
       <section className="app-auth-phone" aria-label="LearnEase mobile app sign in">
         <header className="app-auth-top">
           <img className="app-auth-logo" src={logo} alt="LearnEase" />

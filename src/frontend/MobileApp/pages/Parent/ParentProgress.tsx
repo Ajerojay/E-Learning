@@ -5,6 +5,7 @@ import logo from "../../../../../images/learnease logo-no bg.png";
 import {
   getChildDisplayFirstName,
   getChildDisplayName,
+  clearLocalSession,
   getLocalUser,
   getOrCreateActiveChildId,
   normalizeSubjectKey,
@@ -543,7 +544,8 @@ export default function ParentProgress() {
             title="Logout"
             onClick={() => {
               setSidebarCollapsed(true);
-              navigate("/");
+              clearLocalSession();
+              navigate("/", { replace: true });
             }}
           >
             <span className="pp-nav-icon" aria-hidden="true">

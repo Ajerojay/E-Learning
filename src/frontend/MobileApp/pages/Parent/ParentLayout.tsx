@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../../../../../images/learnease logo-no bg.png";
-import { getLocalUser } from "../../../../backend/childProgress";
+import { clearLocalSession, getLocalUser, rememberParentRoute } from "../../../../backend/childProgress";
 import { NotificationBell } from "../../notifications/NotificationInbox";
 import { enablePushNotifications, notificationDestination, rememberParentAllergyAlert } from "../../../../backend/appNotifications";
 import BearLoading from "../../BearLoading";
@@ -44,7 +44,7 @@ export default function ParentLayout({ activeNav, children, hideHeader = false }
     const next = `${url.pathname}${url.search}`;
     const current = `${window.location.pathname}${window.location.search}`;
     if (current === next && !force) return;
-    if (window.location.pathname === url.pathname) {
+    if (window.location.pathname === url.pathname || url.searchParams.has("notice") || url.searchParams.has("focus")) {
       navigate(next);
       return;
     }
@@ -69,6 +69,10 @@ export default function ParentLayout({ activeNav, children, hideHeader = false }
   React.useEffect(() => {
     void enablePushNotifications();
   }, []);
+
+  React.useEffect(() => {
+    rememberParentRoute(`${window.location.pathname}${window.location.search}`);
+  }, [activeNav]);
 
   const navClass = (id: ParentNavId) =>
     `pd-nav-item${activeNav === id ? " pd-active" : ""}`;
@@ -143,10 +147,8 @@ export default function ParentLayout({ activeNav, children, hideHeader = false }
             title="Logout"
             onClick={() => {
               setSidebarCollapsed(true);
-              localStorage.removeItem("user");
-              localStorage.removeItem("activeChildId");
-              localStorage.removeItem("studentPin");
-              navigate("/");
+              clearLocalSession();
+              navigate("/", { replace: true });
             }}
           >
             <span className="pd-nav-icon" aria-hidden="true">

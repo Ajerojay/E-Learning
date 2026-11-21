@@ -208,7 +208,10 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public void open(String url) {
             if (url == null || (!url.startsWith("http://") && !url.startsWith("https://"))) return;
-            runOnUiThread(() -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))));
+            runOnUiThread(() -> {
+                Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                startActivity(Intent.createChooser(browserIntent, "Open teacher portal with"));
+            });
         }
     }
 

@@ -8,7 +8,7 @@ import { supabase } from "../../../backend/supabase";
 import { cacheVerifiedLogin } from "../../../backend/offlineAuth";
 import BearLoading from "../BearLoading";
 import { isMobileApp } from "../isMobileApp";
-import { openTeacherPortal } from "./teacherPortal";
+import TeacherBrowserPrompt from "./TeacherBrowserPrompt";
 
 const TEACHER_USERNAME = "teacher";
 const TEACHER_PASSWORD = "teacher123";
@@ -23,14 +23,15 @@ export default function TeacherLogin({ onAuthenticated, onBack }: {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [browserPrompt, setBrowserPrompt] = useState(false);
 
   const finishTeacherLogin = async (teacherUser: Record<string, unknown>, cleanUsername: string, cleanPassword: string) => {
-    if (onAuthenticated) {
-      onAuthenticated();
+    if (isMobileApp()) {
+      setBrowserPrompt(true);
       return;
     }
-    if (isMobileApp()) {
-      openTeacherPortal();
+    if (onAuthenticated) {
+      onAuthenticated();
       return;
     }
     localStorage.setItem("user", JSON.stringify(teacherUser));
@@ -88,6 +89,7 @@ export default function TeacherLogin({ onAuthenticated, onBack }: {
   return (
     <main className="app-auth-shell">
       {loading && <BearLoading overlay />}
+      <TeacherBrowserPrompt open={browserPrompt} onClose={() => setBrowserPrompt(false)} />
       <section className="app-auth-phone" aria-label="LearnEase teacher sign in">
         {onBack && (
           <button className="app-auth-back-btn" type="button" aria-label="Back to parent sign in" onClick={onBack}>

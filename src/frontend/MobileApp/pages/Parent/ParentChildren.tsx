@@ -247,11 +247,22 @@ export default function ParentChildren() {
     if (achievementTab !== "attendance") return;
     const noticeId = searchParams.get("notice");
     if (!noticeId) return;
-    const timer = window.setTimeout(() => {
-      noticeRefs.current[noticeId]?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 80);
-    return () => window.clearTimeout(timer);
-  }, [achievementTab, searchParams, parentNotices]);
+    const jump = () => {
+      const node = noticeRefs.current[noticeId];
+      if (!node) return false;
+      node.scrollIntoView({ behavior: "auto", block: "start" });
+      return true;
+    };
+    if (jump()) return;
+    const frames: number[] = [];
+    let tries = 0;
+    const retry = () => {
+      if (jump() || tries++ > 12) return;
+      frames.push(window.requestAnimationFrame(retry));
+    };
+    frames.push(window.requestAnimationFrame(retry));
+    return () => frames.forEach(id => window.cancelAnimationFrame(id));
+  }, [achievementTab, searchParams, parentNotices, attendanceReady]);
 
   const previewRecord = recordPreview ? parseStudentMonthAttachment(recordPreview.text) : null;
   const attendanceCount = (status: string) => Number(
@@ -327,12 +338,9 @@ export default function ParentChildren() {
       item.kind === "attendance"
       && (!item.childId || !child?.id || item.childId === child.id)
     ));
-    const head = rows.slice(0, 8);
-    if (focusedNoticeId && !head.some((item) => item.id === focusedNoticeId)) {
-      const extra = rows.find((item) => item.id === focusedNoticeId);
-      if (extra) return [extra, ...head];
-    }
-    return head;
+    const focused = focusedNoticeId ? rows.find((item) => item.id === focusedNoticeId) : null;
+    const rest = rows.filter((item) => item.id !== focusedNoticeId).slice(0, 8);
+    return focused ? [focused, ...rest] : rest;
   }, [parentNotices, child?.id, focusedNoticeId]);
   const activeAllergyNames = useMemo(() => {
     const fromAlert = new Set((allergyAlert?.names || []).map((name) => name.trim().toLowerCase()).filter(Boolean));

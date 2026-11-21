@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import "./App.css";
-import { getOrCreateActiveChildId, type SubjectKey } from "../backend/childProgress";
+import { getOrCreateActiveChildId, isSignedInParent, lastParentRoute, type SubjectKey } from "../backend/childProgress";
 import { completePendingParentRegistration, EMAIL_VERIFIED_PATH, RESET_PASSWORD_PATH } from "../backend/supabaseAuth";
 import { pendingEmailLink, supabase } from "../backend/supabase";
 import { syncOfflineProgress } from "../backend/gameProgressDb";
@@ -110,6 +110,7 @@ function AppDeepLinkListener() {
 function DefaultSignIn() {
   const [params] = useSearchParams();
   if (params.get("view") === "parent-signin") return <Navigate to="/app/signin" replace />;
+  if (isMobileApp() && isSignedInParent()) return <Navigate to={lastParentRoute()} replace />;
   return isMobileApp() ? <AppSignIn /> : <TeacherLogin />;
 }
 

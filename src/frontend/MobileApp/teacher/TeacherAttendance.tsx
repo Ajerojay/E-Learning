@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert,
   Mail, Paperclip, Pencil, Printer, Send, Users, X,
@@ -70,7 +70,10 @@ export default function TeacherAttendance({ notify, teacher }: { notify: Notify;
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [editing, setEditing] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
+  const editingRef = useRef(editing);
+  editingRef.current = editing;
   const [classReportMonth, setClassReportMonth] = useState<MonthPoint | null>(null);
   const [calendarStudent, setCalendarStudent] = useState<AttendanceRow | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth());
@@ -144,13 +147,15 @@ export default function TeacherAttendance({ notify, teacher }: { notify: Notify;
       const records = await getAttendanceRecords(rosterIds.split(","));
       if (!active || !records.length) return;
       const history = mergeAttendanceRecords(records);
-      setDraft(current => {
-        const next = { ...current };
-        records.forEach(record => {
-          if (record.attendance_date === selectedDate) next[record.child_id] = history[record.child_id]?.[selectedDate] || next[record.child_id] || "Unmarked";
+      if (!editingRef.current) {
+        setDraft(current => {
+          const next = { ...current };
+          records.forEach(record => {
+            if (record.attendance_date === selectedDate) next[record.child_id] = history[record.child_id]?.[selectedDate] || next[record.child_id] || "Unmarked";
+          });
+          return next;
         });
-        return next;
-      });
+      }
       refreshHistory();
     };
     const refresh = () => { void syncLoginAttendance(); };
@@ -179,8 +184,16 @@ export default function TeacherAttendance({ notify, teacher }: { notify: Notify;
   };
 
   const saveAttendance = async () => {
-    if (futureDate) {
-      notify("Future attendance dates cannot be edited.");
+    if (futureDate || saving) {
+      if (futureDate) notify("Future attendance dates cannot be edited.");
+      return;
+    }
+    const marked = rows.flatMap(row => {
+      const status = draft[row.id];
+      return !status || status === "Unmarked" ? [] : [{ childId: row.id, date: selectedDate, status, teacherId: teacherKey(teacher), teacherName: teacher.name }];
+    });
+    if (!marked.length) {
+      notify("Mark at least one learner before saving.");
       return;
     }
     const history = readAttendanceHistory();
@@ -191,18 +204,17 @@ export default function TeacherAttendance({ notify, teacher }: { notify: Notify;
       else history[row.id][selectedDate] = status;
     });
     writeAttendanceHistory(history);
+    setSaving(true);
     try {
-      await saveAttendanceRecords(rows.flatMap(row => {
-        const status = draft[row.id];
-        return !status || status === "Unmarked" ? [] : [{ childId: row.id, date: selectedDate, status, teacherId: teacherKey(teacher), teacherName: teacher.name }];
-      }));
+      await saveAttendanceRecords(marked);
+      setEditing(false);
+      refreshHistory();
+      notify(`Attendance submitted for ${longDate(selectedDate)}`);
     } catch (error) {
       notify(error instanceof Error ? error.message : "Attendance could not sync online.");
-      return;
+    } finally {
+      setSaving(false);
     }
-    setEditing(false);
-    refreshHistory();
-    notify(`Attendance submitted for ${longDate(selectedDate)}`);
   };
 
   const openParentNote = (student: AttendanceRow, month: MonthPoint) => {
@@ -339,7 +351,15 @@ export default function TeacherAttendance({ notify, teacher }: { notify: Notify;
             <div className="ta-att-actions">
               {saved
                 ? <button className="ta-secondary ta-edit-att" onClick={() => setEditing(true)}><Pencil /> Edit Attendance</button>
-                : <button className="ta-primary" disabled={futureDate || rows.some(row => !draft[row.id] || draft[row.id] === "Unmarked")} onClick={() => void saveAttendance()}><Check /> Save Attendance</button>}
+                : (
+                  <button
+                    className="ta-primary"
+                    disabled={futureDate || saving || rows.every(row => !draft[row.id] || draft[row.id] === "Unmarked")}
+                    onClick={() => void saveAttendance()}
+                  >
+                    <Check />{saving ? "Saving…" : "Save Attendance"}
+                  </button>
+                )}
             </div>
           </section>
         </>

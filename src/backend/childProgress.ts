@@ -81,6 +81,31 @@ export function getLocalUser(): LocalUser | null {
   }
 }
 
+const PARENT_ROUTE_KEY = "learnease.parentRoute";
+
+export function isSignedInParent() {
+  const user = getLocalUser();
+  return Boolean(user && user.role === "parent" && user.id);
+}
+
+export function rememberParentRoute(path: string) {
+  const next = path.split("?")[0];
+  if (!next.startsWith("/parent-")) return;
+  localStorage.setItem(PARENT_ROUTE_KEY, next);
+}
+
+export function lastParentRoute() {
+  const saved = localStorage.getItem(PARENT_ROUTE_KEY) || "/parent-dashboard";
+  return saved.startsWith("/parent-") ? saved : "/parent-dashboard";
+}
+
+export function clearLocalSession() {
+  localStorage.removeItem("user");
+  localStorage.removeItem(CHILD_ID_KEY);
+  localStorage.removeItem("studentPin");
+  localStorage.removeItem(PARENT_ROUTE_KEY);
+}
+
 export function rememberChildFirstName(childId: string, name: string): void {
   const clean = name.trim();
   if (!childId || !clean) return;

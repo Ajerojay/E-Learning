@@ -710,6 +710,8 @@
   font-weight: 600;
   line-height: 1.4;
   white-space: pre-wrap;
+  max-height: 9.5em;
+  overflow: auto;
 }
 
 .pc-attendance-notice.is-focused {
