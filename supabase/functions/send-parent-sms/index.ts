@@ -11,41 +11,51 @@ function normalizePhMobile(value: string) {
   return /^09\d{9}$/.test(local) ? local : null;
 }
 
-function json(ok: boolean, extra: Record<string, unknown> = {}, status = 200) {
-  return Response.json({ ok, ...extra }, { status, headers: corsHeaders });
+function toIntl(local09: string) {
+  return `+63${local09.slice(1)}`;
 }
 
-async function sendSemaphore(apiKey: string, number: string, message: string, sender?: string) {
-  const form = new URLSearchParams();
-  form.set("apikey", apiKey);
-  form.set("number", number);
-  form.set("message", message);
-  if (sender) form.set("sendername", sender);
+function json(ok: boolean, extra: Record<string, unknown> = {}) {
+  return Response.json({ ok, ...extra }, { status: 200, headers: corsHeaders });
+}
 
-  const attempts = [
-    {
-      url: "https://api.semaphore.co/api/v4/messages",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: form.toString(),
-    },
-    {
-      url: "https://api.semaphore.co/api/v4/messages",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        apikey: apiKey,
-        number,
-        message,
-        ...(sender ? { sendername: sender } : {}),
-      }),
-    },
+function parseTextbeeError(body: string) {
+  try {
+    const parsed = JSON.parse(body) as {
+      error?: string;
+      message?: string;
+      data?: { message?: string };
+    };
+    return String(parsed.error || parsed.message || parsed.data?.message || body).trim();
+  } catch {
+    return body.trim();
+  }
+}
+
+async function sendTextbee(apiKey: string, deviceId: string, recipients: string[], message: string) {
+  const headers = {
+    "Content-Type": "application/json",
+    "x-api-key": apiKey,
+  };
+  const payload = {
+    recipients,
+    message,
+    ...(deviceId ? { deviceId } : {}),
+  };
+
+  const urls = [
+    "https://api.textbee.dev/api/v1/gateway/send-sms",
+    ...(deviceId
+      ? [`https://api.textbee.dev/api/v1/gateway/devices/${encodeURIComponent(deviceId)}/send-sms`]
+      : []),
   ];
 
   let last = { ok: false, status: 0, body: "" };
-  for (const attempt of attempts) {
-    const response = await fetch(attempt.url, {
+  for (const url of urls) {
+    const response = await fetch(url, {
       method: "POST",
-      headers: attempt.headers,
-      body: attempt.body,
+      headers,
+      body: JSON.stringify(payload),
     });
     const body = await response.text();
     last = { ok: response.ok, status: response.status, body };
@@ -61,29 +71,31 @@ Deno.serve(async (request) => {
 
   try {
     const payload = await request.json() as { number?: string; message?: string };
-    const number = normalizePhMobile(String(payload.number || ""));
+    const local = normalizePhMobile(String(payload.number || ""));
     const message = String(payload.message || "").trim();
-    if (!number || !message) {
+    if (!local || !message) {
       return json(false, { error: "Number and message are required." });
     }
 
     const apiKey = (
-      Deno.env.get("SEMAPHORE_API_KEY") ||
-      Deno.env.get("semaphore") ||
-      Deno.env.get("SEMAPHORE") ||
+      Deno.env.get("TEXTBEE_API_KEY") ||
+      Deno.env.get("textbee") ||
+      Deno.env.get("TEXTBEE") ||
       ""
     ).trim();
     if (!apiKey) {
       return json(false, { error: "unconfigured" });
     }
 
-    const sender = (Deno.env.get("SEMAPHORE_SENDER") || "").trim();
-    let result = await sendSemaphore(apiKey, number, message, sender || undefined);
-    if (!result.ok && sender) {
-      result = await sendSemaphore(apiKey, number, message);
-    }
+    const deviceId = (
+      Deno.env.get("TEXTBEE_DEVICE_ID") ||
+      Deno.env.get("TEXTBEE_DEVICE") ||
+      ""
+    ).trim();
+
+    const result = await sendTextbee(apiKey, deviceId, [toIntl(local)], message);
     if (!result.ok) {
-      return json(false, { error: result.body || `Semaphore HTTP ${result.status}` });
+      return json(false, { error: parseTextbeeError(result.body) || `TextBee HTTP ${result.status}` });
     }
     return json(true, { result: result.body });
   } catch (error) {

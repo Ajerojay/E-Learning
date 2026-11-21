@@ -392,10 +392,9 @@ export function parentSmsToast(
   const who = audience === "teacher" ? "teacher" : "parent";
   if (status === "sent" && phone) return `SMS sent to ${formatPhMobileDisplay(phone)}`;
   if (status === "no-phone") return `No ${who} phone on file for SMS`;
-  if (status === "unconfigured") return "In-app notice sent. Add a Semaphore API key to send SMS";
+  if (status === "unconfigured") return "In-app notice sent. Add TEXTBEE_API_KEY in Edge Function secrets";
   if (status === "failed") {
-    const hint = detail.replace(/\s+/g, " ").trim().slice(0, 120);
-    if (/sender/i.test(hint)) return "In-app notice sent, but SMS failed: register a Semaphore sender name or remove SEMAPHORE_SENDER";
+    const hint = detail.replace(/\s+/g, " ").trim().slice(0, 140);
     return hint ? `In-app notice sent, but SMS failed (${hint})` : "In-app notice sent, but SMS failed";
   }
   return "";
