@@ -31,17 +31,7 @@ export const APP_NOTIFICATIONS_CHANGED = "learnease-app-notifications";
 export const CLASSROOM_TEACHER_RECIPIENT = "classroom";
 
 export async function classroomTeacherRecipients() {
-  const ids = new Set<string>([CLASSROOM_TEACHER_RECIPIENT]);
-  const { data, error } = await supabase.from("teacher_profiles").select("teacher_id,full_name");
-  if (!error) {
-    for (const row of data ?? []) {
-      const id = String(row.teacher_id || "").trim();
-      if (id) ids.add(id);
-      const name = String(row.full_name || "").trim().toLowerCase();
-      if (name) ids.add(`username:${name}`);
-    }
-  }
-  return [...ids].map((id) => ({ role: "teacher" as const, id }));
+  return [{ role: "teacher" as const, id: CLASSROOM_TEACHER_RECIPIENT }];
 }
 const LOCAL_KEY = "learnease.appNotifications";
 const READ_KEY = "learnease.appNotificationReads";
@@ -325,6 +315,22 @@ function fingerprint(item: AppNotification) {
   return `${item.title.trim()}|${item.body.trim()}`;
 }
 
+function noticeDedupeKey(item: AppNotification) {
+  return `${item.kind}|${item.senderId || ""}|${item.childId || ""}|${item.title.trim()}|${item.body.trim()}|${item.createdAt.slice(0, 16)}`;
+}
+
+function uniqueNotices(items: AppNotification[]) {
+  const seen = new Set<string>();
+  const unique: AppNotification[] = [];
+  for (const item of items) {
+    const key = noticeDedupeKey(item);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(item);
+  }
+  return unique;
+}
+
 export async function loadAppNotifications(role: AppUserRole, recipientId: string): Promise<AppNotification[]> {
   if (!recipientId) return [];
   const local = readLocal();
@@ -358,9 +364,9 @@ export async function loadAppNotifications(role: AppUserRole, recipientId: strin
     return item.kind === "health" || item.kind === "attendance" || item.kind === "emergency";
   });
   const merged = withLocalReads(mergeLists([...extraAnnouncements, ...extraCards, ...remote], local, role, recipientId));
-  return merged.filter(item => (
+  return uniqueNotices(merged.filter(item => (
     role === "parent" ? item.senderRole !== "parent" : item.senderRole !== "teacher"
-  ));
+  )));
 }
 
 export const PARENT_ALLERGY_ALERT_KEY = "learnease.parentAllergyAlert";

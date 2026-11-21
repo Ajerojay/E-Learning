@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase, supabaseAnonKey, supabaseUrl } from "./supabase";
 
 export type ParentSmsStatus = "sent" | "no-phone" | "unconfigured" | "failed" | "skipped";
 
@@ -223,37 +223,50 @@ function smsBody(title: string, message: string) {
   return text.length > 320 ? `${text.slice(0, 317)}...` : text;
 }
 
+function smsFunctionError(value: unknown) {
+  if (!value || typeof value !== "object") return "";
+  return String((value as { error?: string; message?: string }).error || (value as { message?: string }).message || "");
+}
+
 async function deliverSms(number: string, message: string) {
+  const payload = { number, message };
+  const authHeaders = {
+    Authorization: `Bearer ${supabaseAnonKey}`,
+    apikey: supabaseAnonKey,
+  };
+
   try {
     const { data, error } = await supabase.functions.invoke("send-parent-sms", {
-      body: { number, message },
+      body: payload,
+      headers: authHeaders,
     });
     if (!error && data && (data as { ok?: boolean }).ok !== false) return "sent" as const;
-    if (error && !/not found|404|failed to send/i.test(error.message)) {
-      console.warn("SMS function error:", error.message);
-    }
+    const detail = smsFunctionError(data) || error?.message || "";
+    if (/unconfigured/i.test(detail)) return "unconfigured" as const;
+    if (error) console.warn("SMS function error:", error.message, data);
   } catch (error) {
     console.warn("SMS function skipped:", error);
   }
 
-  const apiKey = String(import.meta.env.VITE_SEMAPHORE_API_KEY || "").trim();
-  if (!apiKey) return "unconfigured" as const;
-
-  const response = await fetch("https://api.semaphore.co/api/v4/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      apikey: apiKey,
-      number,
-      message,
-      sendername: String(import.meta.env.VITE_SEMAPHORE_SENDER || "SEMAPHORE"),
-    }),
-  });
-  if (!response.ok) {
-    console.warn("Semaphore SMS failed:", await response.text().catch(() => response.statusText));
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/send-parent-sms`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders,
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json().catch(() => ({})) as { ok?: boolean; error?: string };
+    if (response.ok && data.ok !== false) return "sent" as const;
+    const detail = String(data.error || response.status);
+    if (/unconfigured/i.test(detail)) return "unconfigured" as const;
+    console.warn("SMS function HTTP error:", detail);
+    return "failed" as const;
+  } catch (error) {
+    console.warn("SMS function request failed:", error);
     return "failed" as const;
   }
-  return "sent" as const;
 }
 
 export async function saveTeacherPhone(input: {
