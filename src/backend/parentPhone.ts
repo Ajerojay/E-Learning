@@ -275,8 +275,8 @@ async function deliverSms(number: string, message: string): Promise<{ status: Pa
       },
       body: JSON.stringify(payload),
     });
-    const data = await response.json().catch(() => ({})) as { ok?: boolean; error?: string };
-    if (data.ok !== false && (response.ok || data.result)) return { status: "sent" };
+    const data = await response.json().catch(() => ({})) as { ok?: boolean; error?: string; result?: unknown };
+    if (data.ok !== false && (response.ok || Boolean(data.result))) return { status: "sent" };
     const detail = String(data.error || response.status);
     if (/unconfigured/i.test(detail)) return { status: "unconfigured", detail };
     console.warn("SMS function HTTP error:", detail);
