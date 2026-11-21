@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,4 +20,9 @@ function run(bin, args) {
 
 run(npmCmd, ["run", "build"]);
 run(npxCmd, ["cap", "sync", "android"]);
+const indexHtml = path.join(root, "android", "app", "src", "main", "assets", "public", "index.html");
+if (!existsSync(indexHtml)) {
+  console.error("[android-offline] Missing android/app/src/main/assets/public/index.html after sync.");
+  process.exit(1);
+}
 console.log("[android-offline] Packaged assets synced. Press Run in Android Studio to install.");

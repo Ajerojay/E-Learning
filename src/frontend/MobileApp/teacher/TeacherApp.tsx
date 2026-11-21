@@ -1309,11 +1309,12 @@ function Health({ notify }: { notify: Notify }) {
     const listed = allergySummary ? ` Known allergies: ${allergySummary}.` : "";
     const title = `Allergy reaction — ${selectedStudent.name}`;
     const message = `${selectedStudent.name} had an allergy reaction in class.${listed} Please contact the teacher immediately.`;
+    const parentId = selectedStudent.parentId || await resolveChildParentId(selectedStudent.id, selectedStudent.name);
     const delivery = await notifyLinkedParent(selectedStudent, { title, message, kind: "health" });
     if (delivery === "missing") notify("Allergy marked Active, but this learner has no linked parent account.");
     else if (delivery === "sent") {
-      const sms = await sendParentAlertSms({ parentId: selectedStudent.parentId, title, message });
-      const smsLine = parentSmsToast(sms.status, sms.phone);
+      const sms = await sendParentAlertSms({ parentId, title, message });
+      const smsLine = parentSmsToast(sms.status, sms.phone, "parent", sms.detail);
       notify(`${selectedStudent.name}'s parent was notified immediately${smsLine ? ` · ${smsLine}` : ""}`);
     } else notify("Allergy marked Active. Parent notification is queued until online.");
     setAlerting(false);
@@ -1323,17 +1324,24 @@ function Health({ notify }: { notify: Notify }) {
     if (!selectedStudent || alerting) return;
     setAlerting(true);
     const extra = emergencyNote.trim();
-    const delivery = await notifyLinkedParent(selectedStudent, {
-      title: `Emergency — ${selectedStudent.name}`,
-      message: extra
-        ? `${selectedStudent.name} needs your attention right now. ${extra}`
-        : `${selectedStudent.name} needs your attention right now (accident, fight, or other emergency). Please contact the teacher immediately.`,
-      kind: "emergency",
-    });
+    const title = `Emergency — ${selectedStudent.name}`;
+    const message = extra
+      ? `${selectedStudent.name} needs your attention right now. ${extra}`
+      : `${selectedStudent.name} needs your attention right now (accident, fight, or other emergency). Please contact the teacher immediately.`;
+    const delivery = await notifyLinkedParent(selectedStudent, { title, message, kind: "emergency" });
     if (delivery === "missing") notify("Emergency was not sent. This learner has no linked parent account.");
     else {
+      const parentId = selectedStudent.parentId || await resolveChildParentId(selectedStudent.id, selectedStudent.name);
+      const sms = delivery === "sent"
+        ? await sendParentAlertSms({ parentId, title, message })
+        : { status: "skipped" as const, phone: null as string | null };
+      const smsLine = parentSmsToast(sms.status, sms.phone, "parent", sms.detail);
       setEmergencyNote("");
-      notify(delivery === "sent" ? `Emergency notice sent to ${selectedStudent.name}'s parent` : "Emergency notice is queued until online.");
+      notify(
+        delivery === "sent"
+          ? `Emergency notice sent to ${selectedStudent.name}'s parent${smsLine ? ` · ${smsLine}` : ""}`
+          : "Emergency notice is queued until online.",
+      );
     }
     setAlerting(false);
   };

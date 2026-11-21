@@ -188,7 +188,7 @@ function ParentContactCard({ parentId, learners }: { parentId: string; learners:
         childName: child?.name,
         message: sms,
       });
-      const smsLine = parentSmsToast(result.status, result.phone, "teacher");
+      const smsLine = parentSmsToast(result.status, result.phone, "teacher", result.detail);
       setSms("");
       setSmsNotice({
         kind: "ok",

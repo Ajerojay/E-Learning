@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert,
-  Mail, Paperclip, Pencil, Phone, Printer, Send, Users, X,
+  Mail, Paperclip, Pencil, Printer, Send, Users, X,
 } from "lucide-react";
 import BearLoading from "../BearLoading";
 import { supabase } from "../../../backend/supabase";
 import { getAttendanceRecords, localDateKey, saveAttendanceRecords, type AttendanceStatus } from "../../../backend/attendance";
 import { sendParentAnnouncement } from "../../../backend/supabaseData";
-import { formatPhMobileDisplay, getParentPhones, parentSmsToast, sendParentAlertSms } from "../../../backend/parentPhone";
 import { getOfflineChildrenFromSqlite } from "../../../backend/offlineSqlite";
 import { getStoredChildAvatar, normalizeChildAvatar } from "../../../backend/childAvatar";
 import { childAvatarById } from "../pages/Student/childAvatars";
@@ -32,7 +31,6 @@ type DayStatus = AttendanceStatus | "Unmarked";
 type AttendanceRow = {
   id: string;
   parentId: string | null;
-  parentPhone: string | null;
   name: string;
   section: string;
   avatar: ReactNode;
@@ -119,15 +117,10 @@ export default function TeacherAttendance({ notify, teacher }: { notify: Notify;
         return {
           id,
           parentId: student.parent_id ? String(student.parent_id) : null,
-          parentPhone: null as string | null,
           name: student.child_name?.trim() || fullName || "Unnamed learner",
           section: student.grade_level?.trim() || "Preschool",
           avatar: studentAvatar(normalizeChildAvatar(student.avatar) || getStoredChildAvatar(id), index % 2 === 0 ? "🧒" : "👧"),
         };
-      });
-      const phones = await getParentPhones(loaded.map(row => row.parentId || "").filter(Boolean));
-      loaded.forEach(row => {
-        if (row.parentId) row.parentPhone = phones[row.parentId] || null;
       });
       mergeAttendanceRecords(await getAttendanceRecords(loaded.map(row => row.id)));
       if (!active) return;
@@ -204,6 +197,10 @@ export default function TeacherAttendance({ notify, teacher }: { notify: Notify;
       return;
     }
     const history = readAttendanceHistory();
+    const previous = marked.map(row => ({
+      ...row,
+      prior: history[row.childId]?.[row.date] || "",
+    }));
     rows.forEach(row => {
       history[row.id] ||= {};
       const status = draft[row.id];
@@ -214,9 +211,30 @@ export default function TeacherAttendance({ notify, teacher }: { notify: Notify;
     setSaving(true);
     try {
       await saveAttendanceRecords(marked);
+      const alerts = previous.flatMap(row => {
+        if (row.prior === row.status) return [];
+        const student = rows.find(item => item.id === row.childId);
+        if (!student?.parentId) return [];
+        const title = `Attendance — ${student.name}`;
+        const message = `${student.name} is marked ${row.status} for ${longDate(selectedDate)}.`;
+        return [{ student, title, message }];
+      });
+      await Promise.all(alerts.map(alert => sendParentAnnouncement({
+        title: alert.title,
+        message: alert.message,
+        kind: "attendance",
+        parentId: alert.student.parentId,
+        childId: alert.student.id,
+        childName: alert.student.name,
+        senderId: teacherKey(teacher),
+        senderName: teacher.name,
+      })));
       setEditing(false);
       refreshHistory();
-      notify(`Attendance submitted for ${longDate(selectedDate)}`);
+      notify(
+        `Attendance submitted for ${longDate(selectedDate)}` +
+          (alerts.length ? " · Parents notified in the app" : ""),
+      );
     } catch (error) {
       notify(error instanceof Error ? error.message : "Attendance could not sync online.");
     } finally {
@@ -266,14 +284,8 @@ export default function TeacherAttendance({ notify, teacher }: { notify: Notify;
         senderName: teacher.name,
         attachment,
       });
-      const sms = await sendParentAlertSms({
-        parentId: parentNote.student.parentId,
-        title,
-        message: note,
-      });
       setParentNote(null);
-      const smsLine = parentSmsToast(sms.status, sms.phone);
-      notify(`Message sent to ${parentNote.student.name}'s parent${smsLine ? ` · ${smsLine}` : ""}`);
+      notify(`Message sent to ${parentNote.student.name}'s parent in the app`);
     } catch (error) {
       notify(error instanceof Error ? error.message : "Attendance notification could not be sent.");
     } finally {
@@ -411,16 +423,11 @@ export default function TeacherAttendance({ notify, teacher }: { notify: Notify;
         <div className="ta-overlay" onMouseDown={() => !sending && setParentNote(null)}>
           <section className="ta-modal ta-parent-note" onMouseDown={event => event.stopPropagation()}>
             <button className="ta-close" disabled={sending} onClick={() => setParentNote(null)}><X /></button>
-            <div className="ta-quick-modal-title"><i><Mail /></i><span><h2>Message parent</h2><p>This goes to the parent’s in-app bell and SMS.</p></span></div>
+            <div className="ta-quick-modal-title"><i><Mail /></i><span><h2>Message parent</h2><p>This goes to the parent’s in-app notifications.</p></span></div>
             <div className={`ta-health-recipient ${parentNote.student.parentId ? "linked" : "missing"}`}>
               <Users />
               <span><small>To</small><b>{parentNote.student.name}'s Parent</b><em>{parentNote.student.parentId ? "Linked parent account · in-app notification" : "No linked parent account"}</em></span>
               {parentNote.student.parentId ? <Check /> : <CircleAlert />}
-            </div>
-            <div className={`ta-health-recipient ${parentNote.student.parentPhone ? "linked" : "missing"}`}>
-              <Phone />
-              <span><small>SMS number</small><b>{parentNote.student.parentPhone ? formatPhMobileDisplay(parentNote.student.parentPhone) : "No phone on file"}</b><em>{parentNote.student.parentPhone ? "Attendance alert will also send as SMS" : "Ask the parent to add a phone number in the app"}</em></span>
-              {parentNote.student.parentPhone ? <Check /> : <CircleAlert />}
             </div>
             <label>From<input value={teacher.name} readOnly /></label>
             <label>Subject<input value={parentNote.title} onChange={event => setParentNote({ ...parentNote, title: event.target.value })} placeholder="Subject" /></label>

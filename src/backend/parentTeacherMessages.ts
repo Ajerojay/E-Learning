@@ -6,7 +6,7 @@ export async function sendTeacherSmsMessage(input: {
   childId?: string;
   childName?: string;
   message: string;
-}): Promise<{ status: ParentSmsStatus; phone: string | null }> {
+}): Promise<{ status: ParentSmsStatus; phone: string | null; detail?: string }> {
   const message = input.message.trim();
   if (!message) throw new Error("Write a message for the teacher.");
   const childName = input.childName?.trim();

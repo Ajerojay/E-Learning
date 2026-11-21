@@ -11,6 +11,22 @@ function normalizePhMobile(value: string) {
   return /^09\d{9}$/.test(local) ? local : null;
 }
 
+async function sendSemaphore(apiKey: string, number: string, message: string, sender?: string) {
+  const params = new URLSearchParams();
+  params.set("apikey", apiKey);
+  params.set("number", number);
+  params.set("message", message);
+  if (sender) params.set("sendername", sender);
+
+  const response = await fetch("https://api.semaphore.co/api/v4/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: params.toString(),
+  });
+  const body = await response.text();
+  return { ok: response.ok, status: response.status, body };
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -33,21 +49,15 @@ Deno.serve(async (request) => {
       return Response.json({ ok: false, error: "unconfigured" }, { status: 501, headers: corsHeaders });
     }
 
-    const response = await fetch("https://api.semaphore.co/api/v4/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        apikey: apiKey,
-        number,
-        message,
-        sendername: Deno.env.get("SEMAPHORE_SENDER") || "SEMAPHORE",
-      }),
-    });
-    const body = await response.text();
-    if (!response.ok) {
-      return Response.json({ ok: false, error: body }, { status: 502, headers: corsHeaders });
+    const sender = (Deno.env.get("SEMAPHORE_SENDER") || "").trim();
+    let result = await sendSemaphore(apiKey, number, message, sender || undefined);
+    if (!result.ok && sender) {
+      result = await sendSemaphore(apiKey, number, message);
     }
-    return Response.json({ ok: true, result: body }, { headers: corsHeaders });
+    if (!result.ok) {
+      return Response.json({ ok: false, error: result.body || `HTTP ${result.status}` }, { status: 502, headers: corsHeaders });
+    }
+    return Response.json({ ok: true, result: result.body }, { headers: corsHeaders });
   } catch (error) {
     return Response.json(
       { ok: false, error: error instanceof Error ? error.message : "SMS failed." },

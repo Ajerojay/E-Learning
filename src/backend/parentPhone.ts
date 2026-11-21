@@ -228,7 +228,7 @@ function smsFunctionError(value: unknown) {
   return String((value as { error?: string; message?: string }).error || (value as { message?: string }).message || "");
 }
 
-async function deliverSms(number: string, message: string) {
+async function deliverSms(number: string, message: string): Promise<{ status: ParentSmsStatus; detail?: string }> {
   const payload = { number, message };
   const authHeaders = {
     Authorization: `Bearer ${supabaseAnonKey}`,
@@ -240,10 +240,11 @@ async function deliverSms(number: string, message: string) {
       body: payload,
       headers: authHeaders,
     });
-    if (!error && data && (data as { ok?: boolean }).ok !== false) return "sent" as const;
+    if (!error && data && (data as { ok?: boolean }).ok !== false) return { status: "sent" };
     const detail = smsFunctionError(data) || error?.message || "";
-    if (/unconfigured/i.test(detail)) return "unconfigured" as const;
+    if (/unconfigured/i.test(detail)) return { status: "unconfigured", detail };
     if (error) console.warn("SMS function error:", error.message, data);
+    if (detail) return { status: "failed", detail };
   } catch (error) {
     console.warn("SMS function skipped:", error);
   }
@@ -258,14 +259,14 @@ async function deliverSms(number: string, message: string) {
       body: JSON.stringify(payload),
     });
     const data = await response.json().catch(() => ({})) as { ok?: boolean; error?: string };
-    if (response.ok && data.ok !== false) return "sent" as const;
+    if (response.ok && data.ok !== false) return { status: "sent" };
     const detail = String(data.error || response.status);
-    if (/unconfigured/i.test(detail)) return "unconfigured" as const;
+    if (/unconfigured/i.test(detail)) return { status: "unconfigured", detail };
     console.warn("SMS function HTTP error:", detail);
-    return "failed" as const;
+    return { status: "failed", detail };
   } catch (error) {
     console.warn("SMS function request failed:", error);
-    return "failed" as const;
+    return { status: "failed" };
   }
 }
 
@@ -330,12 +331,12 @@ export async function sendSmsAlert(input: {
   phone?: string | null;
   title: string;
   message: string;
-}): Promise<{ status: ParentSmsStatus; phone: string | null }> {
+}): Promise<{ status: ParentSmsStatus; phone: string | null; detail?: string }> {
   const phone = normalizePhMobile(String(input.phone || ""));
   if (!phone) return { status: "no-phone", phone: null };
   try {
-    const status = await deliverSms(phone, smsBody(input.title, input.message));
-    return { status, phone };
+    const result = await deliverSms(phone, smsBody(input.title, input.message));
+    return { status: result.status, phone, detail: result.detail };
   } catch (error) {
     console.warn("SMS failed:", error);
     return { status: "failed", phone };
@@ -347,7 +348,7 @@ export async function sendParentAlertSms(input: {
   title: string;
   message: string;
   enabled?: boolean;
-}): Promise<{ status: ParentSmsStatus; phone: string | null }> {
+}): Promise<{ status: ParentSmsStatus; phone: string | null; detail?: string }> {
   if (input.enabled === false) return { status: "skipped", phone: null };
   return sendSmsAlert({ phone: await getParentPhone(input.parentId), title: input.title, message: input.message });
 }
@@ -355,21 +356,30 @@ export async function sendParentAlertSms(input: {
 export async function sendTeacherAlertSms(input: {
   title: string;
   message: string;
-}): Promise<{ status: ParentSmsStatus; phone: string | null }> {
+}): Promise<{ status: ParentSmsStatus; phone: string | null; detail?: string }> {
   const phones = await getTeacherPhones();
   if (!phones.length) return { status: "no-phone", phone: null };
-  let last: { status: ParentSmsStatus; phone: string | null } = { status: "failed", phone: phones[0] };
+  let last: { status: ParentSmsStatus; phone: string | null; detail?: string } = { status: "failed", phone: phones[0] };
   for (const phone of phones) {
     last = await sendSmsAlert({ phone, title: input.title, message: input.message });
   }
   return last;
 }
 
-export function parentSmsToast(status: ParentSmsStatus, phone: string | null, audience: "parent" | "teacher" = "parent") {
+export function parentSmsToast(
+  status: ParentSmsStatus,
+  phone: string | null,
+  audience: "parent" | "teacher" = "parent",
+  detail = "",
+) {
   const who = audience === "teacher" ? "teacher" : "parent";
   if (status === "sent" && phone) return `SMS sent to ${formatPhMobileDisplay(phone)}`;
   if (status === "no-phone") return `No ${who} phone on file for SMS`;
   if (status === "unconfigured") return "In-app notice sent. Add a Semaphore API key to send SMS";
-  if (status === "failed") return "In-app notice sent, but SMS failed";
+  if (status === "failed") {
+    const hint = detail.replace(/\s+/g, " ").trim().slice(0, 120);
+    if (/sender/i.test(hint)) return "In-app notice sent, but SMS failed: register a Semaphore sender name or remove SEMAPHORE_SENDER";
+    return hint ? `In-app notice sent, but SMS failed (${hint})` : "In-app notice sent, but SMS failed";
+  }
   return "";
 }
