@@ -36,6 +36,7 @@ import {
   type ChildAllergy,
 } from "../../../../backend/childAllergies";
 import { getAttendanceRecords } from "../../../../backend/attendance";
+import { formatPhMobileDisplay, getParentPhone, isValidPhMobile, saveParentPhone } from "../../../../backend/parentPhone";
 import {
   clearParentAllergyAlert,
   readParentAllergyAlert,
@@ -96,6 +97,9 @@ export default function ParentChildren() {
   const [allergyDescription, setAllergyDescription] = useState("");
   const [allergyError, setAllergyError] = useState("");
   const [allergySaving, setAllergySaving] = useState(false);
+  const [parentPhone, setParentPhone] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const [phoneSaving, setPhoneSaving] = useState(false);
   const parentId = String(getLocalUser()?.id || "");
   const { items: parentNotices } = useAppNotifications("parent", parentId);
 
@@ -235,6 +239,17 @@ export default function ParentChildren() {
   }, [child?.id]);
 
   useEffect(() => {
+    if (!parentId) return;
+    let alive = true;
+    void getParentPhone(parentId).then((phone) => {
+      if (alive && phone) setParentPhone(formatPhMobileDisplay(phone));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [parentId]);
+
+  useEffect(() => {
     const focus = searchParams.get("focus");
     if (focus === "allergy") {
       const stored = readParentAllergyAlert();
@@ -250,7 +265,15 @@ export default function ParentChildren() {
     const jump = () => {
       const node = noticeRefs.current[noticeId];
       if (!node) return false;
-      node.scrollIntoView({ behavior: "auto", block: "start" });
+      const scroller = node.closest(".pd-main");
+      const nav = document.querySelector(".pd-mobile-parent .pd-sidebar");
+      const offset = ((nav instanceof HTMLElement ? nav.getBoundingClientRect().height : 88) + 16);
+      if (scroller instanceof HTMLElement) {
+        const top = node.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - offset;
+        scroller.scrollTo({ top: Math.max(0, top), behavior: "auto" });
+      } else {
+        node.scrollIntoView({ behavior: "auto", block: "start" });
+      }
       return true;
     };
     if (jump()) return;
@@ -302,6 +325,24 @@ export default function ParentChildren() {
     setAllergyName("");
     setAllergyDescription("");
     setAllergySaving(false);
+  };
+
+  const savePhone = async () => {
+    if (!parentId || phoneSaving) return;
+    if (!isValidPhMobile(parentPhone)) {
+      setPhoneError("Enter a valid Philippine mobile number, like 0917 123 4567.");
+      return;
+    }
+    setPhoneSaving(true);
+    setPhoneError("");
+    try {
+      const saved = await saveParentPhone(parentId, parentPhone);
+      setParentPhone(formatPhMobileDisplay(saved));
+    } catch (error) {
+      setPhoneError(error instanceof Error ? error.message : "Could not save the phone number.");
+    } finally {
+      setPhoneSaving(false);
+    }
   };
 
   const removeAllergy = async (allergyId: string) => {
@@ -477,6 +518,25 @@ export default function ParentChildren() {
           </div>
         </article>
       </div>
+
+      <section className="pc-phone-card" aria-label="Parent phone number">
+        <span className="pc-kicker">Phone number for SMS alerts</span>
+        <p>Teachers use this number for attendance and allergy SMS only.</p>
+        <div className="pc-phone-row">
+          <input
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            placeholder="09XX XXX XXXX"
+            value={parentPhone}
+            onChange={(event) => setParentPhone(event.target.value)}
+          />
+          <button type="button" disabled={phoneSaving || !parentId} onClick={() => void savePhone()}>
+            {phoneSaving ? "Saving…" : "Save"}
+          </button>
+        </div>
+        {phoneError ? <p className="pc-allergy-error">{phoneError}</p> : null}
+      </section>
 
       {allergyAlert ? (
         <div

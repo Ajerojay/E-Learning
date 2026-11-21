@@ -59,12 +59,12 @@ export default function AppSignIn() {
       keepLoading = true;
     };
     const finishTeacherLogin = async (teacherUser: Record<string, unknown>) => {
+      localStorage.setItem("user", JSON.stringify(teacherUser));
+      await cacheVerifiedLogin(cleanUsername, cleanPassword, teacherUser as { role: "teacher" });
       if (isMobileApp()) {
         setBrowserPrompt(true);
         return;
       }
-      localStorage.setItem("user", JSON.stringify(teacherUser));
-      await cacheVerifiedLogin(cleanUsername, cleanPassword, teacherUser as { role: "teacher" });
       markSignedIn();
       navigate("/teacher-dashboard");
     };
@@ -196,7 +196,14 @@ export default function AppSignIn() {
   return (
     <main className="app-auth-shell">
       {loading && <BearLoading overlay />}
-      <TeacherBrowserPrompt open={browserPrompt} onClose={() => setBrowserPrompt(false)} />
+      <TeacherBrowserPrompt
+        open={browserPrompt}
+        onClose={() => setBrowserPrompt(false)}
+        onStayInApp={() => {
+          setBrowserPrompt(false);
+          navigate("/teacher-dashboard");
+        }}
+      />
       <section className="app-auth-phone" aria-label="LearnEase mobile app sign in">
         <header className="app-auth-top">
           <img className="app-auth-logo" src={logo} alt="LearnEase" />

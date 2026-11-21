@@ -13,6 +13,7 @@ import { isStudentGameAllowed } from "../backend/studentGameAccess";
 import { isActivityOpen } from "../backend/activityConfig";
 import { installMojibakeRepair } from "./MobileApp/repairMojibake";
 import BearLoading from "./MobileApp/BearLoading";
+import { AppPullToReload } from "./MobileApp/usePullToReload";
 import GameCertificateHost from "./MobileApp/pages/Student/GameCertificateHost";
 import CertificateDownloadNotice from "./MobileApp/pages/Student/CertificateDownloadNotice";
 import PageErrorBoundary from "./PageErrorBoundary";
@@ -197,7 +198,7 @@ function App() {
       {!appReady ? (
         <BearLoading />
       ) : (
-        <>
+        <AppPullToReload>
           <ChildBackgroundMusic />
           <GameCertificateHost />
           <CertificateDownloadNotice />
@@ -266,7 +267,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
           </Suspense></PageErrorBoundary>
-        </>
+        </AppPullToReload>
       )}
       </PageErrorBoundary>
     </BrowserRouter>

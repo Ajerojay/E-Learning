@@ -1,0 +1,41 @@
+.app-pull-reload {
+  position: fixed;
+  top: calc(72px + env(safe-area-inset-top, 0px));
+  left: 0;
+  right: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.app-pull-bear {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  animation: app-pull-bob 1.2s ease-in-out infinite;
+}
+
+@keyframes app-pull-bob {
+  0%,
+  100% {
+    transform: translateY(2px) rotate(-6deg);
+  }
+  50% {
+    transform: translateY(-3px) rotate(6deg);
+  }
+}
+
+.pd-mobile-parent .pd-main,
+.pp-mobile-parent .pp-main,
+.teacher-app .ta-content {
+  transform: translate3d(0, var(--app-pull, 0px), 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-pull-bear {
+    animation: none;
+  }
+}

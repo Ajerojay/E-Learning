@@ -59,12 +59,13 @@ type BearLoadingProps = {
   compact?: boolean;
   dark?: boolean;
   overlay?: boolean;
+  heroOnly?: boolean;
 };
 
-export default function BearLoading({ compact = false, dark = false, overlay = false }: BearLoadingProps) {
+export default function BearLoading({ compact = false, dark = false, overlay = false, heroOnly = false }: BearLoadingProps) {
   const node = (
     <div
-      className={`bear-load${compact ? " is-compact" : ""}${dark ? " is-dark" : ""}${overlay ? " is-overlay" : ""}`}
+      className={`bear-load${compact ? " is-compact" : ""}${dark ? " is-dark" : ""}${overlay ? " is-overlay" : ""}${heroOnly ? " is-hero-only" : ""}`}
       role="status"
       aria-label="Loading LearnEase"
     >
@@ -79,7 +80,7 @@ export default function BearLoading({ compact = false, dark = false, overlay = f
       )}
       <div className="bear-load-badge">
         <div className="bear-load-stage">
-          {ORBIT.map((item) => (
+          {!heroOnly && ORBIT.map((item) => (
             <span
               key={`${item.kind}-${item.start}`}
               className="bear-load-orbit"

@@ -131,6 +131,34 @@
   height: 132px;
 }
 
+.bear-load.is-hero-only {
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+  padding: 0;
+  gap: 0;
+  background: transparent;
+}
+
+.bear-load.is-hero-only .bear-load-badge,
+.bear-load.is-hero-only.is-compact .bear-load-badge {
+  width: 72px;
+  height: 72px;
+  background: none;
+  box-shadow: none;
+}
+
+.bear-load.is-hero-only .bear-load-stage,
+.bear-load.is-hero-only.is-compact .bear-load-stage {
+  width: 64px;
+  height: 64px;
+}
+
+.bear-load.is-hero-only .bear-load-hero {
+  width: 78%;
+  height: 78%;
+}
+
 .bear-load-hero {
   position: absolute;
   left: 50%;

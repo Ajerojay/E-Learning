@@ -1,6 +1,7 @@
 import type { EmailOtpType, Session, User } from "@supabase/supabase-js";
 import { createChildProfile, getParentChildren } from "./supabaseData";
 import { pendingEmailLink, supabase } from "./supabase";
+import { normalizePhMobile, saveParentPhone } from "./parentPhone";
 
 export const RESET_PASSWORD_PATH = "/reset-password";
 export const EMAIL_VERIFIED_PATH = "/email-verified";
@@ -74,10 +75,13 @@ export async function createParentAccount(
   username: string,
   email: string,
   password: string,
-  child?: PendingChildSignup
+  child?: PendingChildSignup,
+  phone?: string
 ): Promise<CreatedParentAccount> {
   const normalizedUsername = normalizeUsername(username);
   const cleanEmail = email.trim().toLowerCase();
+  const phoneNumber = normalizePhMobile(phone || "");
+  if (phone && !phoneNumber) throw new Error("Enter a valid Philippine mobile number, like 0917 123 4567.");
 
   const { data: existingParent, error: usernameCheckError } = await supabase
     .from("parents_accounts")
@@ -95,6 +99,7 @@ export async function createParentAccount(
       data: {
         username: normalizedUsername,
         pending_registration: true,
+        phone_number: phoneNumber || "",
         ...childMetadata(child),
       },
     },
@@ -108,8 +113,12 @@ export async function createParentAccount(
   const confirmed = isAuthEmailConfirmed(authData.user) && Boolean(authData.session);
   if (!confirmed) {
     if (authData.session) {
-      const { error: parentInsertError } = await supabase.from("parents_accounts")
-        .insert([{ username: normalizedUsername, email: cleanEmail, password }]);
+      const { error: parentInsertError } = await insertParentAccount({
+        username: normalizedUsername,
+        email: cleanEmail,
+        password,
+        phone_number: phoneNumber,
+      });
       if (parentInsertError) {
         console.warn("Parent profile will be created after email confirmation:", parentInsertError);
       }
@@ -173,6 +182,14 @@ async function findParentByEmail(email: string, client = supabase) {
   return selectParent("email", email.trim().toLowerCase(), client);
 }
 
+async function insertParentAccount(row: { username: string; email: string; password: string; phone_number: string | null }) {
+  const withPhone = await supabase.from("parents_accounts").insert([row]).select("id").single();
+  if (!withPhone.error) return withPhone;
+  if (!/phone_number|column|schema cache/i.test(withPhone.error.message)) return withPhone;
+  const { phone_number: _phone, ...rest } = row;
+  return supabase.from("parents_accounts").insert([rest]).select("id").single();
+}
+
 const pendingParentSetups = new Map<string, Promise<string | null>>();
 
 export function completePendingParentRegistration(user: User): Promise<string | null> {
@@ -207,8 +224,8 @@ async function provisionParentProfile(user: User): Promise<string | null> {
     if (!email) return null;
     // Live parents_accounts.password is still NOT NULL; Auth stores the real
     // password. Send an empty placeholder so confirmation can finish.
-    const { data: parent, error } = await supabase.from("parents_accounts")
-      .insert([{ username, email, password: "" }]).select("id").single();
+    const phoneNumber = normalizePhMobile(typeof meta.phone_number === "string" ? meta.phone_number : "");
+    const { data: parent, error } = await insertParentAccount({ username, email, password: "", phone_number: phoneNumber });
     if (error) throw error;
     if (!parent) throw new Error("Failed to create parent account.");
     parentId = String(parent.id);
@@ -234,6 +251,15 @@ async function provisionParentProfile(user: User): Promise<string | null> {
       nickname: typeof meta.child_nickname === "string" && meta.child_nickname.trim() ? meta.child_nickname.trim() : "n/a",
       isActive: true,
     });
+  }
+
+  const phoneNumber = normalizePhMobile(typeof meta.phone_number === "string" ? meta.phone_number : "");
+  if (phoneNumber) {
+    try {
+      await saveParentPhone(parentId, phoneNumber);
+    } catch (phoneError) {
+      console.warn("Parent phone could not be saved:", phoneError);
+    }
   }
 
   if (meta.pending_registration) {

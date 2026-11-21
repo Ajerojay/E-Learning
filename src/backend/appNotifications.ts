@@ -29,6 +29,20 @@ export type AppNotification = {
 
 export const APP_NOTIFICATIONS_CHANGED = "learnease-app-notifications";
 export const CLASSROOM_TEACHER_RECIPIENT = "classroom";
+
+export async function classroomTeacherRecipients() {
+  const ids = new Set<string>([CLASSROOM_TEACHER_RECIPIENT]);
+  const { data, error } = await supabase.from("teacher_profiles").select("teacher_id,full_name");
+  if (!error) {
+    for (const row of data ?? []) {
+      const id = String(row.teacher_id || "").trim();
+      if (id) ids.add(id);
+      const name = String(row.full_name || "").trim().toLowerCase();
+      if (name) ids.add(`username:${name}`);
+    }
+  }
+  return [...ids].map((id) => ({ role: "teacher" as const, id }));
+}
 const LOCAL_KEY = "learnease.appNotifications";
 const READ_KEY = "learnease.appNotificationReads";
 

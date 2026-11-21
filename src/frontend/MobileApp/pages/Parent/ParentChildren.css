@@ -96,6 +96,45 @@
   gap: 12px;
 }
 
+.pc-phone-card {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 16px;
+  border: 2px solid #6ea7de;
+  box-shadow: 0 4px 0 #5f8db6;
+}
+
+.pc-phone-card p {
+  margin: 6px 0 10px;
+  color: #3d5d82;
+  font-size: 13px;
+}
+
+.pc-phone-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.pc-phone-row input {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #9ec4e8;
+  border-radius: 12px;
+  font: inherit;
+}
+
+.pc-phone-row button {
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 12px;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 800;
+}
+
 .pc-nickname-block,
 .pc-overall {
   min-width: 0;
@@ -717,6 +756,7 @@
 .pc-attendance-notice.is-focused {
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, .18);
+  scroll-margin-top: calc(96px + env(safe-area-inset-top, 0px));
 }
 
 .pc-attendance-file {

@@ -1,7 +1,15 @@
 import { Globe, X } from "lucide-react";
 import { TEACHER_PORTAL_URL, openTeacherPortal } from "./teacherPortal";
 
-export default function TeacherBrowserPrompt({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function TeacherBrowserPrompt({
+  open,
+  onClose,
+  onStayInApp,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onStayInApp?: () => void;
+}) {
   if (!open) return null;
 
   return (
@@ -11,7 +19,7 @@ export default function TeacherBrowserPrompt({ open, onClose }: { open: boolean;
           <X size={18} />
         </button>
         <h2 id="teacher-browser-title">Open teacher portal?</h2>
-        <p>Classroom tools open in your browser. Parents and kids stay in this app.</p>
+        <p>You can open classroom tools in the browser, or stay in this app if the website does not load.</p>
         <p className="app-auth-portal-url">{TEACHER_PORTAL_URL.replace(/^https:\/\//, "")}</p>
         <button
           className="app-auth-main-btn"
@@ -24,7 +32,14 @@ export default function TeacherBrowserPrompt({ open, onClose }: { open: boolean;
           <Globe size={18} />
           Open in browser
         </button>
-        <button className="app-auth-secondary-btn" type="button" onClick={onClose}>
+        <button
+          className="app-auth-secondary-btn"
+          type="button"
+          onClick={() => {
+            onStayInApp?.();
+            onClose();
+          }}
+        >
           Stay in the app
         </button>
       </section>

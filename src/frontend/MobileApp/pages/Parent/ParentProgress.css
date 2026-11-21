@@ -479,6 +479,7 @@ body {
   margin-left: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
   padding: calc(78px + env(safe-area-inset-top)) 12px calc(24px + env(safe-area-inset-bottom));
 }

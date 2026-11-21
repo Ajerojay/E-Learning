@@ -8,6 +8,7 @@ import "./Signup.css";
 import bear from "../../../../../images/learnease logo-no bg.png";
 import BearLoading from "../../BearLoading";
 import { supabase } from "../../../../backend/supabase";
+import { isValidPhMobile, normalizePhMobile } from "../../../../backend/parentPhone";
 
 const GRADE_OPTIONS = ["Nursery", "Prep", "Kinder"] as const;
 
@@ -45,6 +46,7 @@ export default function ParentSignup() {
   const [confirmChildPin, setConfirmChildPin] = useState("");
 
   const [username, setUsername] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -96,6 +98,7 @@ export default function ParentSignup() {
       Boolean(childGrade) &&
       pinsMatch &&
       Boolean(cleanUsername) &&
+      isValidPhMobile(phone) &&
       Boolean(cleanPassword) &&
       Boolean(cleanConfirmPassword) &&
       allPassed &&
@@ -110,6 +113,7 @@ export default function ParentSignup() {
     childGrade,
     pinsMatch,
     username,
+    phone,
     password,
     confirmPassword,
     allPassed,
@@ -138,6 +142,7 @@ export default function ParentSignup() {
       !cleanPin ||
       !cleanConfirmPin ||
       !cleanUsername ||
+      !isValidPhMobile(phone) ||
       !cleanPassword ||
       !cleanConfirmPassword
     ) {
@@ -219,6 +224,7 @@ export default function ParentSignup() {
           {
             username: cleanUsername,
             password: cleanPassword,
+            phone_number: normalizePhMobile(phone),
           },
         ])
         .select("id")
@@ -338,6 +344,23 @@ export default function ParentSignup() {
                     placeholder="Choose a username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="le-field">
+                  <label className="le-label1" htmlFor="parent-phone">
+                    Phone number <span className="le-required">*</span>
+                  </label>
+                  <input
+                    id="parent-phone"
+                    className="le-input"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder="09XX XXX XXXX"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
                     required
                   />
                 </div>

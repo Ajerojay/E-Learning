@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Activity, Award, BarChart3, Bell, CalendarDays, Camera,
   Check, ChevronDown, CircleAlert, Download,
-  HeartPulse, Home, LogOut, Mail, Menu, MoreHorizontal,
+  HeartPulse, Home, LogOut, Mail, Menu, MoreHorizontal, Phone,
   Pencil, Plus, Search, Settings, ShieldCheck, Siren, Star, Trash2, Upload,
   Pin, UserRound, Users, Video, X, Send, Trophy,
 } from "lucide-react";
@@ -25,6 +25,7 @@ import TeacherAttendance from "./TeacherAttendance";
 import { NotificationBell } from "../notifications/NotificationInbox";
 import { enablePushNotifications, notificationDestination } from "../../../backend/appNotifications";
 import { getChildCategoryProgress, getClassroomChildren, getRecentChildAttempts, getRecentClassActivity, resolveChildParentId, sendParentAnnouncement } from "../../../backend/supabaseData";
+import { formatPhMobileDisplay, getParentPhones, isValidPhMobile, normalizePhMobile, parentSmsToast, saveTeacherPhone, sendParentAlertSms } from "../../../backend/parentPhone";
 import { CHILD_AVATAR_UPDATED_EVENT, getStoredChildAvatar, normalizeChildAvatar } from "../../../backend/childAvatar";
 import { childAvatarById } from "../pages/Student/childAvatars";
 import {
@@ -101,6 +102,7 @@ type TeacherIdentity = {
   name: string;
   firstName: string;
   email: string;
+  phone: string;
   section: string;
   id: string;
   role: string;
@@ -115,12 +117,13 @@ function teacherIdentity(): TeacherIdentity {
       name: String(name),
       firstName: String(name).trim().split(/\s+/)[0] || "Teacher",
       email: String(user.email || ""),
+      phone: String(user.phone || user.phone_number || ""),
       section: String(user.section || user.handled_section || user.grade_level || ""),
       id: String(user.id || user.teacher_id || ""),
       role: String(user.position || user.title || "Teacher"),
       avatar: String(user.avatar || user.avatar_url || ""),
     };
-  } catch { return { name: "Teacher", firstName: "Teacher", email: "", section: "", id: "", role: "Teacher", avatar: "" }; }
+  } catch { return { name: "Teacher", firstName: "Teacher", email: "", phone: "", section: "", id: "", role: "Teacher", avatar: "" }; }
 }
 
 function teacherProfileKey(teacher: TeacherIdentity) {
@@ -130,15 +133,28 @@ function teacherProfileKey(teacher: TeacherIdentity) {
 function mergeTeacherIntoLogin(profile: TeacherIdentity) {
   let stored: Record<string, unknown> = {};
   try { stored = JSON.parse(localStorage.getItem("user") || "{}"); } catch { /* replace invalid local data */ }
-  localStorage.setItem("user", JSON.stringify({ ...stored, full_name: profile.name, email: profile.email, handled_section: profile.section, avatar: profile.avatar }));
+  localStorage.setItem("user", JSON.stringify({ ...stored, full_name: profile.name, email: profile.email, phone: profile.phone, handled_section: profile.section, avatar: profile.avatar }));
 }
 
 async function loadTeacherProfile(base: TeacherIdentity): Promise<TeacherIdentity> {
-  const { data, error } = await supabase.from("teacher_profiles").select("teacher_id,full_name,email,handled_section,avatar").eq("teacher_id", teacherProfileKey(base)).maybeSingle();
+  let { data, error } = await supabase.from("teacher_profiles").select("teacher_id,full_name,email,handled_section,avatar,phone_number").eq("teacher_id", teacherProfileKey(base)).maybeSingle();
+  if (error && /phone_number|column|schema cache|could not find/i.test(error.message)) {
+    const fallback = await supabase.from("teacher_profiles").select("teacher_id,full_name,email,handled_section,avatar").eq("teacher_id", teacherProfileKey(base)).maybeSingle();
+    data = fallback.data as typeof data;
+    error = fallback.error;
+  }
   if (error) throw error;
   if (!data) return base;
   const name = String(data.full_name || base.name);
-  return { ...base, name, firstName: name.trim().split(/\s+/)[0] || "Teacher", email: String(data.email || ""), section: String(data.handled_section || ""), avatar: String(data.avatar || "") };
+  return {
+    ...base,
+    name,
+    firstName: name.trim().split(/\s+/)[0] || "Teacher",
+    email: String(data.email || ""),
+    phone: String((data as { phone_number?: string }).phone_number || base.phone || ""),
+    section: String(data.handled_section || ""),
+    avatar: String(data.avatar || ""),
+  };
 }
 
 function teacherAvatarContent(teacher: TeacherIdentity) {
@@ -1205,7 +1221,7 @@ function readClassAlertStatus(): Record<string, boolean> {
 
 function Health({ notify }: { notify: Notify }) {
   const [record, setRecord] = useState(false);
-  const [students, setStudents] = useState<Array<{ id: string; name: string; parentId: string | null }>>([]);
+  const [students, setStudents] = useState<Array<{ id: string; name: string; parentId: string | null; parentPhone: string | null }>>([]);
   const [studentId, setStudentId] = useState("");
   const [temperature, setTemperature] = useState("");
   const [height, setHeight] = useState("");
@@ -1224,9 +1240,14 @@ function Health({ notify }: { notify: Notify }) {
       const withParents = await Promise.all(roster.map(async student => (
         student.parentId ? student : { ...student, parentId: await resolveChildParentId(student.id, student.name) }
       )));
-      setStudents(withParents);
-      setStudentId(current => current || withParents[0]?.id || "");
-      void loadChildAllergyMap(withParents.map(student => student.id)).then(setParentAllergies);
+      const phones = await getParentPhones(withParents.map(student => student.parentId || "").filter(Boolean));
+      const withPhones = withParents.map(student => ({
+        ...student,
+        parentPhone: student.parentId ? phones[student.parentId] || null : null,
+      }));
+      setStudents(withPhones);
+      setStudentId(current => current || withPhones[0]?.id || "");
+      void loadChildAllergyMap(withPhones.map(student => student.id)).then(setParentAllergies);
     });
     const refreshAllergies = () => {
       setStudents(current => {
@@ -1256,7 +1277,7 @@ function Health({ notify }: { notify: Notify }) {
   };
 
   const notifyLinkedParent = async (
-    student: { id: string; name: string; parentId: string | null },
+    student: { id: string; name: string; parentId: string | null; parentPhone?: string | null },
     payload: { title: string; message: string; kind: "health" | "emergency" },
   ) => {
     const parentId = student.parentId || await resolveChildParentId(student.id, student.name);
@@ -1284,13 +1305,15 @@ function Health({ notify }: { notify: Notify }) {
     }
     setAlerting(true);
     const listed = allergySummary ? ` Known allergies: ${allergySummary}.` : "";
-    const delivery = await notifyLinkedParent(selectedStudent, {
-      title: `Allergy reaction — ${selectedStudent.name}`,
-      message: `${selectedStudent.name} had an allergy reaction in class.${listed} Please contact the teacher immediately.`,
-      kind: "health",
-    });
+    const title = `Allergy reaction — ${selectedStudent.name}`;
+    const message = `${selectedStudent.name} had an allergy reaction in class.${listed} Please contact the teacher immediately.`;
+    const delivery = await notifyLinkedParent(selectedStudent, { title, message, kind: "health" });
     if (delivery === "missing") notify("Allergy marked Active, but this learner has no linked parent account.");
-    else notify(delivery === "sent" ? `${selectedStudent.name}'s parent was notified immediately` : "Allergy marked Active. Parent notification is queued until online.");
+    else if (delivery === "sent") {
+      const sms = await sendParentAlertSms({ parentId: selectedStudent.parentId, title, message });
+      const smsLine = parentSmsToast(sms.status, sms.phone);
+      notify(`${selectedStudent.name}'s parent was notified immediately${smsLine ? ` · ${smsLine}` : ""}`);
+    } else notify("Allergy marked Active. Parent notification is queued until online.");
     setAlerting(false);
   };
 
@@ -1347,6 +1370,15 @@ function Health({ notify }: { notify: Notify }) {
                 {students.map(student => <option value={student.id} key={student.id}>{student.name}</option>)}
               </select>
             </label>
+            <div className={`ta-health-recipient ${selectedStudent?.parentPhone ? "linked" : "missing"}`}>
+              <Phone />
+              <span>
+                <small>SMS number</small>
+                <b>{selectedStudent?.parentPhone ? formatPhMobileDisplay(selectedStudent.parentPhone) : "No phone on file"}</b>
+                <em>{selectedStudent?.parentPhone ? "Allergy alerts also send as SMS" : "Ask the parent to add a phone number in the app"}</em>
+              </span>
+              {selectedStudent?.parentPhone ? <Check /> : <CircleAlert />}
+            </div>
             <ParentAllergyCards childId={studentId} />
             <div className="ta-alert-toggle">
               <button type="button" className={!allergyActive ? "on" : ""} disabled={alerting || !studentId} onClick={() => void setAllergyReaction(false)}>
@@ -1643,9 +1675,9 @@ function Rewards() {
 function ProfileSettings({ teacher, notify, logout, onProfileUpdated }: { teacher: TeacherIdentity; notify: Notify; logout: () => void; onProfileUpdated: (teacher: TeacherIdentity) => void }) {
   const [edit, setEdit] = useState(false); const [toggles, setToggles] = useState([true,true,false]);
   const photoInput = useRef<HTMLInputElement>(null);
-  const [draft, setDraft] = useState({ name: teacher.name, email: teacher.email, section: teacher.section, avatar: teacher.avatar });
+  const [draft, setDraft] = useState({ name: teacher.name, email: teacher.email, phone: teacher.phone, section: teacher.section, avatar: teacher.avatar });
   const [saving, setSaving] = useState(false);
-  const openEditor = () => { setDraft({ name: teacher.name, email: teacher.email, section: teacher.section, avatar: teacher.avatar }); setEdit(true); };
+  const openEditor = () => { setDraft({ name: teacher.name, email: teacher.email, phone: teacher.phone, section: teacher.section, avatar: teacher.avatar }); setEdit(true); };
   const choosePhoto = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -1657,14 +1689,28 @@ function ProfileSettings({ teacher, notify, logout, onProfileUpdated }: { teache
     event.preventDefault();
     const name = draft.name.trim();
     if (!name) { notify("Please enter the teacher's full name."); return; }
+    if (draft.phone.trim() && !isValidPhMobile(draft.phone)) { notify("Enter a valid Philippine mobile number, like 0917 123 4567."); return; }
     setSaving(true);
-    const next: TeacherIdentity = { ...teacher, name, firstName: name.split(/\s+/)[0] || "Teacher", email: draft.email.trim(), section: draft.section.trim(), avatar: draft.avatar };
-    const { error } = await supabase.from("teacher_profiles").upsert({ teacher_id: teacherProfileKey(teacher), full_name: next.name, email: next.email || null, handled_section: next.section || null, avatar: next.avatar || null, updated_at: new Date().toISOString() }, { onConflict: "teacher_id" });
+    const phone = normalizePhMobile(draft.phone) || "";
+    const next: TeacherIdentity = { ...teacher, name, firstName: name.split(/\s+/)[0] || "Teacher", email: draft.email.trim(), phone, section: draft.section.trim(), avatar: draft.avatar };
+    try {
+      await saveTeacherPhone({
+        teacherId: teacherProfileKey(teacher),
+        name: next.name,
+        email: next.email,
+        section: next.section,
+        avatar: next.avatar,
+        phone: draft.phone,
+      });
+    } catch (error) {
+      setSaving(false);
+      notify(error instanceof Error ? error.message : "Profile was not saved.");
+      return;
+    }
     setSaving(false);
-    if (error) { notify(`Profile was not saved: ${error.message}`); return; }
     mergeTeacherIntoLogin(next); onProfileUpdated(next); setEdit(false); notify("Teacher profile updated successfully.");
   };
-  return <><Heading eyebrow="YOUR ACCOUNT" title="Profile & Settings" detail="Update the signed-in teacher profile. Changes are saved to Supabase and appear on other devices."/><div className="ta-settings-grid"><section className="ta-card ta-profile"><div className="ta-teacher-photo">{teacherAvatarContent(teacher)}<button className="ta-teacher-photo-edit" type="button" aria-label="Change profile photo" onClick={openEditor}><Camera /></button></div><h2>{teacher.name}</h2><p>{teacher.role}</p><span><i /> Signed-in faculty account</span><dl><dt>Handled Section</dt><dd>{teacher.section || "Not provided"}</dd><dt>Teacher ID</dt><dd>{teacher.id || "Not provided"}</dd></dl><button className="ta-primary ta-full" onClick={openEditor}><Pencil /> Edit Profile</button></section><section className="ta-card ta-settings"><header><span className="purple"><Settings /></span><div><h2>Account Details</h2><p>Synced with the teacher profile database</p></div></header><div className="ta-setting"><UserRound/><span><b>Full Name</b><small>{teacher.name}</small></span></div><div className="ta-setting"><Mail/><span><b>Email Address</b><small>{teacher.email || "Not provided"}</small></span></div><h3>Notification Preferences</h3>{[["Push notifications","Student activity and alerts"],["Email notifications","Account email updates"],["Weekly class summary","Summary notifications"]].map(([a,b],i) => <div className="ta-setting" key={a}><Bell/><span><b>{a}</b><small>{b}</small></span><button className={`ta-toggle ${toggles[i] ? "on" : ""}`} onClick={() => { const next = !toggles[i]; setToggles(toggles.map((x,j) => i===j?!x:x)); if (i === 0 && next) void enablePushNotifications(); }}><i/></button></div>)}<button className="ta-danger" onClick={logout}><LogOut /> Logout of Teacher Account</button></section></div>{edit && <div className="ta-overlay" onMouseDown={() => setEdit(false)}><form className="ta-modal ta-form ta-teacher-profile-form" onMouseDown={event => event.stopPropagation()} onSubmit={saveProfile}><button type="button" className="ta-close" onClick={() => setEdit(false)}><X /></button><h2>Edit Teacher Profile</h2><p>Your changes will appear anywhere this teacher account is used.</p><div className="ta-profile-photo-preview">{draft.avatar ? <img src={draft.avatar} alt="Selected teacher profile" /> : <>👩🏻‍🏫</>}<button type="button" onClick={() => photoInput.current?.click()}><Camera /> Change photo</button><input ref={photoInput} type="file" accept="image/*" onChange={choosePhoto}/></div><label>Full Name<input required value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} placeholder="Enter full name" /></label><label>Email Address<input type="email" value={draft.email} onChange={event => setDraft({ ...draft, email: event.target.value })} placeholder="Enter email address" /></label><label>Handled Section<input value={draft.section} onChange={event => setDraft({ ...draft, section: event.target.value })} placeholder="Example: Nursery A" /></label><button className="ta-primary ta-full" disabled={saving}>{saving ? "Saving Profile..." : "Save Profile"}</button></form></div>}</>;
+  return <><Heading eyebrow="YOUR ACCOUNT" title="Profile & Settings" detail="Update the signed-in teacher profile. Changes are saved to Supabase and appear on other devices."/><div className="ta-settings-grid"><section className="ta-card ta-profile"><div className="ta-teacher-photo">{teacherAvatarContent(teacher)}<button className="ta-teacher-photo-edit" type="button" aria-label="Change profile photo" onClick={openEditor}><Camera /></button></div><h2>{teacher.name}</h2><p>{teacher.role}</p><span><i /> Signed-in faculty account</span><dl><dt>Handled Section</dt><dd>{teacher.section || "Not provided"}</dd><dt>Phone number</dt><dd>{teacher.phone ? formatPhMobileDisplay(teacher.phone) : "Not provided"}</dd><dt>Teacher ID</dt><dd>{teacher.id || "Not provided"}</dd></dl><button className="ta-primary ta-full" onClick={openEditor}><Pencil /> Edit Profile</button></section><section className="ta-card ta-settings"><header><span className="purple"><Settings /></span><div><h2>Account Details</h2><p>Synced with the teacher profile database</p></div></header><div className="ta-setting"><UserRound/><span><b>Full Name</b><small>{teacher.name}</small></span></div><div className="ta-setting"><Mail/><span><b>Email Address</b><small>{teacher.email || "Not provided"}</small></span></div><div className="ta-setting ta-phone-sms"><Phone/><span><b>Phone number</b><small>{teacher.phone ? formatPhMobileDisplay(teacher.phone) : "Not provided"}</small><em>Parent SMS from the app is sent to this number.</em></span></div><h3>Notification Preferences</h3>{[["Push notifications","Student activity and alerts"],["Email notifications","Account email updates"],["Weekly class summary","Summary notifications"]].map(([a,b],i) => <div className="ta-setting" key={a}><Bell/><span><b>{a}</b><small>{b}</small></span><button className={`ta-toggle ${toggles[i] ? "on" : ""}`} onClick={() => { const next = !toggles[i]; setToggles(toggles.map((x,j) => i===j?!x:x)); if (i === 0 && next) void enablePushNotifications(); }}><i/></button></div>)}<button className="ta-danger" onClick={logout}><LogOut /> Logout of Teacher Account</button></section></div>{edit && <div className="ta-overlay" onMouseDown={() => setEdit(false)}><form className="ta-modal ta-form ta-teacher-profile-form" onMouseDown={event => event.stopPropagation()} onSubmit={saveProfile}><button type="button" className="ta-close" onClick={() => setEdit(false)}><X /></button><h2>Edit Teacher Profile</h2><p>Your changes will appear anywhere this teacher account is used.</p><div className="ta-profile-photo-preview">{draft.avatar ? <img src={draft.avatar} alt="Selected teacher profile" /> : <>👩🏻‍🏫</>}<button type="button" onClick={() => photoInput.current?.click()}><Camera /> Change photo</button><input ref={photoInput} type="file" accept="image/*" onChange={choosePhoto}/></div><label>Full Name<input required value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} placeholder="Enter full name" /></label><label>Email Address<input type="email" value={draft.email} onChange={event => setDraft({ ...draft, email: event.target.value })} placeholder="Enter email address" /></label><label>Phone number<small>Parents’ SMS messages are delivered here.</small><input type="tel" inputMode="tel" autoComplete="tel" value={draft.phone} onChange={event => setDraft({ ...draft, phone: event.target.value })} placeholder="09XX XXX XXXX" /></label><label>Handled Section<input value={draft.section} onChange={event => setDraft({ ...draft, section: event.target.value })} placeholder="Example: Nursery A" /></label><button className="ta-primary ta-full" disabled={saving}>{saving ? "Saving Profile..." : "Save Profile"}</button></form></div>}</>;
 }
 
 export default function TeacherApp() {

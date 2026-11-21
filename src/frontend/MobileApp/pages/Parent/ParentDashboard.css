@@ -261,16 +261,20 @@ body {
 /* Shared card style for welcome + sections */
 .pd-welcome,
 .pd-card {
-  background: rgba(173, 216, 255, 0.9);
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.46) 0%, transparent 38%),
+    linear-gradient(180deg, #c9e4ff 0%, #b7d8fb 58%, #a9cbf4 100%);
   border-radius: 18px;
   border: 2px solid #6ea7de;
   box-shadow: 0 4px 0 #5f8db6;
-  padding: 22px 28px;
+  padding: 16px 16px 14px;
 }
 
 .pd-welcome {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
+  padding-top: 14px;
+  padding-bottom: 14px;
 }
 
 .pd-welcome-text {
@@ -480,6 +484,7 @@ body {
   min-width: 0;
   margin-left: 0;
   padding: calc(88px + env(safe-area-inset-top)) 14px 24px;
+  scroll-padding-top: calc(88px + env(safe-area-inset-top) + 16px);
 }
 
 .pd-mobile-parent .pd-content {
@@ -493,24 +498,24 @@ body {
 
 .pd-summary {
   min-height: 0;
-  padding-top: 22px;
-  padding-bottom: 22px;
 }
 
 .pd-card-header {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .pd-icon {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.72);
+  border-radius: 13px;
+  background: linear-gradient(160deg, #fff7d6, #ffe08a);
+  border: 2px solid #fff;
+  box-shadow: 0 3px 0 rgba(90, 130, 180, 0.16);
   font-size: 18px;
   flex-shrink: 0;
 }
@@ -520,7 +525,7 @@ body {
 }
 
 .pd-summary {
-  margin-bottom: 22px;
+  margin-bottom: 16px;
 }
 
 .pd-progress-list {
@@ -532,8 +537,10 @@ body {
 .pd-progress-item {
   margin-top: 0;
   padding: 12px 12px 10px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.42);
+  border-radius: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 5px 0 rgba(86, 126, 176, 0.08);
 }
 
 .pd-progress-meta {
@@ -713,8 +720,9 @@ body {
 .pd-activity-empty {
   margin: 0;
   padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.55);
+  border-radius: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(236, 247, 255, 0.9));
   font-size: 15px;
   font-weight: 700;
   color: #0a4a7a;
@@ -739,9 +747,11 @@ body {
 }
 
 .pd-announcement-item {
-  background: rgba(255, 255, 255, 0.48);
-  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(236, 247, 255, 0.92));
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 14px;
   padding: 12px 14px;
+  box-shadow: 0 5px 0 rgba(86, 126, 176, 0.08);
 }
 
 .pd-announcement-item.pd-announcement-pinned {
@@ -793,6 +803,7 @@ body {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
   padding-bottom: calc(20px + env(safe-area-inset-bottom));
 }
@@ -1019,4 +1030,308 @@ body {
   height: 34px;
   font-size: 18px;
 }
+
+.pd-contact-card {
+  text-align: left;
+  padding: 12px 12px 12px;
+}
+
+.pd-contact-head {
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.pd-contact-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  font-size: 18px;
+}
+
+.pd-contact-heading {
+  min-width: 0;
+}
+
+.pd-contact-kicker {
+  margin: 0 0 1px;
+  color: #3d6aa0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pd-contact-card h2 {
+  margin: 0;
+  color: #163e7a;
+  font-size: 18px;
+  line-height: 1.15;
+}
+
+.pd-contact-copy {
+  margin: 0 0 10px;
+  color: #35557a;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.pd-contact-panel {
+  margin-bottom: 8px;
+  padding: 10px 10px 10px;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 4px 0 rgba(86, 126, 176, 0.08);
+}
+
+.pd-contact-panel-sms {
+  margin-bottom: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(236, 247, 255, 0.9));
+}
+
+.pd-contact-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 0;
+  font-weight: 800;
+  color: #1a4d8f;
+  font-size: 13px;
+}
+
+.pd-contact-label {
+  color: #15457a;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.pd-contact-field small {
+  margin-top: -2px;
+  color: #5a7394;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.pd-contact-field input,
+.pd-contact-field select,
+.pd-contact-field textarea {
+  width: 100%;
+  padding: 9px 11px;
+  border: 2px solid #c5daf0;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: #16324f;
+  background: #fff;
+  outline: none;
+}
+
+.pd-contact-field input:focus,
+.pd-contact-field textarea:focus {
+  border-color: #4f8fd6;
+  box-shadow: 0 0 0 3px rgba(79, 143, 214, 0.2);
+}
+
+.pd-contact-field textarea {
+  min-height: 72px;
+  resize: vertical;
+  line-height: 1.35;
+}
+
+.pd-contact-row,
+.pd-contact-detail {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.pd-contact-row:has(.pd-contact-edit) {
+  grid-template-columns: 1fr auto auto;
+}
+
+.pd-contact-detail input {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.pd-contact-edit {
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 2px solid #c5daf0;
+  border-radius: 12px;
+  background: #fff;
+  color: #1a4d8f;
+  font-weight: 800;
+}
+
+.pd-main .pd-contact-edit {
+  color: #1a4d8f;
+}
+
+.pd-contact-row button,
+.pd-contact-full {
+  min-height: 40px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #4f8ef0 0%, #2563eb 100%);
+  color: #fff;
+  font-weight: 800;
+  box-shadow: 0 3px 0 #1d4ed8;
+}
+
+.pd-contact-row button:active,
+.pd-contact-full:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #1d4ed8;
+}
+
+.pd-contact-row button:disabled,
+.pd-contact-full:disabled {
+  opacity: 0.5;
+  box-shadow: none;
+  transform: none;
+}
+
+.pd-contact-full {
+  width: 100%;
+  margin-top: 4px;
+  background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+.pd-contact-count {
+  align-self: flex-end;
+  color: #6b849f;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.pd-contact-alert {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  align-items: start;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 11px 10px 11px 11px;
+  border-radius: 14px;
+  border: 2px solid transparent;
+}
+
+.pd-contact-alert.is-ok {
+  background: #ecfdf3;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.pd-contact-alert.is-err {
+  background: #fff1f2;
+  border-color: #fda4af;
+  color: #9f1239;
+}
+
+.pd-contact-alert-mark {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #fff;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.pd-contact-alert.is-ok .pd-contact-alert-mark {
+  color: #15803d;
+  box-shadow: 0 2px 0 rgba(22, 163, 74, 0.16);
+}
+
+.pd-contact-alert.is-err .pd-contact-alert-mark {
+  color: #be123c;
+  box-shadow: 0 2px 0 rgba(190, 18, 60, 0.14);
+}
+
+.pd-contact-alert strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.pd-main .pd-contact-alert p,
+.pd-contact-alert p {
+  margin: 3px 0 0;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  opacity: 0.9;
+}
+
+.pd-main .pd-contact-alert strong,
+.pd-main .pd-contact-kicker,
+.pd-main .pd-contact-label,
+.pd-main .pd-contact-copy,
+.pd-main .pd-contact-count,
+.pd-main .pd-contact-field small {
+  color: inherit;
+}
+
+.pd-main .pd-contact-kicker {
+  color: #3d6aa0;
+}
+
+.pd-main .pd-contact-label {
+  color: #15457a;
+}
+
+.pd-main .pd-contact-copy {
+  color: #35557a;
+}
+
+.pd-main .pd-contact-field small {
+  color: #5a7394;
+}
+
+.pd-main .pd-contact-count {
+  color: #6b849f;
+}
+
+.pd-main .pd-contact-alert.is-ok,
+.pd-main .pd-contact-alert.is-ok strong {
+  color: #166534;
+}
+
+.pd-main .pd-contact-alert.is-err,
+.pd-main .pd-contact-alert.is-err strong {
+  color: #9f1239;
+}
+
+.pd-main .pd-contact-row button,
+.pd-main .pd-contact-full {
+  color: #fff;
+}
+
+.pd-contact-alert-close {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.7);
+  color: inherit;
+  font-size: 20px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.pd-mobile-parent .pd-contact-card h2 {
+  font-size: 17px;
+}
+
 

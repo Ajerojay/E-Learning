@@ -4,6 +4,7 @@ import { ArrowLeft, Baby, Check, Circle, Eye, EyeOff, UserRoundPlus } from "luci
 import "./AppAuth.css";
 import logo from "../../../../images/learnease logo-no bg.png";
 import { createParentAccount, resendVerificationEmail } from "../../../backend/supabaseAuth";
+import { isValidPhMobile, normalizePhMobile } from "../../../backend/parentPhone";
 import BearLoading from "../BearLoading";
 
 declare global {
@@ -57,6 +58,7 @@ export default function AppSignUp() {
   const [confirmChildPin, setConfirmChildPin] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -82,6 +84,7 @@ export default function AppSignUp() {
   };
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const phoneValid = isValidPhMobile(phone);
   const strongPassword = Object.values(passwordChecks).every(Boolean);
   const passwordsMatch = password !== "" && password === confirmPassword;
   const pinsMatch = childPin.length === 4 && childPin === confirmChildPin;
@@ -108,6 +111,7 @@ export default function AppSignUp() {
       Boolean(username.trim()) &&
       Boolean(email.trim()) &&
       emailValid &&
+      phoneValid &&
       strongPassword &&
       passwordsMatch,
     [
@@ -122,6 +126,8 @@ export default function AppSignUp() {
       username,
       email,
       emailValid,
+      phoneValid,
+      phone,
       strongPassword,
       passwordsMatch,
     ]
@@ -139,6 +145,8 @@ export default function AppSignUp() {
     if (!username.trim()) missing.push("Username");
     if (!email.trim()) missing.push("Email address");
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) missing.push("Valid email address");
+    if (!phone.trim()) missing.push("Phone number");
+    else if (!isValidPhMobile(phone)) missing.push("Valid Philippine mobile number");
     if (!password) missing.push("Password");
     else if (!strongPassword) missing.push("Password: 8+ characters, uppercase, number, and symbol");
     if (!confirmPassword) missing.push("Confirm password");
@@ -183,7 +191,7 @@ export default function AppSignUp() {
         gradeLevel: "",
         pinCode: cleanPin,
         nickname: childNickname.trim() || "n/a",
-      });
+      }, normalizePhMobile(phone) || phone);
 
       if (credential.needsEmailConfirmation) {
         setConfirmationEmail(cleanEmail);
@@ -310,6 +318,26 @@ export default function AppSignUp() {
                 <p className="app-auth-hint">Used for verification and password recovery.</p>
                 {email.length > 0 && !emailValid && (
                   <p className="app-auth-field-error">Enter a valid email address.</p>
+                )}
+              </div>
+
+              <div className="app-auth-field">
+                <RequiredLabel htmlFor="app-signup-phone">Phone number</RequiredLabel>
+                <input
+                  id="app-signup-phone"
+                  className={`app-auth-input${phone && !phoneValid ? " app-auth-input-invalid" : ""}`}
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="09XX XXX XXXX"
+                  required
+                  aria-required="true"
+                  value={phone}
+                  onChange={(event) => setPhone(event.target.value)}
+                />
+                <p className="app-auth-hint">Used for attendance and allergy SMS alerts.</p>
+                {phone.length > 0 && !phoneValid && (
+                  <p className="app-auth-field-error">Enter a valid Philippine mobile number.</p>
                 )}
               </div>
 

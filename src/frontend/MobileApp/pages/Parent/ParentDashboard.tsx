@@ -8,6 +8,8 @@ import {
 } from "../../../../backend/childProgress";
 import { getChildCategoryProgress, getLatestChildAttempt, getParentAnnouncements, getParentChildren, type ParentAnnouncement, type SupabaseChild } from "../../../../backend/supabaseData";
 import { getOfflineCategoryProgress, getOfflineChildrenFromSqlite, cacheOfflineCategoryProgress } from "../../../../backend/offlineSqlite";
+import { formatPhMobileDisplay, getParentPhone, isValidPhMobile, parentSmsToast, saveParentPhone } from "../../../../backend/parentPhone";
+import { sendTeacherSmsMessage } from "../../../../backend/parentTeacherMessages";
 
 type ChildSummary = {
   id: string;
@@ -85,6 +87,212 @@ function recentLine(child: SupabaseChild, latest: { categoryCode: string; gameCo
     last_name: child.lastName,
   });
   return latest?.finished ? `${recentName} completed "${category}"` : `${recentName} played "${category}"`;
+}
+
+type ContactNotice = { kind: "ok" | "err"; title: string; detail: string };
+
+function ContactAlert({ notice, onClose }: { notice: ContactNotice; onClose: () => void }) {
+  return (
+    <div className={`pd-contact-alert is-${notice.kind}`} role={notice.kind === "err" ? "alert" : "status"}>
+      <span className="pd-contact-alert-mark" aria-hidden="true">{notice.kind === "ok" ? "✓" : "!"}</span>
+      <div>
+        <strong>{notice.title}</strong>
+        <p>{notice.detail}</p>
+      </div>
+      <button type="button" className="pd-contact-alert-close" onClick={onClose} aria-label="Dismiss">
+        ×
+      </button>
+    </div>
+  );
+}
+
+function ParentContactCard({ parentId, learners }: { parentId: string; learners: ChildSummary[] }) {
+  const [phone, setPhone] = React.useState("");
+  const [savedPhone, setSavedPhone] = React.useState("");
+  const [editingPhone, setEditingPhone] = React.useState(true);
+  const [phoneNotice, setPhoneNotice] = React.useState<ContactNotice | null>(null);
+  const [phoneSaving, setPhoneSaving] = React.useState(false);
+  const [sms, setSms] = React.useState("");
+  const [smsNotice, setSmsNotice] = React.useState<ContactNotice | null>(null);
+  const [smsSending, setSmsSending] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!parentId) return;
+    let alive = true;
+    void getParentPhone(parentId).then((saved) => {
+      if (!alive || !saved) return;
+      const display = formatPhMobileDisplay(saved);
+      setPhone(display);
+      setSavedPhone(display);
+      setEditingPhone(false);
+    });
+    return () => { alive = false; };
+  }, [parentId]);
+
+  React.useEffect(() => {
+    if (phoneNotice?.kind !== "ok") return;
+    const timer = window.setTimeout(() => setPhoneNotice(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [phoneNotice]);
+
+  React.useEffect(() => {
+    if (smsNotice?.kind !== "ok") return;
+    const timer = window.setTimeout(() => setSmsNotice(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [smsNotice]);
+
+  const savePhone = async () => {
+    if (!parentId || phoneSaving) return;
+    if (!isValidPhMobile(phone)) {
+      setPhoneNotice({
+        kind: "err",
+        title: "Check the number",
+        detail: "Use a Philippine mobile number, like 0917 123 4567.",
+      });
+      return;
+    }
+    setPhoneSaving(true);
+    setPhoneNotice(null);
+    try {
+      const saved = await saveParentPhone(parentId, phone);
+      const stored = await getParentPhone(parentId);
+      const display = formatPhMobileDisplay(stored || saved);
+      setPhone(display);
+      setSavedPhone(display);
+      setEditingPhone(false);
+      setPhoneNotice({
+        kind: "ok",
+        title: "Phone number saved",
+        detail: "This is now on your parent account. Tap Edit to change it.",
+      });
+    } catch (error) {
+      setPhoneNotice({
+        kind: "err",
+        title: "Could not save",
+        detail: error instanceof Error ? error.message : "Try again in a moment.",
+      });
+    } finally {
+      setPhoneSaving(false);
+    }
+  };
+
+  const sendSms = async () => {
+    if (!parentId || smsSending) return;
+    setSmsSending(true);
+    setSmsNotice(null);
+    try {
+      const child = learners[0];
+      const result = await sendTeacherSmsMessage({
+        parentId,
+        childId: child?.id,
+        childName: child?.name,
+        message: sms,
+      });
+      const smsLine = parentSmsToast(result.status, result.phone, "teacher");
+      setSms("");
+      setSmsNotice({
+        kind: "ok",
+        title: "Message sent",
+        detail: smsLine ? `Teacher was notified. ${smsLine}.` : "Teacher was notified in the web app.",
+      });
+    } catch (error) {
+      setSmsNotice({
+        kind: "err",
+        title: "Could not send",
+        detail: error instanceof Error ? error.message : "Try again in a moment.",
+      });
+    } finally {
+      setSmsSending(false);
+    }
+  };
+
+  return (
+    <section className="pd-card pd-contact-card" aria-label="Contact the teacher">
+      <div className="pd-card-header pd-contact-head">
+        <span className="pd-icon pd-contact-icon" aria-hidden="true">&#128241;</span>
+        <div className="pd-contact-heading">
+          <p className="pd-contact-kicker">Stay in touch</p>
+          <h2>Contact teacher</h2>
+        </div>
+      </div>
+      <p className="pd-contact-copy">Save your number for SMS alerts, then send a short note.</p>
+
+      <div className="pd-contact-panel">
+        <div className="pd-contact-field">
+          <span className="pd-contact-label">Your phone number</span>
+          <small>Used for attendance and allergy SMS.</small>
+          {savedPhone && !editingPhone ? (
+            <div className="pd-contact-detail">
+              <input type="text" readOnly value={savedPhone} aria-label="Saved phone number" />
+              <button
+                type="button"
+                className="pd-contact-edit"
+                onClick={() => {
+                  setEditingPhone(true);
+                  setPhone(savedPhone);
+                }}
+              >
+                Edit
+              </button>
+            </div>
+          ) : (
+            <div className="pd-contact-row">
+              <input
+                type="text"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="09XX XXX XXXX"
+                value={phone}
+                onChange={(event) => {
+                  setPhone(event.target.value);
+                  if (phoneNotice) setPhoneNotice(null);
+                }}
+              />
+              <button type="button" disabled={phoneSaving || !parentId} onClick={() => void savePhone()}>
+                {phoneSaving ? "Saving…" : "Save"}
+              </button>
+              {savedPhone ? (
+                <button
+                  type="button"
+                  className="pd-contact-edit"
+                  onClick={() => {
+                    setPhone(savedPhone);
+                    setEditingPhone(false);
+                    setPhoneNotice(null);
+                  }}
+                >
+                  Cancel
+                </button>
+              ) : null}
+            </div>
+          )}
+        </div>
+        {phoneNotice ? <ContactAlert notice={phoneNotice} onClose={() => setPhoneNotice(null)} /> : null}
+      </div>
+
+      <div className="pd-contact-panel pd-contact-panel-sms">
+        <label className="pd-contact-field">
+          <span className="pd-contact-label">Message the teacher</span>
+          <small>Sent as SMS to the teacher’s saved number.</small>
+          <textarea
+            rows={3}
+            maxLength={320}
+            placeholder="Write a short message for the teacher…"
+            value={sms}
+            onChange={(event) => {
+              setSms(event.target.value);
+              if (smsNotice) setSmsNotice(null);
+            }}
+          />
+          <span className="pd-contact-count">{sms.length}/320</span>
+          <button type="button" className="pd-contact-full" disabled={smsSending || !sms.trim() || !parentId} onClick={() => void sendSms()}>
+            {smsSending ? "Sending…" : "Send SMS to teacher"}
+          </button>
+        </label>
+        {smsNotice ? <ContactAlert notice={smsNotice} onClose={() => setSmsNotice(null)} /> : null}
+      </div>
+    </section>
+  );
 }
 
 export default function ParentDashboard() {
@@ -186,6 +394,8 @@ export default function ParentDashboard() {
       <section className="pd-welcome">
         <h1 className="pd-welcome-text">Welcome!</h1>
       </section>
+
+      <ParentContactCard parentId={parentId} learners={children} />
 
       <section className="pd-card pd-summary">
         <div className="pd-card-header">

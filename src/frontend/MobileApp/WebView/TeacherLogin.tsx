@@ -26,6 +26,8 @@ export default function TeacherLogin({ onAuthenticated, onBack }: {
   const [browserPrompt, setBrowserPrompt] = useState(false);
 
   const finishTeacherLogin = async (teacherUser: Record<string, unknown>, cleanUsername: string, cleanPassword: string) => {
+    localStorage.setItem("user", JSON.stringify(teacherUser));
+    await cacheVerifiedLogin(cleanUsername, cleanPassword, teacherUser as { role: "teacher" });
     if (isMobileApp()) {
       setBrowserPrompt(true);
       return;
@@ -34,8 +36,6 @@ export default function TeacherLogin({ onAuthenticated, onBack }: {
       onAuthenticated();
       return;
     }
-    localStorage.setItem("user", JSON.stringify(teacherUser));
-    await cacheVerifiedLogin(cleanUsername, cleanPassword, teacherUser as { role: "teacher" });
     navigate("/teacher-dashboard");
   };
 
@@ -89,7 +89,18 @@ export default function TeacherLogin({ onAuthenticated, onBack }: {
   return (
     <main className="app-auth-shell">
       {loading && <BearLoading overlay />}
-      <TeacherBrowserPrompt open={browserPrompt} onClose={() => setBrowserPrompt(false)} />
+      <TeacherBrowserPrompt
+        open={browserPrompt}
+        onClose={() => setBrowserPrompt(false)}
+        onStayInApp={() => {
+          setBrowserPrompt(false);
+          if (onAuthenticated) {
+            onAuthenticated();
+            return;
+          }
+          navigate("/teacher-dashboard");
+        }}
+      />
       <section className="app-auth-phone" aria-label="LearnEase teacher sign in">
         {onBack && (
           <button className="app-auth-back-btn" type="button" aria-label="Back to parent sign in" onClick={onBack}>
