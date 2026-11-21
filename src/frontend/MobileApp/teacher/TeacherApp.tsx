@@ -5,7 +5,7 @@ import {
   Check, ChevronDown, CircleAlert, Download,
   HeartPulse, Home, LogOut, Mail, Menu, MoreHorizontal, Phone,
   Pencil, Plus, Search, Settings, ShieldCheck, Siren, Star, Trash2, Upload,
-  Pin, UserRound, Users, Video, X, Send, Trophy,
+  Pin, UserRound, Users, Video, X, Send, Trophy, MessageSquare,
 } from "lucide-react";
 import logo from "../../../../images/learnease logo-no bg.png";
 import BearLoading from "../BearLoading";
@@ -22,6 +22,7 @@ import { cacheOfflineCategoryProgress, cacheOfflineLessons, cacheOfflineChild, g
 import { getAttendanceRecords, localDateKey } from "../../../backend/attendance";
 import { StudentMonthReport } from "./AttendanceReports";
 import TeacherAttendance from "./TeacherAttendance";
+import { TeacherParentMessages } from "./TeacherParentMessages";
 import { NotificationBell } from "../notifications/NotificationInbox";
 import { enablePushNotifications, notificationDestination } from "../../../backend/appNotifications";
 import { getChildCategoryProgress, getClassroomChildren, getRecentChildAttempts, getRecentClassActivity, resolveChildParentId, sendParentAnnouncement } from "../../../backend/supabaseData";
@@ -52,7 +53,7 @@ import {
 import CertificateModal from "../pages/Student/CertificateModal";
 import { certificateDateText, downloadCertificatePng } from "../pages/Student/downloadCertificate";
 
-type PageKey = "dashboard" | "students" | "lessons" | "activities" | "attendance" | "announcements" | "health" | "rewards" | "settings";
+type PageKey = "dashboard" | "students" | "lessons" | "activities" | "attendance" | "announcements" | "messages" | "health" | "rewards" | "settings";
 type Notify = (text: string) => void;
 
 function studentAvatarContent(avatarId: string | null | undefined, fallback: string): ReactNode {
@@ -67,6 +68,7 @@ const navItems = [
   { key: "activities", label: "Activities & Quizzes", icon: Activity },
   { key: "attendance", label: "Attendance", icon: CalendarDays },
   { key: "announcements", label: "Announcements", icon: Mail },
+  { key: "messages", label: "Parent Messages", icon: MessageSquare },
   { key: "health", label: "Health Monitoring", icon: HeartPulse },
   { key: "rewards", label: "Rewards and certificates", icon: Award },
   { key: "settings", label: "Profile & Settings", icon: Settings },
@@ -1714,7 +1716,7 @@ function ProfileSettings({ teacher, notify, logout, onProfileUpdated }: { teache
 }
 
 export default function TeacherApp() {
-  const navigate = useNavigate(); const [page, setPage] = useState<PageKey>("dashboard"); const [menu, setMenu] = useState(false); const [profile, setProfile] = useState(false); const [alerts, setAlerts] = useState(false); const [toast, setToast] = useState("");
+  const navigate = useNavigate(); const [page, setPage] = useState<PageKey>("dashboard"); const [menu, setMenu] = useState(false); const [profile, setProfile] = useState(false); const [alerts, setAlerts] = useState(false); const [openNoticeId, setOpenNoticeId] = useState<string | null>(null); const [toast, setToast] = useState("");
   const [teacher, setTeacher] = useState<TeacherIdentity>(() => teacherIdentity());
   const { loading: pageLoading, transitionTo } = usePageTransition();
   const current = useMemo(() => navItems.find(x => x.key === page)!, [page]);
@@ -1739,5 +1741,5 @@ export default function TeacherApp() {
     transitionTo(() => setPage(key), force);
   };
   const logout = () => { localStorage.removeItem("user"); navigate("/teacher-login"); };
-  return <div className="teacher-app"><aside className={`ta-sidebar ${menu ? "open" : ""}`}><div className="ta-logo"><img src={logo}/><span><b>LearnEase</b><small>Teacher Portal</small></span><button onClick={() => setMenu(false)}><X/></button></div><nav>{navItems.map(({key,label,icon:Icon}) => <button className={page===key?"active":""} onClick={() => go(key)} key={key}><i><Icon/></i><b>{label}</b></button>)}</nav><div className="ta-side-profile"><i>{teacherAvatarContent(teacher)}</i><span><b>{teacher.name}</b><small>{teacher.role}</small></span><button onClick={logout}><LogOut/></button></div></aside>{menu && <button className="ta-backdrop" onClick={() => setMenu(false)}/>}<main><header className="ta-top"><button className="ta-menu" onClick={() => setMenu(true)}><Menu/></button><div className="ta-mobile-logo"><img src={logo}/><b>LearnEase</b></div><span className="ta-current"><CurrentIcon/><b>{current.label}</b></span><div className="ta-top-actions"><div><NotificationBell recipientRole="teacher" recipientId={teacherProfileKey(teacher)} open={alerts} onToggle={() => { setAlerts(!alerts); setProfile(false); }} onOpenNotification={item => go(notificationDestination(item, "teacher").teacherPage, true)} className="ta-bell" /></div><div><button className="ta-top-profile" onClick={() => {setProfile(!profile);setAlerts(false)}}><i>{teacherAvatarContent(teacher)}</i><span><b>{teacher.name}</b><small>{teacher.section || teacher.role}</small></span><ChevronDown/></button>{profile && <section className="ta-pop ta-profile-pop"><button onClick={() => go("settings")}><UserRound/> My Profile</button><button onClick={() => go("settings")}><Settings/> Settings</button><button onClick={logout}><LogOut/> Logout</button></section>}</div></div></header><div className={`ta-content${pageLoading ? " is-switching" : " is-ready"}`} key={page}>{page === "dashboard" && <Dashboard go={go} notify={notify}/>} {page === "students" && <Students notify={notify}/>} {page === "lessons" && <Lessons notify={notify}/>} {page === "activities" && <Activities notify={notify}/>} {page === "attendance" && <TeacherAttendance notify={notify} teacher={teacher}/>} {page === "announcements" && <Announcements notify={notify}/>} {page === "health" && <Health notify={notify}/>} {page === "rewards" && <Rewards />} {page === "settings" && <ProfileSettings teacher={teacher} notify={notify} logout={logout} onProfileUpdated={setTeacher}/>}</div></main><nav className="ta-bottom">{navItems.slice(0,5).map(({key,label,icon:Icon}) => <button className={page===key?"active":""} onClick={() => go(key)} key={key}><Icon/><span>{label.split(" ")[0]}</span></button>)}<button onClick={() => setMenu(true)}><MoreHorizontal/><span>More</span></button></nav>{toast && <div className="ta-toast"><Check/>{toast}</div>}{pageLoading && <BearLoading overlay />}</div>;
+  return <div className="teacher-app"><aside className={`ta-sidebar ${menu ? "open" : ""}`}><div className="ta-logo"><img src={logo}/><span><b>LearnEase</b><small>Teacher Portal</small></span><button onClick={() => setMenu(false)}><X/></button></div><nav>{navItems.map(({key,label,icon:Icon}) => <button className={page===key?"active":""} onClick={() => go(key)} key={key}><i><Icon/></i><b>{label}</b></button>)}</nav><div className="ta-side-profile"><i>{teacherAvatarContent(teacher)}</i><span><b>{teacher.name}</b><small>{teacher.role}</small></span><button onClick={logout}><LogOut/></button></div></aside>{menu && <button className="ta-backdrop" onClick={() => setMenu(false)}/>}<main><header className="ta-top"><button className="ta-menu" onClick={() => setMenu(true)}><Menu/></button><div className="ta-mobile-logo"><img src={logo}/><b>LearnEase</b></div><span className="ta-current"><CurrentIcon/><b>{current.label}</b></span><div className="ta-top-actions"><div><NotificationBell recipientRole="teacher" recipientId={teacherProfileKey(teacher)} open={alerts} onToggle={() => { setAlerts(!alerts); setProfile(false); }} onOpenNotification={item => { setOpenNoticeId(item.id); go(notificationDestination(item, "teacher").teacherPage, true); }} className="ta-bell" /></div><div><button className="ta-top-profile" onClick={() => {setProfile(!profile);setAlerts(false)}}><i>{teacherAvatarContent(teacher)}</i><span><b>{teacher.name}</b><small>{teacher.section || teacher.role}</small></span><ChevronDown/></button>{profile && <section className="ta-pop ta-profile-pop"><button onClick={() => go("settings")}><UserRound/> My Profile</button><button onClick={() => go("settings")}><Settings/> Settings</button><button onClick={logout}><LogOut/> Logout</button></section>}</div></div></header><div className={`ta-content${pageLoading ? " is-switching" : " is-ready"}`} key={page}>{page === "dashboard" && <Dashboard go={go} notify={notify}/>} {page === "students" && <Students notify={notify}/>} {page === "lessons" && <Lessons notify={notify}/>} {page === "activities" && <Activities notify={notify}/>} {page === "attendance" && <TeacherAttendance notify={notify} teacher={teacher}/>} {page === "announcements" && <Announcements notify={notify}/>} {page === "messages" && <TeacherParentMessages teacherId={teacherProfileKey(teacher)} focusId={openNoticeId} />} {page === "health" && <Health notify={notify}/>} {page === "rewards" && <Rewards />} {page === "settings" && <ProfileSettings teacher={teacher} notify={notify} logout={logout} onProfileUpdated={setTeacher}/>}</div></main><nav className="ta-bottom">{navItems.slice(0,5).map(({key,label,icon:Icon}) => <button className={page===key?"active":""} onClick={() => go(key)} key={key}><Icon/><span>{label.split(" ")[0]}</span></button>)}<button onClick={() => setMenu(true)}><MoreHorizontal/><span>More</span></button></nav>{toast && <div className="ta-toast"><Check/>{toast}</div>}{pageLoading && <BearLoading overlay />}</div>;
 }

@@ -220,3 +220,25 @@
 .ta-phone-sms{align-items:flex-start}
 .ta-phone-sms em{display:block;margin-top:4px;color:#5a7394;font-size:10px;font-style:normal;font-weight:700;line-height:1.35}
 .ta-teacher-profile-form label small{display:block;margin:2px 0 6px;color:#6a7d96;font-size:10px;font-weight:700}
+
+.ta-message-layout{display:grid;grid-template-columns:minmax(0,280px) minmax(0,1fr);gap:16px;align-items:start}
+.ta-message-list>div{max-height:min(68vh,640px);overflow:auto}
+.ta-message-row{width:100%;padding:12px 14px;border:0;border-bottom:1px solid #efedf2;background:transparent;display:flex;flex-direction:column;gap:3px;text-align:left;cursor:pointer}
+.ta-message-row:hover,.ta-message-row.is-open{background:#f5f8ff}
+.ta-message-row.unread{background:#fff8ea}
+.ta-message-row b{font-size:12px;color:#24304d}
+.ta-message-row small{color:#7d8497;font-size:10px;font-weight:700}
+.ta-message-row em{display:-webkit-box;overflow:hidden;-webkit-line-clamp:2;-webkit-box-orient:vertical;color:#5b6478;font-size:11px;font-style:normal;line-height:1.35}
+.ta-message-detail>dl{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0;padding:16px 18px 0}
+.ta-message-detail dt{color:#7d8497;font-size:9px;font-weight:900;letter-spacing:.04em;text-transform:uppercase}
+.ta-message-detail dd{margin:4px 0 0;font-size:13px;font-weight:800}
+.ta-message-body{margin:16px 18px 18px;padding:16px;border:1px solid #e8e4ef;border-radius:16px;background:#fbfbfe}
+.ta-message-body small{display:block;margin-bottom:8px;color:#7d65c5;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+.ta-message-body p{margin:0;white-space:pre-wrap;color:#25304d;font-size:15px;line-height:1.55}
+.ta-message-phone{display:flex;align-items:center;gap:8px;margin:0 18px 18px;color:#2d6cae;font-size:12px;font-weight:800}
+.ta-message-phone svg{width:16px}
+.ta-message-empty{padding:48px 24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;color:#7d8497}
+.ta-message-empty svg{width:36px;height:36px;color:#6b4db5}
+.ta-message-empty b{color:#25304d;font-size:16px}
+.ta-message-empty p{margin:0}
+@media(max-width:720px){.ta-message-layout{grid-template-columns:1fr}.ta-message-detail>dl{grid-template-columns:1fr}}

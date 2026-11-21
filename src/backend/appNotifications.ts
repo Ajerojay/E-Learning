@@ -418,7 +418,8 @@ export function notificationDestination(item: AppNotification, viewer: AppUserRo
     if (item.kind === "health" || item.kind === "emergency") return { teacherPage: "health" as const, parentPath: "/parent-dashboard" };
     if (item.kind === "attendance") return { teacherPage: "attendance" as const, parentPath: "/parent-dashboard" };
     if (item.kind === "classroom") return { teacherPage: "announcements" as const, parentPath: "/parent-dashboard" };
-    return { teacherPage: "dashboard" as const, parentPath: "/parent-dashboard" };
+    if (item.kind === "message") return { teacherPage: "messages" as const, parentPath: "/parent-dashboard" };
+    return { teacherPage: "messages" as const, parentPath: "/parent-dashboard" };
   }
   if (item.kind === "health" || item.kind === "emergency") {
     return { teacherPage: "health" as const, parentPath: "/parent-children?focus=allergy" };

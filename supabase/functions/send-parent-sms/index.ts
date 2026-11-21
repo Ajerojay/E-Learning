@@ -24,7 +24,11 @@ Deno.serve(async (request) => {
       return Response.json({ ok: false, error: "Number and message are required." }, { status: 400, headers: corsHeaders });
     }
 
-    const apiKey = Deno.env.get("SEMAPHORE_API_KEY") || "";
+    const apiKey =
+      Deno.env.get("SEMAPHORE_API_KEY") ||
+      Deno.env.get("semaphore") ||
+      Deno.env.get("SEMAPHORE") ||
+      "";
     if (!apiKey) {
       return Response.json({ ok: false, error: "unconfigured" }, { status: 501, headers: corsHeaders });
     }

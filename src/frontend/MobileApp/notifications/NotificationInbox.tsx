@@ -74,7 +74,7 @@ export function NotificationBell({ recipientRole, recipientId, open, onToggle, o
             <div className="le-note-empty">
               <Bell />
               <b>No notifications yet</b>
-              <small>{recipientRole === "teacher" ? "Parent allergy cards will appear here." : "Teacher messages will appear here."}</small>
+              <small>{recipientRole === "teacher" ? "Parent messages and alerts will appear here." : "Teacher messages will appear here."}</small>
             </div>
           ) : (
             <div className="le-note-list">
@@ -92,6 +92,7 @@ export function NotificationBell({ recipientRole, recipientId, open, onToggle, o
                     <span>
                       <b>{headingFor(item)}</b>
                       <small>{meta.label} · {relativeTime(item.createdAt)}</small>
+                      {item.body ? <em className="le-note-preview">{item.body}</em> : null}
                     </span>
                   </button>
                 );

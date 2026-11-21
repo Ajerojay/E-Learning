@@ -1,0 +1,4 @@
+project_id = "jqwbussboddnjqbjzysh"
+
+[functions.send-parent-sms]
+verify_jwt = true
